@@ -22,8 +22,8 @@ public:
 	float GetX();
 	float GetY();
 
-	float GetSpriteCameraX();
-	float GetSpriteCameraY();
+	int GetSpriteCameraX();
+	int GetSpriteCameraY();
 
 	void SetWidth(int W);
 	void SetHeight(int H);

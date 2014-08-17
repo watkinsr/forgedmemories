@@ -111,7 +111,7 @@ void FileManagement::HandleNPCFile(string file_loc){
 
 void FileManagement::HandleSpriteFile(){
 	string sprite_loc;
-	string file_loc = "data/sprites.txt";
+	string file_loc = "res/data/sprites.txt";
 	int x;
 	int y;
 	bool animation;

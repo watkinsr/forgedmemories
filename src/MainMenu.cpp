@@ -20,16 +20,16 @@ CMainMenu::CMainMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *pass
 	MouseY = passed_MouseY;
 
 
-	MainMenu = new CSprite(csdl_setup->GetRenderer(), "data/menu/mainmenu.gif", 0,0, ScreenWidth, ScreenHeight, CameraX, CameraY, CCollisionRect());
+	MainMenu = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/mainmenu.gif", 0,0, ScreenWidth, ScreenHeight, CameraX, CameraY, CCollisionRect());
 
-	PlayButton = new CSprite(csdl_setup->GetRenderer(), "data/menu/play-but.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
-	PlayButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "data/menu/play-but-scroll.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
-	OptionButton = new CSprite(csdl_setup->GetRenderer(), "data/menu/option-but.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
-	OptionButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "data/menu/option-but-scroll.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutButton = new CSprite(csdl_setup->GetRenderer(), "data/menu/about-but.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "data/menu/about-but-scroll.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutPage = new CSprite(csdl_setup->GetRenderer(), "data/menu/about-page.png", 0,0, 640,480, CameraX, CameraY, CCollisionRect());
-	AboutPage_Scroll = new CSprite(csdl_setup->GetRenderer(), "data/menu/about-page-hover.png", 0,0, 640, 480, CameraX, CameraY, CCollisionRect());
+	PlayButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/play-but.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
+	PlayButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/play-but-scroll.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
+	OptionButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/option-but.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
+	OptionButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/option-but-scroll.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
+	AboutButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-but.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
+	AboutButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-but-scroll.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
+	AboutPage = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-page.png", 0,0, 640,480, CameraX, CameraY, CCollisionRect());
+	AboutPage_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-page-hover.png", 0,0, 640, 480, CameraX, CameraY, CCollisionRect());
 
 	/*timeCheck = SDL_GetTicks();Follow = false;*/
 	/*distance = 0;
@@ -173,6 +173,8 @@ int CMainMenu::GetButtonClick()
 				}
 			}
 		}
+
+		return 0;
 	} /*while (start==false);*/
 	
 

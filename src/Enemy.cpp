@@ -4,10 +4,10 @@ CEnemy::CEnemy(int x_passed, int y_passed, float *CameraX, float *CameraY, CSDL_
 	x = x_passed;
 	y = y_passed;
 
-	enemy_sprite = new CSprite(csdl_setup->GetRenderer(),"data/environment/enemy_spritesheet.png",x,y,50,50,CameraX,CameraY, CCollisionRect());
+	enemy_sprite = new CSprite(csdl_setup->GetRenderer(),"res/data/environment/enemy_spritesheet.png",x,y,50,50,CameraX,CameraY, CCollisionRect());
 	enemy_sprite->SetUpAnimation(5,1);
 	//enemy_sprite->SetOrgin(enemy_sprite->GetWidth()/2.0f, enemy_sprite->GetHeight());
-	En_HP = new CSprite(csdl_setup->GetRenderer(),"data/hp_enem.png",x+10,y-10,24,4,CameraX,CameraY, CCollisionRect());
+	En_HP = new CSprite(csdl_setup->GetRenderer(),"res/data/hp_enem.png",x+10,y-10,24,4,CameraX,CameraY, CCollisionRect());
 
 	Damage = passed_Damage;
 	HP = passed_HP;
@@ -63,17 +63,17 @@ int CEnemy::getHPWidth(){
 void CEnemy::changeHP(vector<CEnemy*> EnemyVect, int EnemyVectNum, int PlayerDamage){
 	if (count == 0){
 		count ++;
-	PercentageHPChange = PlayerDamage;
-	temp = getHP() + PlayerDamage;
-	PercentageHPChange = PercentageHPChange/temp;
-	PercentageHPChange = PercentageHPChange*100;
-	DecreaseHPBy = En_HP->GetWidth();
-	DecreaseHPBy = DecreaseHPBy/100*PercentageHPChange;//100;
-	HPWidth = En_HP->GetWidth();
+		PercentageHPChange = (float)PlayerDamage;
+		temp = (float)(getHP() + PlayerDamage);
+		PercentageHPChange = PercentageHPChange/temp;
+		PercentageHPChange = PercentageHPChange*100;
+		DecreaseHPBy = (float)En_HP->GetWidth();
+		DecreaseHPBy = DecreaseHPBy/100*PercentageHPChange;//100;
+		HPWidth = En_HP->GetWidth();
 	}
-	HPWidth = HPWidth - DecreaseHPBy;
+	HPWidth = (int)(HPWidth - DecreaseHPBy);
 	EnemyVect[EnemyVectNum]->En_HP->TestWidthChange(HPWidth);
-	float temp2 = En_HP->GetWidth();
+	float temp2 = (float)En_HP->GetWidth();
 }
 
 int CEnemy::getHP(){
@@ -100,13 +100,13 @@ int CEnemy::GetSpriteCameraY(){
 //we can accomplish this by checking that the original position of the enemy is now 30, and if it is, stop doing so and move downwards
 //after we move downwards for 30 pixels, move left for 30 then up for 30.
 void CEnemy::GetAIPathSquare(){
-	float prevX = x;
-	float prevY = y;
+	float prevX = (float)x;
+	float prevY = (float)y;
 	float currentX = enemy_sprite->GetX();
 	float currentY = enemy_sprite->GetY();
 	
 	if (!isTimeSet){
-	time = SDL_GetTicks();
+		time = (float)SDL_GetTicks();
 	}
 	isTimeSet = true;
 

@@ -17,7 +17,7 @@ CSprite::CSprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int
 
 	CollisionImage = NULL;
 
-	CollisionImage = IMG_LoadTexture(renderer, "data/Debug/CollisionBox.png");
+	CollisionImage = IMG_LoadTexture(renderer, "res/data/Debug/CollisionBox.png");
 
 	if (CollisionImage == NULL){
 		std::cout << "Couldn't Load " << "CollisionImage" << std::endl;
@@ -35,8 +35,8 @@ CSprite::CSprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int
 	crop.w = img_width;
 	crop.h = img_height;
 
-	X_pos = x;
-	Y_pos = y;
+	X_pos = (float)x;
+	Y_pos = (float)y;
 
 	Orgin_X = 0;
 	Orgin_Y = 0;
@@ -48,8 +48,8 @@ CSprite::CSprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int
 	CameraX = passed_CameraX;
 	CameraY = passed_CameraY;
 
-	Camera.x = rect.x + *CameraX;
-	Camera.y = rect.y + *CameraY;
+	Camera.x = (int)(rect.x + *CameraX);
+	Camera.y = (int)(rect.y + *CameraY);
 	Camera.w = rect.w;
 	Camera.h = rect.h;
 
@@ -122,11 +122,10 @@ bool CSprite::HasAnimationFinished(){
 }
 
 bool CSprite::IsSpriteClose(CSprite* player, CSprite* enemy, float range){
-	float enemyX = enemy->GetSpriteCameraX();
-	float enemyY = enemy->GetSpriteCameraY();
-	float playerX = player->GetSpriteCameraX();
-	float playerY = player->GetSpriteCameraY();
-
+	float enemyX = (float)enemy->GetSpriteCameraX();
+	float enemyY = (float)enemy->GetSpriteCameraY();
+	float playerX = (float)player->GetSpriteCameraX();
+	float playerY = (float)player->GetSpriteCameraY();
 
 	playerX = playerX - 30;
 	playerY = playerY - 50;
@@ -144,10 +143,10 @@ bool CSprite::IsSpriteClose(CSprite* player, CSprite* enemy, float range){
 }
 
 void CSprite::MoveSpriteTowardsEntity(CSprite* player, CSprite* enemy){
-	float enemyX = enemy->GetSpriteCameraX();
-	float enemyY = enemy->GetSpriteCameraY();
-	float playerX = player->GetSpriteCameraX() - 30; //recenter playerX camera.
-	float playerY = player->GetSpriteCameraY() - 30; //recenter playerY camera.
+	float enemyX = (float)enemy->GetSpriteCameraX();
+	float enemyY = (float)enemy->GetSpriteCameraY();
+	float playerX = (float)(player->GetSpriteCameraX() - 30); //recenter playerX camera.
+	float playerY = (float)(player->GetSpriteCameraY() - 30); //recenter playerY camera.
 	float diffX = enemyX - playerX;
 	float diffY = enemyY - playerY;	
 
@@ -177,11 +176,11 @@ void CSprite::Draw()
 {
 
 	//offsets camera based on image.
-	Camera.x = rect.x + *CameraX;
-	Camera.y = rect.y + *CameraY;
+	Camera.x = (int)(rect.x + *CameraX);
+	Camera.y = (int)(rect.y + *CameraY);
 
-	CollisionRect.SetX(rect.x + *CameraX);
-	CollisionRect.SetY(rect.y + *CameraY);
+	CollisionRect.SetX(Camera.x);
+	CollisionRect.SetY(Camera.y);
 
 	SDL_RenderCopy(renderer,image, &crop, &Camera);
 
@@ -266,11 +265,11 @@ int CSprite::GetHeight()
 	return rect.h;
 }
 
-float CSprite::GetSpriteCameraX()
+int CSprite::GetSpriteCameraX()
 {
 	return Camera.x;
 }
-float CSprite::GetSpriteCameraY()
+int CSprite::GetSpriteCameraY()
 {
 	return Camera.y;
 }

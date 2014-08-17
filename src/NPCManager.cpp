@@ -16,13 +16,13 @@ NPCManager::~NPCManager(void)
 //id 1 = npc_1.jpg
 //etc
 void NPCManager::SetFileLocation(int npc_id){
-	string npc_fileloc = "data/npcs/npc_" + to_string(npc_id) + ".png";
+	string npc_fileloc = "res/data/npcs/npc_" + to_string(npc_id) + ".png";
 }
 
 
 ////void NPCManager::LoadNPCS(){
 ////	//FileManagement filemanagement;
-////	if (filemanagement.OpenFile("data/npcs.txt")){
+////	if (filemanagement.OpenFile("res/data/npcs.txt")){
 ////		string start_line = "--BEGIN NPC LOAD--";
 ////		//getline(LoadedFile, line)
 ////

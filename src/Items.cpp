@@ -15,9 +15,9 @@ Items::Items(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_Mouse
 	MouseY = passed_MouseY;
 
 
-	chest = new CSprite(csdl_setup->GetRenderer(), "data/misc/tchest.png", 400, 100, 47,47, CameraX, CameraY, CCollisionRect(0,0,47,47));
+	chest = new CSprite(csdl_setup->GetRenderer(), "res/data/misc/tchest.png", 400, 100, 47,47, CameraX, CameraY, CCollisionRect(0,0,47,47));
 	chest->SetUpAnimation(12,8);
-	chest->SetOrgin(chest->GetWidth()/2.0f, chest->GetHeight());
+	chest->SetOrgin((float)chest->GetWidth()/2.0f, (float)chest->GetHeight());
 
 
 	timeCheck = SDL_GetTicks();Follow = false;
@@ -46,7 +46,7 @@ void Items::UpdateAnimation()
 	float angle = atan2(Follow_Point_Y - *CameraY, Follow_Point_X - *CameraX);
 
 	//conversion to degrees
-	angle = (angle * (180/3.14) + 180);
+	angle = (angle * (180.0f/3.14f) + 180.0f);
 
 	if (!stopAnimation)
 	{
@@ -65,37 +65,37 @@ void Items::UpdateControls()
 	if (csdl_setup->GetMainEvent()->button.button == SDL_BUTTON_LEFT)
 	{
 		//changes position based on camera aswell
-		Follow_Point_X = *CameraX - *MouseX + 300;
-		Follow_Point_Y = *CameraY - *MouseY + 250;
+		Follow_Point_X = (int)(*CameraX - *MouseX + 300);
+		Follow_Point_Y = (int)(*CameraY - *MouseY + 250);
 		Follow = true;
 	}
 
 
-if (timeCheck+10 < SDL_GetTicks() && Follow)
-{
-
-	distance = GetDistance(*CameraX, *CameraY, Follow_Point_X, Follow_Point_Y);
-
-	if (distance == 0)
-		stopAnimation = true;
-	else 
-		stopAnimation = false;
-
-	if (distance > 15)
+	if ((timeCheck + 10 < SDL_GetTicks()) && Follow)
 	{
-		if (*CameraX != Follow_Point_X)
-		{
-			*CameraX = *CameraX - (((*CameraX-Follow_Point_X)/distance) * 1.5f ) ;
-		}
 
-		if (*CameraY != Follow_Point_Y)
+		distance = (float)GetDistance((int)*CameraX, (int)*CameraY, Follow_Point_X, Follow_Point_Y);
+
+		if (distance == 0.0f)
+			stopAnimation = true;
+		else
+			stopAnimation = false;
+
+		if (distance > 15)
 		{
-			*CameraY = *CameraY - (((*CameraY-Follow_Point_Y)/distance) * 1.5f ) ;
+			if (*CameraX != Follow_Point_X)
+			{
+				*CameraX = *CameraX - (((*CameraX - Follow_Point_X) / distance) * 1.5f);
+			}
+
+			if (*CameraY != Follow_Point_Y)
+			{
+				*CameraY = *CameraY - (((*CameraY - Follow_Point_Y) / distance) * 1.5f);
+			}
 		}
+		else
+			Follow = false;
+
+		timeCheck = SDL_GetTicks();
 	}
-	else 
-		Follow = false;
-
-	timeCheck = SDL_GetTicks();
-}
 }

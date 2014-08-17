@@ -12,7 +12,7 @@ TextManager::~TextManager(void){
 //should print text
 void TextManager::DrawDialog(vector<Text>textWithCoordAndStringMsg, string fontFile, CSDLFont_Setup* text, int fontSize){
 	text->setColor(255,255,255);
-	for (int i = 0; i < textWithCoordAndStringMsg.size(); i++){
+	for (unsigned int i = 0; i < textWithCoordAndStringMsg.size(); i++){
 		text->getText(textWithCoordAndStringMsg[i].getMessage(), fontFile, textWithCoordAndStringMsg[i].getX(), 
 		textWithCoordAndStringMsg[i].getY(), text->getColor(), fontSize, true, false , csdl_setup->GetRenderer());
 	}

@@ -143,14 +143,14 @@ void BattleManager::HandleBattle(MainCharacter* player, CSprite* playerSprite, C
 //if the player is in the right place to hit and space is pressed, then do damage.
 void BattleManager::HandlePlayerAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
 	count = 0;
-	float playerX = playerSprite->GetSpriteCameraX() - 20;
-	float playerY = playerSprite->GetSpriteCameraY() - 40;
+	float playerX = (float)playerSprite->GetSpriteCameraX() - 20.0f;
+	float playerY = (float)playerSprite->GetSpriteCameraY() - 40.0f;
 	
 
 	for (vector<CEnemy*>::iterator i = (*enemies).begin(); i != (*enemies).end(); ++i)
 	{
-		float enemyX = (*i)->GetSpriteCameraX();
-		float enemyY = (*i)->GetSpriteCameraY();
+		float enemyX = (float)(*i)->GetSpriteCameraX();
+		float enemyY = (float)(*i)->GetSpriteCameraY();
 
 		float rangeBetweenX = playerX - enemyX;
 		float rangeBetweenY = playerY - enemyY;
@@ -184,11 +184,11 @@ void BattleManager::HandlePlayerAttack(MainCharacter* player, CSprite* playerSpr
 //if the enemy is to the left of player, then take player damage.
 void BattleManager::HandleEnemyMeleeAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
 	count = 0;
-	float player_x = playerSprite->GetSpriteCameraX() - 20;
-	float player_y = playerSprite->GetSpriteCameraY() - 40;
+	float player_x = (float)playerSprite->GetSpriteCameraX() - 20.0f;
+	float player_y = (float)playerSprite->GetSpriteCameraY() - 40.0f;
 	for (vector<CEnemy*>::iterator i = (*enemies).begin(); i != (*enemies).end(); ++i){
-		float enemy_x = (*i)->GetSpriteCameraX();
-		float enemy_y = (*i)->GetSpriteCameraY();
+		float enemy_x = (float)(*i)->GetSpriteCameraX();
+		float enemy_y = (float)(*i)->GetSpriteCameraY();
 
 		float range_x = player_x - enemy_x;
 		float range_y = player_y - enemy_y;
@@ -226,7 +226,7 @@ void BattleManager::DoDamageToEnemy(MainCharacter* player, CSprite* playerSprite
 	vector<Text>tempTextVect;
 	tempTextVect.push_back(dmgtext);
 	CSDLFont_Setup font(csdl_setup);
-	float time = SDL_GetTicks();
+	float time = (float)SDL_GetTicks();
 	do{
 	EventManager* event = new EventManager(csdl_setup, mouseX, mouseY);
 	event->DrawGame(player, playerSprite, enHP, pub, *enemies);
@@ -252,7 +252,7 @@ void BattleManager::DoDamageToPlayer(MainCharacter* player, CSprite* player_spri
 	vector<Text>temp_text_vect;
 	temp_text_vect.push_back(damage_text);
 	CSDLFont_Setup font(csdl_setup);
-	float time = SDL_GetTicks();
+	float time = (float)SDL_GetTicks();
 	//draw the game and the text for 300ms.
 	do{
 	EventManager* event = new EventManager(csdl_setup, mouseX, mouseY);

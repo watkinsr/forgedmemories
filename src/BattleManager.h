@@ -11,7 +11,7 @@ const int DIALOGXLOC = 50;
 const int FIRSTLINEY = 400;
 const int SECONDLINEY = 420;
 const int THIRDLINEY = 440;
-const string FONTFILE = "Fonts/Minecraftia.ttf";
+const string FONTFILE = "res/fonts/Minecraftia.ttf";
 
 class BattleManager
 {

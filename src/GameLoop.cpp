@@ -10,7 +10,7 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 	
 	csdl_setup = new CSDL_Setup(&quit, ScreenWidth, ScreenHeight);
 	mainmenu = new CMainMenu(csdl_setup, &MouseX, &MouseY, ScreenWidth, ScreenHeight, &CameraX, &CameraY); //5mb
-	pub = new CEnvironment(ScreenWidth, ScreenHeight, &CameraX, &CameraY, "data/environment/pub/floorbig.png", csdl_setup,2,2,640,480, true, false, 1);	//13mb
+	pub = new CEnvironment(ScreenWidth, ScreenHeight, &CameraX, &CameraY, "res/data/environment/pub/floorbig.png", csdl_setup,2,2,640,480, true, false, 1);	//13mb
 	player = new MainCharacter(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY, pub); //shouldn't even be taking in pub, it makes no sense.
 	enemies = new CEnemies(csdl_setup,0,0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight); //60mb
 	text = new CSDLFont_Setup(csdl_setup);
@@ -79,8 +79,8 @@ void GameLoop::GroupEntities(){
 
 //must load quests before npc's as npc's need a quest to be initialised.
 void GameLoop::LoadFiles(){
-filemanager->HandleQuestFile("data/quests.txt");
-filemanager->HandleNPCFile("data/npcs.txt");
+filemanager->HandleQuestFile("res/data/quests.txt");
+filemanager->HandleNPCFile("res/data/npcs.txt");
 filemanager->HandleSpriteFile();
 entities = filemanager->GetEntities();
 }

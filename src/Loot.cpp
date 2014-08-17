@@ -58,23 +58,25 @@ double Loot::GetDistanceFromObj(int player_x, int player_y, int obj_x, int obj_y
 
 //create player sprite object, setup animation and size.
 void Loot::SetPlayerSprite(){
-	player = new CSprite(csdl_setup->GetRenderer(), "data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CCollisionRect(290,240,25,20));
+	player = new CSprite(csdl_setup->GetRenderer(), "res/data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CCollisionRect(290,240,25,20));
 	player->SetUpAnimation(4,2);
-	player->SetOrgin(player->GetWidth()/2.0f, player->GetHeight());
+	player->SetOrgin((float)player->GetWidth()/2.0f, (float)player->GetHeight());
 }
 
 CSprite* Loot::GetPlayerSprite(){
 	if (player != NULL)
-	return player;
+		return player;
+
+	return nullptr;
 }
 CSprite* Loot::GetLoot(){
 	return chest;
 }
 
 void Loot::InitChest(){
-chest = new CSprite(csdl_setup->GetRenderer(), "data/environment/red-chest.png", 400, 200, 45,45, CameraX, CameraY, CCollisionRect(0,0,46,46));
-chest->SetUpAnimation(4,1);
-chest->SetOrgin(chest->GetWidth(), chest->GetHeight());
-CHEST_OPEN = false;
+	chest = new CSprite(csdl_setup->GetRenderer(), "res/data/environment/red-chest.png", 400, 200, 45, 45, CameraX, CameraY, CCollisionRect(0, 0, 46, 46));
+	chest->SetUpAnimation(4, 1);
+	chest->SetOrgin((float)chest->GetWidth(), (float)chest->GetHeight());
+	CHEST_OPEN = false;
 }
 

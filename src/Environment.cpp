@@ -89,7 +89,7 @@ void CEnvironment::DrawFront(){
 }
 
 void CEnvironment::LoadEnvFile(){
-	ifstream LoadedFile ("data/Map.txt");
+	ifstream LoadedFile ("res/data/Map.txt");
 
 	string line;
 
@@ -213,7 +213,7 @@ void CEnvironment::LoadEnvFile(){
 
 void CEnvironment::FileSave(){
 	ofstream LoadedFile;
-	LoadedFile.open("data/Map.txt");
+	LoadedFile.open("res/data/Map.txt");
 	LoadedFile << "----====TREE SETTINGS====----" << endl;
 	for (vector<Tree*>::iterator i = trees.begin(); i != trees.end(); ++i){
 		LoadedFile << "x: " << (*i)->GetX() << "\ty: " << (*i)->GetY() << endl;
@@ -247,7 +247,7 @@ void CEnvironment::Update(){
 		if (csdl_setup->GetMainEvent()->type == SDL_KEYDOWN){
 			if (!onePressed && csdl_setup->GetMainEvent()->key.keysym.sym == SDLK_F1)
 			{
-				trees.push_back(new Tree(-*CameraX+275,-*CameraY+107, CameraX, CameraY, csdl_setup));
+				trees.push_back(new Tree((int)-*CameraX+275,(int)-*CameraY+107, CameraX, CameraY, csdl_setup));
 				onePressed = true;
 			}
 		}

@@ -74,6 +74,8 @@ bool Quests::CheckQuestComplete(int questRef, BattleManager *battlemanager){
 		else quest_complete = false;
 		return quest_complete;
 	}
+
+	return false;
 }
 
 void Quests::QuestSuccess(vector<Quests*>quests, int quest_id, MainCharacter* player, CSprite* player_sprite, CSprite* dia_box_sprite, 

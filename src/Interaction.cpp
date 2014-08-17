@@ -25,7 +25,7 @@ CInteraction::CInteraction(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int
 	screenHeight = 0;
 	opt_select = 0;
 	hasKeyBeenReleased = true;
-	Menu_Select = new CSprite(csdl_setup->GetRenderer(),"data/menu_select.png",32,426,13,13,CameraX,CameraY, CCollisionRect());
+	Menu_Select = new CSprite(csdl_setup->GetRenderer(),"res/data/menu_select.png",32,426,13,13,CameraX,CameraY, CCollisionRect());
 }
 
 CInteraction::~CInteraction()
@@ -88,6 +88,8 @@ bool CInteraction::checkInteraction(CSprite* some_sprite)
 		click = true;
 		return click;
 	}
+
+	return false;
 
 }
 

@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include <vld.h>
+//#include <vld.h>
 #include "GameLoop.h"
 
-const string g_FONT_FILE = "Fonts/Minecraftia.ttf";
+const string g_FONT_FILE = "res/fonts/Minecraftia.ttf";
 
 using namespace std;
 

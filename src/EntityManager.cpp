@@ -19,9 +19,11 @@ void EntityManager::RemoveQuest(int quest_id){
 }
 
 bool EntityManager::AnyQuestAccepted(){
-	for (int i = 0; i < quests.size(); i++){
+	for (unsigned int i = 0; i < quests.size(); i++){
 		return quests[i]->GetQuestAccept();
 	}
+
+	return false;
 }
 
 void EntityManager::AddNPCs(NPC* npc){
