@@ -15,7 +15,7 @@ NPC::NPC(int p_x, int p_y, int p_npc_id, string p_npc_sprite_loc, string p_name,
 	CameraY = p_camera_y;
 	file_loc = p_npc_sprite_loc;
 	npcSprite = new CSprite(csdl_setup->GetRenderer(),file_loc,x,y,NPCSPRITEWIDTH,NPCSPRITEHEIGHT,CameraX, CameraY,CCollisionRect());
-	npc_hover_interact = new CSprite(csdl_setup->GetRenderer(),"data/NPCS/npc_hover_interact.png",NPCINTERACTSYMBOLX,NPCINTERACTSYMBOLY,6,23,CameraX, CameraY,CCollisionRect());
+	npc_hover_interact = new CSprite(csdl_setup->GetRenderer(),"res/data/NPCS/npc_hover_interact.png",NPCINTERACTSYMBOLX,NPCINTERACTSYMBOLY,6,23,CameraX, CameraY,CCollisionRect());
 	NPCTextObj = new Text();
 	numNPC = p_npc_id;
 	NPCQuest = *quests[numNPC];
@@ -82,7 +82,7 @@ CSprite NPC::GetNPCSprite(){
 }
 
 bool NPC::isPlayerCloseToGetQuest(Quests *objOfQuests, vector<NPC> vectOfNPCS, CSprite* player){
-	for (int i = 0; i < vectOfNPCS.size(); i++)
+	for (unsigned int i = 0; i < vectOfNPCS.size(); i++)
 	{
 		int playerLocX = player->GetSpriteCameraX();
 		int playerLocY = player->GetSpriteCameraY();
@@ -106,7 +106,7 @@ void NPC::GetNpcFileLocation(){
 	//set for testing purposes.
 	level_num = 1;
 	if (level_num == 1 && numNPC == 0){
-		NPCAssets.push_back("data/environment/pub/NPCs/NPC1.png");
+		NPCAssets.push_back("res/data/environment/pub/NPCs/NPC1.png");
 
 		//meant for another function
 		///*Quests quest01;
@@ -154,7 +154,7 @@ void NPC::DisplayQuestMenu(int npc_id, vector<Quests*>quests, MainCharacter* pla
 }
 
 //check the user input, i.e. has the user pressed down or up through the menus, enter to get through the selections.
-bool NPC::CheckUserPress(CSprite* menu_arrow_sprite, int NPCRefNumber, Quests* quest){
+int NPC::CheckUserPress(CSprite* menu_arrow_sprite, int NPCRefNumber, Quests* quest){
 	//disable the option to move up/down dependent on whether you have pressed accept for second opt.
 	optSelect = 0;
 	switch (csdl_setup->GetMainEvent()->type)

@@ -23,11 +23,11 @@ void ConsoleDebug::ClearConsole(float time_delay){
 
 	//if we haven't obtained the time, get the time.
 	if (!time_init){
-		orig_time = SDL_GetTicks();
+		orig_time = (float)SDL_GetTicks();
 		time_init = true;
 	}
 	//is the current time more than the previous and the delay. If so, let's clear the console.
-	float current_time = SDL_GetTicks();
+	float current_time = (float)SDL_GetTicks();
 	if (current_time > orig_time + time_delay){
 		for (int i = 0; i < 20; i++)
 		{

@@ -31,7 +31,7 @@ public:
 	void InitialiseQuestMenu(int npc_id, Quests *quest);
 	int GetNPCX();
 	int GetNPCY();
-	bool CheckUserPress(CSprite* menu_arrow_sprite, int npc_id, Quests* quests);
+	int CheckUserPress(CSprite* menu_arrow_sprite, int npc_id, Quests* quests);
 	string GetQuestDesc();
 	Quests GetQuest();
 

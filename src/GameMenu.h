@@ -28,7 +28,7 @@ void RemoveQuest(BattleManager* battlemanager, EntityManager* entities);
 void SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon);
 void ResetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon);
 bool IsEscPressed();
-bool CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities);
+int CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities);
 void initialiseYValues();
 
 vector<string>g_GameMenuText;

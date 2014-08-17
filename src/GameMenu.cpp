@@ -81,12 +81,12 @@ void GameMenu::initialiseYValues(){
 void GameMenu::SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
 	//store the previous values for later usage when we want to reset where these icons etc were previously.
 	GameMenuGFXVals.clear();
-	GameMenuGFXVals.push_back(diaBoxSprite->GetX());
-	GameMenuGFXVals.push_back(diaBoxSprite->GetY());
+	GameMenuGFXVals.push_back((int)diaBoxSprite->GetX());
+	GameMenuGFXVals.push_back((int)diaBoxSprite->GetY());
 	GameMenuGFXVals.push_back(diaBoxSprite->GetWidth());
 	GameMenuGFXVals.push_back(diaBoxSprite->GetHeight());
-	GameMenuGFXVals.push_back(dialogIcon->GetX());
-	GameMenuGFXVals.push_back(dialogIcon->GetY());
+	GameMenuGFXVals.push_back((int)dialogIcon->GetX());
+	GameMenuGFXVals.push_back((int)dialogIcon->GetY());
 
 	//set the sprites so the menu gfx are in the right place.
 	diaBoxSprite->SetX(240);
@@ -99,12 +99,12 @@ void GameMenu::SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
 
 void GameMenu::ResetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
 	if (GameMenuGFXVals.size() == 6){
-	diaBoxSprite->SetX(GameMenuGFXVals[0]);
-	diaBoxSprite->SetWidth(GameMenuGFXVals[1]);
-	diaBoxSprite->SetHeight(GameMenuGFXVals[2]);
-	diaBoxSprite->SetY(GameMenuGFXVals[3]);
-	dialogIcon->SetX(GameMenuGFXVals[4]);
-	dialogIcon->SetY(GameMenuGFXVals[5]);
+		diaBoxSprite->SetX((float)GameMenuGFXVals[0]);
+		diaBoxSprite->SetWidth(GameMenuGFXVals[1]);
+		diaBoxSprite->SetHeight(GameMenuGFXVals[2]);
+		diaBoxSprite->SetY((float)GameMenuGFXVals[3]);
+		dialogIcon->SetX((float)GameMenuGFXVals[4]);
+		dialogIcon->SetY((float)GameMenuGFXVals[5]);
 	}
 	else 
 		cout << "Error 0: GameMenuGFXVector size incorrect, can't reset the vector" << endl;
@@ -134,12 +134,12 @@ void GameMenu::DisplayGameMenu(MainCharacter* player, CSprite* playerSprite, CSp
 }
 
 
-bool GameMenu::CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities){
+int GameMenu::CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities){
 	vector<Quests*>quests = entities->GetQuests();
 
 	opt_select = 0;
 
-	menu_choice->SetY(prev_menu_choice_y);
+	menu_choice->SetY((float)prev_menu_choice_y);
 
 	switch (csdl_setup->GetMainEvent()->type)
 	{
@@ -214,7 +214,7 @@ bool GameMenu::CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityMan
 			if (menu_choice->GetY() == coords[5])
 			{
 				cout << "You have pressed enter on third option" << endl;
-				for (int i = 0; i < quests.size(); i++){
+				for (unsigned int i = 0; i < quests.size(); i++){
 					if (entities->AnyQuestAccepted()){
 						g_GameMenuText.push_back(quests[i]->GetQuest());
 						GameMenuTextObj->eraseAllMessagesInVector();
@@ -257,13 +257,14 @@ bool GameMenu::CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityMan
 		}
 		break;
 	}
-	prev_menu_choice_y = menu_choice->GetY();
+	prev_menu_choice_y = (int)menu_choice->GetY();
+
 	return opt_select;
 }
 
 void GameMenu::RemoveQuest(BattleManager* battlemanager, EntityManager* entities){
 	vector<Quests*>quests = entities->GetQuests();
-	for (int i = 0; i < quests.size(); i++){
+	for (unsigned int i = 0; i < quests.size(); i++){
 		int quest_id = i;
 		if (quests[i]->CheckQuestComplete(quest_id, battlemanager)){
 			//TODO:

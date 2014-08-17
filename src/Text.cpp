@@ -27,7 +27,7 @@ void Text::editAllMessagesInVector(int amountOfSlotsToEdit, vector<string>String
 }
 
 void Text::eraseAllMessagesInVector(){
-	for (int i = 0; i < textVect.size(); i++){
+	for (unsigned int i = 0; i < textVect.size(); i++){
 		textVect.erase (textVect.begin(),textVect.begin()+textVect.size());
 	}
 }

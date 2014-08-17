@@ -9,9 +9,9 @@ CBattle::CBattle(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_M
 	MouseX = passed_MouseX;
 	MouseY = passed_MouseY;
 
-	DiaBox = new CSprite(csdl_setup->GetRenderer(),"data/dia_box_norm.png",0,385,640,100,CameraX,CameraY, CCollisionRect());
-	En_HP = new CSprite(csdl_setup->GetRenderer(),"data/hp_enem.png",10,-10,24,4,CameraX,CameraY, CCollisionRect());
-	dialogIcon = new CSprite(csdl_setup->GetRenderer(),"data/menu_select.png",32,426,13,13,CameraX,CameraY, CCollisionRect());
+	DiaBox = new CSprite(csdl_setup->GetRenderer(),"res/data/dia_box_norm.png",0,385,640,100,CameraX,CameraY, CCollisionRect());
+	En_HP = new CSprite(csdl_setup->GetRenderer(),"res/data/hp_enem.png",10,-10,24,4,CameraX,CameraY, CCollisionRect());
+	dialogIcon = new CSprite(csdl_setup->GetRenderer(),"res/data/menu_select.png",32,426,13,13,CameraX,CameraY, CCollisionRect());
 	isBattle = false;
 	count = 0;
 }

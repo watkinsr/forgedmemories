@@ -10,7 +10,7 @@
 #include "Text.h"
 #include "SDL_Setup.h"
 
-const string FONT_FILE = "Fonts/Minecraftia.ttf";
+const string FONT_FILE = "res/fonts/Minecraftia.ttf";
 const int DIALOGSTARTPOSX = 50;
 const int DIALOGSTARTPOSY = 400;
 

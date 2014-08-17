@@ -26,7 +26,8 @@ void Point::setPointVect(int i, ...){
 		pointVect.push_back(total);
 	} /* end for */ 
 
-	va_end( ap ); /* end the va_start */ 	
+	va_end( ap ); /* end the va_start */ 
+	
 
 }
 

@@ -11,10 +11,10 @@ MainCharacter::MainCharacter(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, i
 	csdl_setup = passed_SDL_Setup;
 	MouseX = passed_MouseX;
 	MouseY = passed_MouseY;
-	playerSprite = new CSprite(csdl_setup->GetRenderer(), "data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CCollisionRect(290,240,25,20));
+	playerSprite = new CSprite(csdl_setup->GetRenderer(), "res/data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CCollisionRect(290,240,25,20));
 	playerSprite->SetUpAnimation(4,2);
-	playerSprite->SetOrgin(playerSprite->GetWidth()/2.0f, playerSprite->GetHeight());
-	playerStats = new CSprite(csdl_setup->GetRenderer(), "data/stats_sm.png", 20, 20, 100,35, CameraX, CameraY, CCollisionRect());
+	playerSprite->SetOrgin((float)playerSprite->GetWidth() / 2.0f, (float)playerSprite->GetHeight());
+	playerStats = new CSprite(csdl_setup->GetRenderer(), "res/data/stats_sm.png", 20, 20, 100,35, CameraX, CameraY, CCollisionRect());
 	timeCheck = SDL_GetTicks();
 	Follow = false;
 	distance = 0;
@@ -117,7 +117,7 @@ void MainCharacter::UpdateAnimation(CSprite* some_sprite){
 	float angle = atan2(Follow_Point_Y - *CameraY, Follow_Point_X - *CameraX);
 
 	//conversion to degrees
-	angle = (angle * (180/3.14) + 180);
+	angle = (angle * (180.0f/3.14f) + 180.0f);
 
 	if (!stopAnimation)
 	{
@@ -181,16 +181,16 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 		if (csdl_setup->GetMainEvent()->button.button == SDL_BUTTON_LEFT)
 		{
 			//changes position based on camera aswell
-			Follow_Point_X = *CameraX - *MouseX + 300;
-			Follow_Point_Y = *CameraY - *MouseY + 250;
+			Follow_Point_X = (int)(*CameraX - *MouseX + 300);
+			Follow_Point_Y = (int)(*CameraY - *MouseY + 250);
 			Follow = true;
 		}
 	}
 
-	if (timeCheck+10 < SDL_GetTicks() && Follow)
+	if ((timeCheck+10 < SDL_GetTicks()) && Follow)
 	{
 
-		distance = GetDistance(*CameraX, *CameraY, Follow_Point_X, Follow_Point_Y);
+		distance = (float)GetDistance((int)*CameraX, (int)*CameraY, Follow_Point_X, Follow_Point_Y);
 
 		if (distance == 0)
 			stopAnimation = true;
@@ -202,7 +202,7 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 
 			bool colliding = false;
 
-			for (int i = 0; i < Environment->GetTrees().size(); i++)
+			for (unsigned int i = 0; i < Environment->GetTrees().size(); i++)
 			{
 				if (playerSprite->isColliding(Environment->GetTrees()[i]->GetTrunk()->GetCollisionRect()))
 				{
@@ -211,7 +211,7 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 				}
 			}
 
-			for (int i = 0; i < Enemies.size(); i++)
+			for (unsigned int i = 0; i < Enemies.size(); i++)
 			{
 				if (playerSprite->isColliding(Enemies[i]->GetEnemySprite()->GetCollisionRect()))
 				{
@@ -232,8 +232,8 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 					{
 						*CameraY = *CameraY - 5;
 					}
-					Follow_Point_X = *CameraX;
-					Follow_Point_Y = *CameraY;
+					Follow_Point_X = (int)*CameraX;
+					Follow_Point_Y = (int)*CameraY;
 					distance = 0;
 					Follow = false;
 
@@ -263,8 +263,8 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 					{
 						*CameraY = *CameraY - 5;
 					}
-					Follow_Point_X = *CameraX;
-					Follow_Point_Y = *CameraY;
+					Follow_Point_X = (int)*CameraX;
+					Follow_Point_Y = (int)*CameraY;
 					distance = 0;
 					Follow = false;
 
@@ -294,8 +294,8 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 					{
 						*CameraY = *CameraY - 5;
 					}
-					Follow_Point_X = *CameraX;
-					Follow_Point_Y = *CameraY;
+					Follow_Point_X = (int)*CameraX;
+					Follow_Point_Y = (int)*CameraY;
 					distance = 0;
 					Follow = false;
 
@@ -336,8 +336,8 @@ CSprite* MainCharacter::GetPlayerSprite(){
 
 //Stops player at the current camera position as the follow point is where you have clicked.
 void MainCharacter::StopMove(){
-	Follow_Point_X = *CameraX;
-	Follow_Point_Y = *CameraY;
+	Follow_Point_X = (int)*CameraX;
+	Follow_Point_Y = (int)*CameraY;
 }
 double MainCharacter::GetDistance(int X1, int Y1, int X2, int Y2){
 	double DifferenceX = X1 - X2;
