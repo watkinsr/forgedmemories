@@ -10,7 +10,6 @@
 #include <SDL_mixer.h>
 #include <sdl_ttf.h>
 #include <iostream>
-
 #include <stdio.h>
 #include <tchar.h>
 
