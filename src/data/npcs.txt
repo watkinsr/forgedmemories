@@ -1,0 +1,7 @@
+--BEGIN NPCS--
+x: 300
+y: 350
+npc_id: 0
+npc_sprite_loc: data/npc_0.png
+name: Ben
+--END NPCS--
