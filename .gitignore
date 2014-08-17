@@ -291,6 +291,8 @@ local.properties
 ### Project Stuff ###
 
 # User-specific dirs
+!src/lib/*
+!src/dll/*
 
 ### CMake ###
 CMakeCache.txt
