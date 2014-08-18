@@ -1,5 +1,5 @@
 --BEGIN SPRITES--
-sprite_loc: data/diabox_norm.png
+sprite_loc: res/data/diabox_norm.png
 x: 10
 y: 300
 animation: no
