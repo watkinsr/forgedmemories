@@ -123,7 +123,9 @@ void GameLoop::Play(){
 	while (!quit && csdl_setup->GetMainEvent()->type != SDL_QUIT){
 		csdl_setup->Begin();
 		SDL_GetMouseState(&MouseX,&MouseY);
-		enemies->PrintEnemyTestLoc();
+		if (enemies->GetEnemies()->size() != 0){
+			enemies->PrintEnemyTestLoc();
+		}
 		cout << "PlayerX: " << player->GetPlayerSprite()->GetSpriteCameraX() << endl;
 		cout << "PlayerY: " << player->GetPlayerSprite()->GetSpriteCameraY() << endl;
 		pub->DrawBack();

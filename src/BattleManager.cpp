@@ -218,7 +218,7 @@ void BattleManager::DoDamageToEnemy(MainCharacter* player, CSprite* playerSprite
 		allowedtoDraw = true;
 		player->AddXP((*enemies)[EnemyVectNum]->GetXP());
 		addedXPFromBattle = (*enemies)[EnemyVectNum]->GetXP();
-		(*enemies).erase((*enemies).begin() + EnemyVectNum);
+ 		(*enemies).erase((*enemies).begin() + EnemyVectNum);
 	}
 
 	string dmg_str = std::to_string(dmg);

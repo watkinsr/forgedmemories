@@ -1,5 +1,6 @@
 #include "Enemy.h"
 
+
 CEnemy::CEnemy(int x_passed, int y_passed, float *CameraX, float *CameraY, CSDL_Setup* csdl_setup, int passed_HP, int passed_Damage, int passed_XPGive){
 	x = x_passed;
 	y = y_passed;
@@ -45,6 +46,9 @@ void CEnemy::Draw(){
 		enemy_sprite->PlayAnimation(0,4,0,200);
 
 	enemy_sprite->Draw();
+	//map the HP to the enemy sprite so that when the enemy moves, the HP moves along with it.
+	En_HP->SetX(enemy_sprite->GetX()+10);
+	En_HP->SetY(enemy_sprite->GetY()-10);
 	En_HP->Draw();
 }
 
