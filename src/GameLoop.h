@@ -1,9 +1,6 @@
 #pragma once
 
-//MEMORY LEAK DEBUGGING
-#define CRTDBG_MAP_ALLOC
 #include <stdlib.h>
-#include <crtdbg.h>
 
 
 #include "SDL_Setup.h"

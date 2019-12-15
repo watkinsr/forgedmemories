@@ -2,7 +2,7 @@
 #include "stdafx.h"
 #include "SDL_Font_Setup.h"
 #include "CollissionRect.h"
- #include <windows.h>
+ // #include <windows.h>
 
 
 class CSprite

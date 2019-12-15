@@ -9,7 +9,6 @@
 #include "SDL_Setup.h"
 #include "Interaction.h"
 #include "MainCharacter.h"
-#include "ClearScreen.h"
 #include "TextManager.h"
 #include "EventManager.h"
 

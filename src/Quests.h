@@ -3,6 +3,7 @@
 #define QUESTS_H
 
 #include <vector>
+#include <string>
 #include "Text.h"
 #include "BattleManager.h"
 #include "EventManager.h"
