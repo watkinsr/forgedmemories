@@ -8,9 +8,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
-#include <sdl_ttf.h>
+// #include <sdl_ttf.h>
 #include <iostream>
 #include <stdio.h>
-#include <tchar.h>
-
-// TODO: reference additional headers your program requires here
+// #include <tchar.h>
