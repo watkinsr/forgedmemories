@@ -1,0 +1,14 @@
+----RPG GAME TO DO----
+
+collision!
+music (different sounds, for instance, perhaps when the game first loads, it'll have two swords clashing to symbolise the title of the game along with intro music, then depending on terrain, there will be different audio)
+quest system
+fight system (incl. anim when user scrolls over enemy/quest geezer.)
+fighting anim.
+map change (recreate book perhaps.)
+character creation?
+More main menu options
+More character animations (turns 360 for instance.)
+Dungeons(with a final boss, perhaps a dragon, would be beast).
+ESC->Options for user, i.e. quit, save, load etc.
+when enemy dies (have player hit him via anim, i.e. player mb swings sword down on him and he crumples into a pile and vanishes!)
