@@ -24,18 +24,18 @@ public:
 	~NPC(void);
 
 	void Draw();
-	bool isPlayerCloseToGetQuest(Quests *objOfQuests, vector<NPC> vectOfNPCS, CSprite* player);
-	void DisplayQuestMenu(int npc_id, vector<Quests*>quests, MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-						CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>Enemies);
+	bool isPlayerCloseToGetQuest(Quests *objOfQuests, vector<NPC> vectOfNPCS, Sprite* player);
+	void DisplayQuestMenu(int npc_id, vector<Quests*>quests, MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+						Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>Enemies);
 	void GetNpcFileLocation();
 	void InitialiseQuestMenu(int npc_id, Quests *quest);
 	int GetNPCX();
 	int GetNPCY();
-	int CheckUserPress(CSprite* menu_arrow_sprite, int npc_id, Quests* quests);
+	int CheckUserPress(Sprite* menu_arrow_sprite, int npc_id, Quests* quests);
 	string GetQuestDesc();
 	Quests GetQuest();
 
-	CSprite GetNPCSprite();
+	Sprite GetNPSprite();
 
 	enum YPointsForMenuChoice{
 		FIRSTCHOICE = 406,
@@ -68,11 +68,11 @@ private:
 
 	string file_loc;
 
-	CSprite* npcSprite;
-	CSprite* npc_hover_interact;
-	CSprite* mainPlayer;
-	CSprite* Menu_Select;
-	CSprite* DiaBox;
+	Sprite* npcSprite;
+	Sprite* npc_hover_interact;
+	Sprite* mainPlayer;
+	Sprite* Menu_Select;
+	Sprite* DiaBox;
 
 	MainCharacter* mc;
 

@@ -5,10 +5,10 @@ CEnemy::CEnemy(int x_passed, int y_passed, float *CameraX, float *CameraY, CSDL_
 	x = x_passed;
 	y = y_passed;
 
-	enemy_sprite = new CSprite(csdl_setup->GetRenderer(),"res/data/environment/enemy_spritesheet.png",x,y,50,50,CameraX,CameraY, CCollisionRect());
+	enemy_sprite = new Sprite(csdl_setup->GetRenderer(),"res/data/environment/enemy_spritesheet.png",x,y,50,50,CameraX,CameraY, CollisionRect());
 	enemy_sprite->SetUpAnimation(5,1);
 	//enemy_sprite->SetOrgin(enemy_sprite->GetWidth()/2.0f, enemy_sprite->GetHeight());
-	En_HP = new CSprite(csdl_setup->GetRenderer(),"res/data/hp_enem.png",x+10,y-10,24,4,CameraX,CameraY, CCollisionRect());
+	En_HP = new Sprite(csdl_setup->GetRenderer(),"res/data/hp_enem.png",x+10,y-10,24,4,CameraX,CameraY, CollisionRect());
 
 	Damage = passed_Damage;
 	HP = passed_HP;
@@ -31,7 +31,7 @@ CEnemy::CEnemy(int x_passed, int y_passed, float *CameraX, float *CameraY, CSDL_
 CEnemy::CEnemy(){
 
 }
-CSprite* CEnemy::getEnemyHPSprite(){
+Sprite* CEnemy::getEnemyHPSprite(){
 	return En_HP;
 }
 CEnemy::~CEnemy(){

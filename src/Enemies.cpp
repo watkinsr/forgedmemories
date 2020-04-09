@@ -83,7 +83,7 @@ void CEnemies::PrintEnemyTestLoc(){
 	cout << "EnemyY: " << Enemies[0]->GetEnemySprite()->GetSpriteCameraY() << endl;
 }
 
-void CEnemies::DetectPlayer(CSprite* player){
+void CEnemies::DetectPlayer(Sprite* player){
 	float range = 80;
 	for (vector<CEnemy*>::iterator i = Enemies.begin(); i != Enemies.end(); ++i)
 	{

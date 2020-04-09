@@ -4,17 +4,18 @@ MainCharacter::MainCharacter(){
 
 }
 
-MainCharacter::MainCharacter(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY, float *passed_CameraX, float *passed_CameraY, CEnvironment* passed_Environment){
+MainCharacter::MainCharacter(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY,
+							 float *passed_CameraX, float *passed_CameraY, CEnvironment* passed_Environment){
 	Environment = passed_Environment;
 	CameraX = passed_CameraX;
 	CameraY = passed_CameraY;
 	csdl_setup = passed_SDL_Setup;
 	MouseX = passed_MouseX;
 	MouseY = passed_MouseY;
-	playerSprite = new CSprite(csdl_setup->GetRenderer(), "res/data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CCollisionRect(290,240,25,20));
+	playerSprite = new Sprite(csdl_setup->GetRenderer(), "res/data/new_mc_spritesheet.png", 300, 250, 55,55, CameraX, CameraY, CollisionRect(290,240,25,20));
 	playerSprite->SetUpAnimation(4,2);
 	playerSprite->SetOrgin((float)playerSprite->GetWidth() / 2.0f, (float)playerSprite->GetHeight());
-	playerStats = new CSprite(csdl_setup->GetRenderer(), "res/data/stats_sm.png", 20, 20, 100,35, CameraX, CameraY, CCollisionRect());
+	playerStats = new Sprite(csdl_setup->GetRenderer(), "res/data/stats_sm.png", 20, 20, 100,35, CameraX, CameraY, CollisionRect());
 	timeCheck = SDL_GetTicks();
 	Follow = false;
 	distance = 0;
@@ -112,7 +113,7 @@ void MainCharacter::Draw(){
 	playerSprite->DrawSteady();
 }
 
-void MainCharacter::UpdateAnimation(CSprite* some_sprite){
+void MainCharacter::UpdateAnimation(Sprite* some_sprite){
 	//gets angle between mouse and bob's position to determine animation in radians.
 	float angle = atan2(Follow_Point_Y - *CameraY, Follow_Point_X - *CameraX);
 
@@ -330,7 +331,7 @@ void MainCharacter::Update(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 	
 }
 
-CSprite* MainCharacter::GetPlayerSprite(){
+Sprite* MainCharacter::GetPlayerSprite(){
 	return playerSprite;
 }
 

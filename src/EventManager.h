@@ -19,13 +19,13 @@ class EventManager
 public:
 	EventManager(CSDL_Setup* passed_CSDL_Setup, int *passed_MouseX, int *passed_MouseY);
 	~EventManager(void);
-	void ChestDialogEvent(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-		CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>Enemies);
-	void DrawGame(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub,vector<CEnemy*>Enemies);
-	void BattleDialogEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite);
-	void NPCDialogEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, CSprite* NPC);
-	void QuestSuccessEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, int font_size);
-	void GameMenuEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, int font_size);
+	void ChestDialogEvent(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+		Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>Enemies);
+	void DrawGame(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub,vector<CEnemy*>Enemies);
+	void BattleDialogEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite);
+	void NPCDialogEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, Sprite* NPC);
+	void QuestSuccessEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, int font_size);
+	void GameMenuEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, int font_size);
 private:
 	int *mouseX;
 	int *mouseY;

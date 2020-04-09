@@ -19,11 +19,11 @@ public:
 	vector<Quests*>GetQuests();
 	void AddNPCs(NPC* npc);
 	vector<NPC*>GetNPCs();
-	void AddSprites(CSprite* sprite);
-	vector<CSprite*> GetSprites();
+	void AddSprites(Sprite* sprite);
+	vector<Sprite*> GetSprites();
 	void DrawAll();
-	bool CheckPlayerClose(CSprite* player);
-	vector<CSprite*>sprites;
+	bool CheckPlayerClose(Sprite* player);
+	vector<Sprite*>sprites;
 
 private:
 	vector<Quests*>quests;

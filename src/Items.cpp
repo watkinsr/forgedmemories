@@ -15,7 +15,7 @@ Items::Items(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_Mouse
 	MouseY = passed_MouseY;
 
 
-	chest = new CSprite(csdl_setup->GetRenderer(), "res/data/misc/tchest.png", 400, 100, 47,47, CameraX, CameraY, CCollisionRect(0,0,47,47));
+	chest = new Sprite(csdl_setup->GetRenderer(), "res/data/misc/tchest.png", 400, 100, 47,47, CameraX, CameraY, CollisionRect(0,0,47,47));
 	chest->SetUpAnimation(12,8);
 	chest->SetOrgin((float)chest->GetWidth()/2.0f, (float)chest->GetHeight());
 

@@ -156,8 +156,8 @@ void FileManagement::HandleSpriteFile(){
 			if (previous_word == "h:") { 
 				h = atoi(word.c_str());
 				//TODO:
-				CCollisionRect collision(0,0,0,0);
-				sprite = new CSprite(csdl_setup->GetRenderer(), sprite_loc, x, y, w, h, camera_x, camera_y, collision);
+				CollisionRect collision(0,0,0,0);
+				sprite = new Sprite(csdl_setup->GetRenderer(), sprite_loc, x, y, w, h, camera_x, camera_y, collision);
 				if (animation){
 					sprite->SetUpAnimation(row_amount, column_amount);
 				}

@@ -1,12 +1,12 @@
 #include "MainMenu.h"
 
 
-CMainMenu::CMainMenu()
+MainMenu::MainMenu()
 {
-
 }
 
-CMainMenu::CMainMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY, int passed_ScreenWidth, int passed_ScreenHeight, float *passed_CameraX, float *passed_CameraY)
+MainMenu::MainMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY, int passed_ScreenWidth,
+				   int passed_ScreenHeight, float *passed_CameraX, float *passed_CameraY)
 {
 	CameraX = passed_CameraX;
 	CameraY = passed_CameraY;
@@ -20,25 +20,25 @@ CMainMenu::CMainMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *pass
 	MouseY = passed_MouseY;
 
 
-	MainMenu = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/mainmenu.gif", 0,0, ScreenWidth, ScreenHeight, CameraX, CameraY, CCollisionRect());
+	mainMenu = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/mainmenu.gif", 0,0, ScreenWidth, ScreenHeight, CameraX, CameraY, CollisionRect());
 
-	PlayButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/play-but.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
-	PlayButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/play-but-scroll.png", 230,140, 237, 74, CameraX, CameraY, CCollisionRect());
-	OptionButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/option-but.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
-	OptionButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/option-but-scroll.png", 230,240, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutButton = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-but.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutButton_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-but-scroll.png", 230,340, 237, 74, CameraX, CameraY, CCollisionRect());
-	AboutPage = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-page.png", 0,0, 640,480, CameraX, CameraY, CCollisionRect());
-	AboutPage_Scroll = new CSprite(csdl_setup->GetRenderer(), "res/data/menu/about-page-hover.png", 0,0, 640, 480, CameraX, CameraY, CCollisionRect());
+	PlayButton = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/play-but.png", 230,140, 237, 74, CameraX, CameraY, CollisionRect());
+	PlayButton_Scroll = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/play-but-scroll.png", 230,140, 237, 74, CameraX, CameraY, CollisionRect());
+	OptionButton = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/option-but.png", 230,240, 237, 74, CameraX, CameraY, CollisionRect());
+	OptionButton_Scroll = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/option-but-scroll.png", 230,240, 237, 74, CameraX, CameraY, CollisionRect());
+	AboutButton = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/about-but.png", 230,340, 237, 74, CameraX, CameraY, CollisionRect());
+	AboutButton_Scroll = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/about-but-scroll.png", 230,340, 237, 74, CameraX, CameraY, CollisionRect());
+	AboutPage = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/about-page.png", 0,0, 640,480, CameraX, CameraY, CollisionRect());
+	AboutPage_Scroll = new Sprite(csdl_setup->GetRenderer(), "res/data/menu/about-page-hover.png", 0,0, 640, 480, CameraX, CameraY, CollisionRect());
 
 	/*timeCheck = SDL_GetTicks();Follow = false;*/
 	/*distance = 0;
 	stopAnimation = false;*/
 	start = false;
 }
-CMainMenu::~CMainMenu()
+MainMenu::~MainMenu()
 {
-	delete MainMenu;
+	delete mainMenu;
 	delete PlayButton;
 	delete PlayButton_Scroll;
 	delete OptionButton;
@@ -49,9 +49,9 @@ CMainMenu::~CMainMenu()
 	delete AboutPage_Scroll;
 }
 
-void CMainMenu::Draw()
+void MainMenu::Draw()
 {
-	MainMenu->Draw();
+	mainMenu->Draw();
 	PlayButton->Draw();
 	OptionButton->Draw();
 	AboutButton->Draw();
@@ -60,7 +60,7 @@ void CMainMenu::Draw()
 	system("cls");
 }
 
-bool CMainMenu::AboutMenu()
+bool MainMenu::AboutMenu()
 {
 	cout << "Mouse X = " << *MouseX;
 	cout << "\tMouse Y = " << *MouseY;
@@ -94,7 +94,7 @@ bool CMainMenu::AboutMenu()
 	return start;
 }
 
-int CMainMenu::GetButtonClick()
+int MainMenu::GetButtonClick()
 {
 	//for mouse motion
 	/*do

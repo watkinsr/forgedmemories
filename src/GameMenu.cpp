@@ -78,7 +78,7 @@ void GameMenu::initialiseYValues(){
 	yValues.push_back(y+60);
 }
 
-void GameMenu::SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
+void GameMenu::SetMenuGFX(Sprite* diaBoxSprite, Sprite* dialogIcon){
 	//store the previous values for later usage when we want to reset where these icons etc were previously.
 	GameMenuGFXVals.clear();
 	GameMenuGFXVals.push_back((int)diaBoxSprite->GetX());
@@ -97,7 +97,7 @@ void GameMenu::SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
 	dialogIcon->SetY(220);
 }
 
-void GameMenu::ResetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
+void GameMenu::ResetMenuGFX(Sprite* diaBoxSprite, Sprite* dialogIcon){
 	if (GameMenuGFXVals.size() == 6){
 		diaBoxSprite->SetX((float)GameMenuGFXVals[0]);
 		diaBoxSprite->SetWidth(GameMenuGFXVals[1]);
@@ -110,8 +110,8 @@ void GameMenu::ResetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon){
 		cout << "Error 0: GameMenuGFXVector size incorrect, can't reset the vector" << endl;
 }
 
-void GameMenu::DisplayGameMenu(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-							   CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>Enemies, EntityManager* entities){
+void GameMenu::DisplayGameMenu(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+							   Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>Enemies, EntityManager* entities){
 
 								   SetMenuGFX(diaBoxSprite, dialogIcon);
 								   //Constantly draw menu for SDL
@@ -134,7 +134,7 @@ void GameMenu::DisplayGameMenu(MainCharacter* player, CSprite* playerSprite, CSp
 }
 
 
-int GameMenu::CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities){
+int GameMenu::CheckUserPress(Sprite* menu_choice, vector<int>coords, EntityManager* entities){
 	vector<Quests*>quests = entities->GetQuests();
 
 	opt_select = 0;

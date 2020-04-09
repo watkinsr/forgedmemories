@@ -14,8 +14,8 @@ EventManager::~EventManager(void){
 }
 
 //might want to think about grouping entities such as sprites into a sprite struct.
-void EventManager::ChestDialogEvent(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-						CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>Enemies){
+void EventManager::ChestDialogEvent(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+						Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>Enemies){
 
 						DrawGame(player, playerSprite, enHP, pub, Enemies);
 						diaBoxSprite->DrawSteady();
@@ -31,7 +31,7 @@ void EventManager::ChestDialogEvent(MainCharacter* player, CSprite* playerSprite
 
 }
 
-void EventManager::BattleDialogEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite){
+void EventManager::BattleDialogEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite){
 	diaBoxSprite->DrawSteady();
 	dialogIcon->DrawSteady();
 	TextManager* dialog = new TextManager(csdl_setup);
@@ -43,7 +43,7 @@ void EventManager::BattleDialogEvent(vector<Text>text, CInteraction* interaction
 	delete font;
 }
 
-void EventManager::NPCDialogEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, CSprite* NPC){
+void EventManager::NPCDialogEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, Sprite* NPC){
 	diaBoxSprite->DrawSteady();
 	dialogIcon->DrawSteady();
 	NPC->Draw();
@@ -59,7 +59,7 @@ void EventManager::NPCDialogEvent(vector<Text>text, CInteraction* interaction, C
 //may be worthwhile having a routine in interaction that has takes care of the enter part.
 
 
-void EventManager::QuestSuccessEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, int font_size){
+void EventManager::QuestSuccessEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, int font_size){
 	if (!show_once){
 	show_once = true;
 	diaBoxSprite->DrawSteady();
@@ -74,7 +74,7 @@ void EventManager::QuestSuccessEvent(vector<Text>text, CInteraction* interaction
 	}
 }
 
-void EventManager::GameMenuEvent(vector<Text>text, CInteraction* interaction, CSprite* dialogIcon, CSprite* diaBoxSprite, int font_size){
+void EventManager::GameMenuEvent(vector<Text>text, CInteraction* interaction, Sprite* dialogIcon, Sprite* diaBoxSprite, int font_size){
 	diaBoxSprite->DrawSteady();
 	dialogIcon->DrawSteady();
 	TextManager* dialog = new TextManager(csdl_setup);
@@ -87,7 +87,7 @@ void EventManager::GameMenuEvent(vector<Text>text, CInteraction* interaction, CS
 }
 
  //should draw all the loot also.
-void EventManager::DrawGame(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub,vector<CEnemy*>enemies){
+void EventManager::DrawGame(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub,vector<CEnemy*>enemies){
 						csdl_setup->Begin();
 						SDL_GetMouseState(mouseX,mouseY);
 						pub->DrawBack();

@@ -1,22 +1,22 @@
 #pragma once
 #include "stdafx.h"
 
-class CCollisionRect
+class CollisionRect
 {
 public:
-	CCollisionRect();
-	CCollisionRect(int x, int y, int w, int h);
-	~CCollisionRect(void);
+	CollisionRect();
+	CollisionRect(int x, int y, int w, int h);
+	~CollisionRect(void);
 
 	void SetRectangle(int x, int y, int w, int h);
-	SDL_Rect GetRectangle() { return CollisionRectangle; }
+	SDL_Rect GetRectangle();
 
-	void SetX(int x) { CollisionRectangle.x = x +OffsetX;	}
-	void SetY(int y) { CollisionRectangle.y = y +OffsetY;	}
+	void SetX(int x) { collisionRectangle.x = x +OffsetX;	}
+	void SetY(int y) { collisionRectangle.y = y +OffsetY;	}
 private:
 	int OffsetX;
 	int OffsetY;
-	SDL_Rect CollisionRectangle;
+	SDL_Rect collisionRectangle;
 };
 
 

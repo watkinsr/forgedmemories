@@ -20,7 +20,7 @@ public:
 	void Draw();
 	void CheckMouseEvent();
 	void setHP(int passed_HP);
-	void DetectPlayer(CSprite* player);
+	void DetectPlayer(Sprite* player);
 	void PrintEnemyTestLoc();
 	int getHP();
 	vector<CEnemy*>* GetEnemies();
@@ -30,7 +30,7 @@ public:
 private:
 	CSDL_Setup* csdl_setup;
 	vector<CEnemy*>Enemies;
-	CSprite* en_HP;
+	Sprite* en_HP;
 	float tempMouseX;
 	float tempMouseY;
 	float *cameraX;

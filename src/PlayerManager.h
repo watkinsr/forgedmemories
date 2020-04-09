@@ -9,11 +9,11 @@ class PlayerManager
 public:
 	PlayerManager();
 	PlayerManager(CSDL_Setup* csdl_setup, float *CameraX, float *CameraY);
-	bool IsClose(CSprite* sprite, float rangeSpecified);
+	bool IsClose(Sprite* sprite, float rangeSpecified);
 	~PlayerManager(void);
 
 private:
-	CSprite* player;
+	Sprite* player;
 	CSDL_Setup* csdl_setup;
 };
 

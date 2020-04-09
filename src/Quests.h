@@ -28,8 +28,9 @@ public:
 	string GetQuest();
 	Text makeTextObj(int questRef, int x, int y);
 	bool CheckQuestComplete(int questRef, BattleManager *battlemanager);
-	void QuestSuccess(vector<Quests*>quests, int quest_id, MainCharacter* player, CSprite* player_sprite, CSprite* dia_box_sprite, 
-								CSprite* en_hp, CInteraction* interaction, CEnvironment* pub, CSprite* dialog_icon, vector<CEnemy*>enemies, EventManager* events);
+	void QuestSuccess(vector<Quests*>quests, int quest_id, MainCharacter* player, Sprite* player_sprite, Sprite* dia_box_sprite,
+					  Sprite* en_hp, CInteraction* interaction, CEnvironment* pub, Sprite* dialog_icon,
+					  vector<CEnemy*>enemies, EventManager* events);
 
 private:
 	int xp;

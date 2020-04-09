@@ -47,8 +47,8 @@ private:
 	float* CameraX;
 	float* CameraY;
 	bool onePressed;
-	CSprite* map[4][7];
-	CSprite* Enemy;
+	Sprite* map[4][7];
+	Sprite* Enemy;
 	int TileSizeX;
 	int TileSizeY;
 	int StoolY;

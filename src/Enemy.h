@@ -24,8 +24,8 @@ public:
 	void changeHP(vector<CEnemy*> EnemyVect, int EnemyVectNum, int PlayerDamage);
 	void GetAIPathSquare();
 	int getHPWidth();
-	CSprite* getEnemyHPSprite();
-	CSprite* GetEnemySprite() {return enemy_sprite;}
+	Sprite* getEnemyHPSprite();
+	Sprite* GetEnemySprite() {return enemy_sprite;}
 
 private:
 	int x;
@@ -38,8 +38,8 @@ private:
 		Hard 
 	};
 	int XPGive;
-	CSprite* enemy_sprite;
-	CSprite* En_HP;
+	Sprite* enemy_sprite;
+	Sprite* En_HP;
 	bool goRight;
 	bool goDown;
 	bool goUp;

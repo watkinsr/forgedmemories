@@ -19,6 +19,6 @@ private:
 	void UpdateAnimation();
 	void UpdateControls();
 
-	CSprite* chest;
+	Sprite* chest;
 };
 

@@ -18,13 +18,13 @@ class BattleManager
 public:
 	BattleManager(CSDL_Setup* passed_CSDL_Setup, int *passed_MouseX, int *passed_MouseY);
 	~BattleManager(void);
-	void HandleBattle(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-		CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>*Enemies, int enemyBattleNum);
+	void HandleBattle(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+		Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>*Enemies, int enemyBattleNum);
 	void InitBattleLog();
-	void DoDamageToEnemy(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds);
-	void DoDamageToPlayer(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds);
-	void HandlePlayerAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds);
-	void HandleEnemyMeleeAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds);
+	void DoDamageToEnemy(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds);
+	void DoDamageToPlayer(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds);
+	void HandlePlayerAttack(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds);
+	void HandleEnemyMeleeAttack(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds);
 	void SetKillCount(int kill_amount);
 	int GetKillCount();
 	

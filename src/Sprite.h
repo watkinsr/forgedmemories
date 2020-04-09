@@ -5,12 +5,12 @@
  // #include <windows.h>
 
 
-class CSprite
+class Sprite
 {
 public:
-	CSprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int y, int w, int h, float *CameraX, float *CameraY, CCollisionRect passed_CollisionRect);
-	CSprite();
-	~CSprite(void);
+	Sprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int y, int w, int h, float *CameraX, float *CameraY, CollisionRect passed_CollisionRect);
+	Sprite();
+	~Sprite(void);
 
 	void DrawSteady();
 	void Draw();
@@ -32,8 +32,8 @@ public:
 	float GetYTest();
 	// 
 
-	bool IsSpriteClose(CSprite* player, CSprite* enemy, float range);
-	void MoveSpriteTowardsEntity(CSprite* player, CSprite* enemy);
+	bool IsSpriteClose(Sprite* player, Sprite* enemy, float range);
+	void MoveSpriteTowardsEntity(Sprite* player, Sprite* enemy);
 
 	int GetWidth();
 	int GetHeight();
@@ -48,11 +48,11 @@ public:
 	bool HasAnimationFinished();
 
 
-	CCollisionRect GetCollisionRect() {return CollisionRect;}
+	CollisionRect GetCollisionRect() {return collisionRect;}
 
-	bool isColliding(CCollisionRect theCollider);
+	bool isColliding(CollisionRect theCollider);
 private:
-	CCollisionRect CollisionRect;
+	CollisionRect collisionRect;
 
 	SDL_Rect Camera;
 	float *CameraX;

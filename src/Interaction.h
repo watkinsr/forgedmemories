@@ -19,15 +19,15 @@ public:
 
 	void setRange(int x1, int y1, int x2, int y2);
 
-	int checkEnter(CSprite* menu_select, int passed_screenWidth, int passed_screenHeight);
+	int checkEnter(Sprite* menu_select, int passed_screenWidth, int passed_screenHeight);
 
-	bool checkInteraction(CSprite* some_sprite);
+	bool checkInteraction(Sprite* some_sprite);
 
 	int getRangeX();
 	int getRangeY();
 	bool CheckKeyPress();
 	bool EnterPress();
-	CSprite* getMenuArrow() {return Menu_Select;}
+	Sprite* getMenuArrow() {return Menu_Select;}
 private:
 	int w;
 	int h;
@@ -46,7 +46,7 @@ private:
 	int screenHeight;
 	bool hasKeyBeenReleased;
 
-	CSprite* Menu_Select;
+	Sprite* Menu_Select;
 
 
 };

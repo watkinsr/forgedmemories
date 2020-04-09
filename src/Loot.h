@@ -13,10 +13,10 @@ public:
 	void DrawChest();
 	void OpenChest();
 	void CloseChest();
-	CSprite* GetLoot();
+	Sprite* GetLoot();
 	void SetPlayerSprite();
 	double GetDistanceFromObj(int player_x, int player_y, int obj_x, int obj_y);
-	CSprite* GetPlayerSprite();
+	Sprite* GetPlayerSprite();
 
 private:
 	bool CHEST_OPEN;
@@ -24,9 +24,9 @@ private:
 	int x;
 	int y;
 	int rewardLevel;
-	CSprite* chest;
+	Sprite* chest;
 	CSDL_Setup* csdl_setup;
-	CSprite* player;
+	Sprite* player;
 	double distance;
 	float *CameraX;
 	float *CameraY;

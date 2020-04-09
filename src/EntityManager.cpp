@@ -38,11 +38,11 @@ vector<NPC*> EntityManager::GetNPCs(){
 	return npcs;
 }
 
-void EntityManager::AddSprites(CSprite* sprite){
+void EntityManager::AddSprites(Sprite* sprite){
 	sprites.push_back(sprite);
 }
 
-vector<CSprite*> EntityManager::GetSprites(){
+vector<Sprite*> EntityManager::GetSprites(){
 	return sprites;
 }
 
@@ -53,7 +53,7 @@ void EntityManager::DrawAll(){
 
 }
 
-bool EntityManager::CheckPlayerClose(CSprite* player){
+bool EntityManager::CheckPlayerClose(Sprite* player){
 	int count = 0;
 	for (vector<NPC*>::iterator i = npcs.begin(); i != npcs.end(); ++i){
 		count++;

@@ -25,7 +25,7 @@ private:
 	Quests* quest;
 	NPC* npc;
 	EntityManager* entities;
-	CSprite* sprite;
+	Sprite* sprite;
 	CSDL_Setup* csdl_setup;
 	float* camera_x;
 	float* camera_y;

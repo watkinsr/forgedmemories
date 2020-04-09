@@ -69,8 +69,8 @@ int BattleManager::GetKillCount(){
 	return kill_count;
 }
 
-void BattleManager::HandleBattle(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-		CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>*enemies, int enemyBattleNum){
+void BattleManager::HandleBattle(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+		Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>*enemies, int enemyBattleNum){
 		enemynum = enemyBattleNum;
 		firstDialog = true;
 		DialogueEnd = false;
@@ -141,7 +141,7 @@ void BattleManager::HandleBattle(MainCharacter* player, CSprite* playerSprite, C
 		}
 
 //if the player is in the right place to hit and space is pressed, then do damage.
-void BattleManager::HandlePlayerAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
+void BattleManager::HandlePlayerAttack(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
 	count = 0;
 	float playerX = (float)playerSprite->GetSpriteCameraX() - 20.0f;
 	float playerY = (float)playerSprite->GetSpriteCameraY() - 40.0f;
@@ -182,7 +182,7 @@ void BattleManager::HandlePlayerAttack(MainCharacter* player, CSprite* playerSpr
 }
 
 //if the enemy is to the left of player, then take player damage.
-void BattleManager::HandleEnemyMeleeAttack(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
+void BattleManager::HandleEnemyMeleeAttack(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*> *enemies, SFXManager* sounds){
 	count = 0;
 	float player_x = (float)playerSprite->GetSpriteCameraX() - 20.0f;
 	float player_y = (float)playerSprite->GetSpriteCameraY() - 40.0f;
@@ -199,7 +199,7 @@ void BattleManager::HandleEnemyMeleeAttack(MainCharacter* player, CSprite* playe
 	}
 }
 
-void BattleManager::DoDamageToEnemy(MainCharacter* player, CSprite* playerSprite, CSprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds){
+void BattleManager::DoDamageToEnemy(MainCharacter* player, Sprite* playerSprite, Sprite* enHP, CEnvironment* pub, vector<CEnemy*>*enemies, int EnemyVectNum, SFXManager* sounds){
 	player->DisplayAttackAnim();
 	sounds->SwordAttack();
 	player->GetLevelStats();
@@ -236,7 +236,7 @@ void BattleManager::DoDamageToEnemy(MainCharacter* player, CSprite* playerSprite
 	}while (SDL_GetTicks() < time + 300);
 }
 
-void BattleManager::DoDamageToPlayer(MainCharacter* player, CSprite* player_sprite, CSprite* en_hp, CEnvironment* pub, vector<CEnemy*>*enemies, int enemy_id, SFXManager* sounds){
+void BattleManager::DoDamageToPlayer(MainCharacter* player, Sprite* player_sprite, Sprite* en_hp, CEnvironment* pub, vector<CEnemy*>*enemies, int enemy_id, SFXManager* sounds){
 	int damage = (*enemies)[enemy_id]->getDamage();
 	if(player->GetHP() >= 0){
 		player->SetHP(-damage);

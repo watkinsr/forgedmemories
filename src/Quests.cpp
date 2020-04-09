@@ -78,8 +78,8 @@ bool Quests::CheckQuestComplete(int questRef, BattleManager *battlemanager){
 	return false;
 }
 
-void Quests::QuestSuccess(vector<Quests*>quests, int quest_id, MainCharacter* player, CSprite* player_sprite, CSprite* dia_box_sprite, 
-								CSprite* en_hp, CInteraction* interaction, CEnvironment* pub, CSprite* dialog_icon, vector<CEnemy*>enemies, EventManager* events){
+void Quests::QuestSuccess(vector<Quests*>quests, int quest_id, MainCharacter* player, Sprite* player_sprite, Sprite* dia_box_sprite,
+								Sprite* en_hp, CInteraction* interaction, CEnvironment* pub, Sprite* dialog_icon, vector<CEnemy*>enemies, EventManager* events){
 									vector<Text>text;
 									int temp_xp = quests[quest_id]->GetQuestXP();
 									int temp_gold = quests[quest_id]->GetQuestXP();

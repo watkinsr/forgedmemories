@@ -14,14 +14,11 @@ public:
 	int GetX();
 	int GetY();
 
-	CSprite* GetCrown() {return Crown;}
-	CSprite* GetTrunk() {return Trunk;}
+	Sprite* GetCrown() {return Crown;}
+	Sprite* GetTrunk() {return Trunk;}
 
 private:
 	int x, y;
-	CSprite* Crown;
-	CSprite* Trunk;
-
-	
+	Sprite* Crown;
+	Sprite* Trunk;
 };
-

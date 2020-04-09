@@ -79,7 +79,7 @@ void MapManager::LoadQuests(){
 						}
 						if (PreviousWord == "xp_earned:"){
 							xp_earned = atoi( word.c_str() );
-							Quests *quest = new Quests(xp_earned, gold_earned, quest_text);
+							// Quests *quest = new Quests(xp_earned, gold_earned, quest_text);
 							//NPC *npc = new NPC(npc_x, npc_y, CameraX, CameraY, csdl_setup, *quest, npc_id, NPCAssets);
 							//npcs.push_back(npc);
 						}

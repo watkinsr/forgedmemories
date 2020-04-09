@@ -17,18 +17,18 @@ class CBattle
 public:
 	CBattle(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY, float *passed_CameraX, float *passed_CameraY);
 	~CBattle();
-	bool CheckBattle(vector <CEnemy*> *Enemies, MainCharacter* Player, CSprite* playerSprite);
+	bool CheckBattle(vector <CEnemy*> *Enemies, MainCharacter* Player, Sprite* playerSprite);
 	void DrawEnemies(vector <CEnemy*> Enemies);
 
-	CSprite* GetDiaBoxSprite(){return DiaBox;};
-	CSprite* GetEnHP(){return En_HP;};
-	CSprite* GetDialogIcon(){return dialogIcon;};
+	Sprite* GetDiaBoxSprite(){return DiaBox;};
+	Sprite* GetEnHP(){return En_HP;};
+	Sprite* GetDialogIcon(){return dialogIcon;};
 	int GetEnemyNum(){return enemyBattleNum;};
 
 private:
-	CSprite* DiaBox;
-	CSprite* En_HP;
-	CSprite* dialogIcon;
+	Sprite* DiaBox;
+	Sprite* En_HP;
+	Sprite* dialogIcon;
 	CSDL_Setup* csdl_setup;
 
 	int *MouseX;

@@ -14,21 +14,24 @@
 #include "Quests.h"
 #include "EntityManager.h"
 
-class GameMenu{
+class GameMenu
+{
 
 public:
-GameMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY,  float *passed_CameraX, float *passed_CameraY, int ScreenWidth, int ScreenHeight);
+GameMenu(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int *passed_MouseY,  float *passed_CameraX, float *passed_CameraY,
+				 int ScreenWidth, int ScreenHeight);
 ~GameMenu();
 
 void CheckForEsc(CSDL_Setup* passed_CSDL_Setup);
-void DisplayGameMenu(MainCharacter* player, CSprite* playerSprite, CSprite* diaBoxSprite, 
-							   CSprite* enHP, CInteraction* interaction, CEnvironment* pub, CSprite* dialogIcon, vector<CEnemy*>Enemies, EntityManager* entities);
+void DisplayGameMenu(MainCharacter* player, Sprite* playerSprite, Sprite* diaBoxSprite,
+					 Sprite* enHP, CInteraction* interaction, CEnvironment* pub, Sprite* dialogIcon, vector<CEnemy*>Enemies,
+					 EntityManager* entities);
 void InitialiseGameMenu();
 void RemoveQuest(BattleManager* battlemanager, EntityManager* entities);
-void SetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon);
-void ResetMenuGFX(CSprite* diaBoxSprite, CSprite* dialogIcon);
+void SetMenuGFX(Sprite* diaBoxSprite, Sprite* dialogIcon);
+void ResetMenuGFX(Sprite* diaBoxSprite, Sprite* dialogIcon);
 bool IsEscPressed();
-int CheckUserPress(CSprite* menu_choice, vector<int>coords, EntityManager* entities);
+int CheckUserPress(Sprite* menu_choice, vector<int>coords, EntityManager* entities);
 void initialiseYValues();
 
 vector<string>g_GameMenuText;

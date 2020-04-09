@@ -25,7 +25,7 @@ CInteraction::CInteraction(CSDL_Setup* passed_SDL_Setup, int *passed_MouseX, int
 	screenHeight = 0;
 	opt_select = 0;
 	hasKeyBeenReleased = true;
-	Menu_Select = new CSprite(csdl_setup->GetRenderer(),"res/data/menu_select.png",32,426,13,13,CameraX,CameraY, CCollisionRect());
+	Menu_Select = new Sprite(csdl_setup->GetRenderer(),"res/data/menu_select.png",32,426,13,13,CameraX,CameraY, CollisionRect());
 }
 
 CInteraction::~CInteraction()
@@ -49,7 +49,7 @@ int CInteraction::getRangeY()
 	return rangeY;
 }
 
-bool CInteraction::checkInteraction(CSprite* some_sprite)
+bool CInteraction::checkInteraction(Sprite* some_sprite)
 {
 	/*getchar();*/
 	//use keyboard input to animate fight or not
@@ -106,7 +106,7 @@ bool CInteraction::EnterPress(){
 	return false;
 }
 
-int CInteraction::checkEnter(CSprite* menu_select, int passed_screenWidth, int passed_screenHeight)
+int CInteraction::checkEnter(Sprite* menu_select, int passed_screenWidth, int passed_screenHeight)
 {
 	opt_select = 0;
 	switch (csdl_setup->GetMainEvent()->type)

@@ -35,7 +35,7 @@ public:
 	
 	void DisplayAttackAnim();
 
-	CSprite* GetPlayerSprite();
+	Sprite* GetPlayerSprite();
 
 private:
 	//player stats
@@ -51,7 +51,7 @@ private:
 protected:
 	CEnvironment* Environment;
 
-	void UpdateAnimation(CSprite* some_sprite);
+	void UpdateAnimation(Sprite* some_sprite);
 	void UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps);
 	float *CameraX;
 	float *CameraY;
@@ -60,9 +60,9 @@ protected:
 	int *MouseY;
 	CSDL_Setup* csdl_setup;
 
-	CSprite* chest;
-	CSprite* playerSprite;
-	CSprite* playerStats;
+	Sprite* chest;
+	Sprite* playerSprite;
+	Sprite* playerStats;
 	int timeCheck;
 	bool keyDown;
 	bool Follow;

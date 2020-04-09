@@ -49,7 +49,7 @@ private:
 	MainCharacter* player;
 	CEnvironment* pub;
 	Items *chest;
-	CMainMenu* mainmenu;
+	MainMenu* mainmenu;
 	NPC* npcs;
 	Quests* quests;
 	CEnemies* enemies;
