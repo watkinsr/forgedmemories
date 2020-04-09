@@ -10,24 +10,32 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 	
 	csdl_setup = new CSDL_Setup(&quit, ScreenWidth, ScreenHeight);
 	mainmenu = new MainMenu(csdl_setup, &MouseX, &MouseY, ScreenWidth, ScreenHeight, &CameraX, &CameraY); //5mb
+
+	StartMenu();
+
+
 	pub = new CEnvironment(ScreenWidth, ScreenHeight, &CameraX, &CameraY, "res/data/environment/pub/floorbig.png", csdl_setup,2,2,640,480, true, false, 1);	//13mb
 	player = new MainCharacter(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY, pub); //shouldn't even be taking in pub, it makes no sense.
+																					  
 	enemies = new CEnemies(csdl_setup,0,0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight); //60mb
 	text = new CSDLFont_Setup(csdl_setup);
+
 	quests = new Quests();
-	battle = new CBattle(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY); 
+	battle = new CBattle(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY);
 	interaction = new CInteraction (csdl_setup,&MouseX, &MouseY, &CameraX, &CameraY);
 	gamemenu = new GameMenu(csdl_setup ,&MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight);
-	npcs = new NPC(0, 0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight, csdl_setup, 0); 
+	npcs = new NPC(0, 0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight, csdl_setup, 0);
+
 	//testing this, really the values should be more clearcut as to what you are passing.
 	loot = new Loot("chest", 0, 0, 0, csdl_setup, &CameraX, &CameraY);
 	playermanager = new PlayerManager(csdl_setup,&CameraX, &CameraY);
 	events = new EventManager(csdl_setup, &MouseX, &MouseY);
-	battlemanager = new BattleManager(csdl_setup, &MouseX, &MouseY);
-	sounds = new SFXManager();
-	debug = new ConsoleDebug();
-	filemanager = new FileManagement(csdl_setup, &CameraX, &CameraY);
-	entities = new EntityManager();
+
+	// battlemanager = new BattleManager(csdl_setup, &MouseX, &MouseY);
+	// sounds = new SFXManager();
+	// debug = new ConsoleDebug();
+	// filemanager = new FileManagement(csdl_setup, &CameraX, &CameraY);
+	// entities = new EntityManager();
 
 
 	level_str = "LVL: ";
@@ -44,24 +52,28 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 
 GameLoop::~GameLoop(void){
 	delete csdl_setup;
-	delete player;
 	delete mainmenu;
+
 	delete pub;
 	delete player;
-	delete chest;
+
 	delete enemies;
 	delete text;
+
+	delete quests;
 	delete battle;
 	delete interaction;
 	delete gamemenu;
 	delete npcs;
-	delete quests;
+
 	delete playermanager;
 	delete loot;
 	delete events;
-	delete debug;
-	delete filemanager;
-	delete entities;
+
+	// delete chest;
+	// delete debug;
+	// delete filemanager;
+	// delete entities;
 }
 
 void GameLoop::Begin(bool passed_start){

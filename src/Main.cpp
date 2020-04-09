@@ -6,10 +6,10 @@ const string g_FONT_FILE = "res/fonts/Minecraftia.ttf";
 
 using namespace std;
 
-int _tmain(int argc)
+int main()
 {
 	GameLoop*  mainGame = new GameLoop(640, 480);
-	mainGame->Begin(false);
+	// mainGame->Begin(false);
 
 	delete mainGame;
 

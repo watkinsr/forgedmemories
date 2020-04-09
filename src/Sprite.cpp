@@ -16,13 +16,13 @@ Sprite::Sprite(SDL_Renderer* passed_renderer, std::string FilePath, int x, int y
 		std::cout << "Couldn't Load " << FilePath.c_str() << std::endl;
 	}
 
-	CollisionImage = NULL;
+	// CollisionImage = NULL;
 
-	CollisionImage = IMG_LoadTexture(renderer, "res/data/Debug/CollisionBox.png");
+	// CollisionImage = IMG_LoadTexture(renderer, "res/data/Debug/CollisionBox.png");
 
-	if (CollisionImage == NULL){
-		std::cout << "Couldn't Load " << "CollisionImage" << std::endl;
-	}
+	// if (CollisionImage == NULL){
+	// 	std::cout << "Couldn't Load " << "CollisionImage" << std::endl;
+	// }
 
 	rect.x = x;
 	rect.y = y;

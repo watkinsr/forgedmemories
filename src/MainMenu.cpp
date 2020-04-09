@@ -55,9 +55,8 @@ void MainMenu::Draw()
 	PlayButton->Draw();
 	OptionButton->Draw();
 	AboutButton->Draw();
-	cout << "Mouse X = " << *MouseX;
-	cout << "\tMouse Y = " << *MouseY;
-	system("cls");
+	// cout << "Mouse X = " << *MouseX;
+	// cout << "\tMouse Y = " << *MouseY;
 }
 
 bool MainMenu::AboutMenu()
@@ -73,7 +72,7 @@ bool MainMenu::AboutMenu()
 			{
 				AboutPage_Scroll->Draw();
 				//get anim for mouseclick, run gameloop
-				cout << "You have scrolled over the return to menu button!" << endl;
+				// cout << "You have scrolled over the return to menu button!" << endl;
 				/*system("pause");*/
 			}
 		}
@@ -85,7 +84,7 @@ bool MainMenu::AboutMenu()
 				{
 					AboutPage_Scroll->Draw();
 					//get anim for mouseclick, run gameloop
-					cout << "You have clicked the return to menu button!" << endl;
+					// cout << "You have clicked the return to menu button!" << endl;
 					start = true;
 					return start;
 				}
@@ -107,7 +106,7 @@ int MainMenu::GetButtonClick()
 			{
 				PlayButton_Scroll->Draw();
 				//get anim for mouseclick, run gameloop
-				cout << "You have scrolled over the start game button!" << endl;
+				// cout << "You have scrolled over the start game button!" << endl;
 				/*system("pause");*/
 			}
 		}
@@ -120,7 +119,7 @@ int MainMenu::GetButtonClick()
 				{
 					PlayButton_Scroll->Draw();
 					//get anim for mouseclick, run gameloop
-					cout << "You have clicked the start game button!" << endl;
+					// cout << "You have clicked the start game button!" << endl;
 					return 1;
 				}
 			}
@@ -132,7 +131,7 @@ int MainMenu::GetButtonClick()
 			{
 				OptionButton_Scroll->Draw();
 				//get anim for mouseclick, run gameloop
-				cout << "You have scrolled over the option button!" << endl;
+				// cout << "You have scrolled over the option button!" << endl;
 				/*system("pause");*/
 			}
 		}
@@ -144,7 +143,7 @@ int MainMenu::GetButtonClick()
 				{
 					OptionButton_Scroll->Draw();
 					//get anim for mouseclick, run gameloop
-					cout << "You have clicked the option button!" << endl;
+					// cout << "You have clicked the option button!" << endl;
 					return 2;
 				}
 			}
@@ -156,7 +155,7 @@ int MainMenu::GetButtonClick()
 			{
 				AboutButton_Scroll->Draw();
 				//get anim for mouseclick, run gameloop
-				cout << "You have scrolled over the about button!" << endl;
+				// cout << "You have scrolled over the about button!" << endl;
 				/*system("pause");*/
 			}
 		}
@@ -168,7 +167,7 @@ int MainMenu::GetButtonClick()
 				{
 					AboutButton_Scroll->Draw();
 					//get anim for mouseclick, run gameloop
-					cout << "You have clicked the about button!" << endl;
+					// cout << "You have clicked the about button!" << endl;
 					return 3;
 				}
 			}

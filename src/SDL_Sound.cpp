@@ -31,16 +31,17 @@ bool SDL_Sound::LoadMedia(const char *media_loc, bool isBGMusic)
 
 	//Load music, if it is a piece of background music, 
 	//let's pass in that background music, otherwise, set a normal gameplay sound that doesn't last long or need to be looped.
-	if (!isBGMusic)
+	if (!isBGMusic) {
 		gMusic = Mix_LoadWAV(media_loc);
+		if( gMusic == NULL )
+		{
+			cout << "Failed to load " << media_loc << endl;
+			success = false;
+		}
+	}
 	else
 		gBGMusic = Mix_LoadWAV(media_loc);
 
-	if( gMusic == NULL )
-	{
-		cout << "Failed to load " << media_loc << endl;
-		success = false;
-	}
 	return success;
 }
 
