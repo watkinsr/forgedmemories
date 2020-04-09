@@ -84,7 +84,6 @@ bool CInteraction::checkInteraction(Sprite* some_sprite)
 
 		//get anim for mouseclick, run gameloop
 		cout << "You have clicked on something" << endl;
-		system("cls");
 		click = true;
 		return click;
 	}

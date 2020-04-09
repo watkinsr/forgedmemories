@@ -32,7 +32,7 @@ class GameLoop
 public:
 	GameLoop(int passed_ScreenWidth, int passed_ScreenHeight);
 	~GameLoop(void);
-	void Begin(bool start);
+	void Begin();
 	void StartMenu();
 	void Play();
 	void GetStats();

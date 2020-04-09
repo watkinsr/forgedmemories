@@ -63,7 +63,6 @@ bool MainMenu::AboutMenu()
 {
 	cout << "Mouse X = " << *MouseX;
 	cout << "\tMouse Y = " << *MouseY;
-	system("cls");
 	AboutPage->Draw();
 	start = false;
 		if (csdl_setup->GetMainEvent()->type == SDL_MOUSEMOTION)

@@ -11,31 +11,33 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 	csdl_setup = new CSDL_Setup(&quit, ScreenWidth, ScreenHeight);
 	mainmenu = new MainMenu(csdl_setup, &MouseX, &MouseY, ScreenWidth, ScreenHeight, &CameraX, &CameraY); //5mb
 
-	StartMenu();
 
 
 	pub = new CEnvironment(ScreenWidth, ScreenHeight, &CameraX, &CameraY, "res/data/environment/pub/floorbig.png", csdl_setup,2,2,640,480, true, false, 1);	//13mb
 	player = new MainCharacter(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY, pub); //shouldn't even be taking in pub, it makes no sense.
-																					  
-	enemies = new CEnemies(csdl_setup,0,0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight); //60mb
+	playermanager = new PlayerManager(csdl_setup,&CameraX, &CameraY);
+
+	// enemies = new CEnemies(csdl_setup,0,0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight); //60mb
 	text = new CSDLFont_Setup(csdl_setup);
 
-	quests = new Quests();
-	battle = new CBattle(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY);
-	interaction = new CInteraction (csdl_setup,&MouseX, &MouseY, &CameraX, &CameraY);
-	gamemenu = new GameMenu(csdl_setup ,&MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight);
-	npcs = new NPC(0, 0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight, csdl_setup, 0);
+	// quests = new Quests();
+	// battle = new CBattle(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY);
+	// interaction = new CInteraction (csdl_setup,&MouseX, &MouseY, &CameraX, &CameraY);
+	// gamemenu = new GameMenu(csdl_setup ,&MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight);
+	// npcs = new NPC(0, 0, &MouseX, &MouseY, &CameraX, &CameraY, ScreenWidth, ScreenHeight, csdl_setup, 0);
 
 	//testing this, really the values should be more clearcut as to what you are passing.
-	loot = new Loot("chest", 0, 0, 0, csdl_setup, &CameraX, &CameraY);
-	playermanager = new PlayerManager(csdl_setup,&CameraX, &CameraY);
-	events = new EventManager(csdl_setup, &MouseX, &MouseY);
+	// loot = new Loot("chest", 0, 0, 0, csdl_setup, &CameraX, &CameraY);
+	// events = new EventManager(csdl_setup, &MouseX, &MouseY);
 
 	// battlemanager = new BattleManager(csdl_setup, &MouseX, &MouseY);
-	// sounds = new SFXManager();
-	// debug = new ConsoleDebug();
-	// filemanager = new FileManagement(csdl_setup, &CameraX, &CameraY);
+	sounds = new SFXManager();
+
+	debug = new ConsoleDebug();
+
+	filemanager = new FileManagement(csdl_setup, &CameraX, &CameraY);
 	// entities = new EntityManager();
+
 
 
 	level_str = "LVL: ";
@@ -47,6 +49,8 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 
 	quit = false;
 	start = false;
+
+	StartMenu();
 }
 
 
@@ -70,31 +74,15 @@ GameLoop::~GameLoop(void){
 	delete loot;
 	delete events;
 
+	delete battlemanager;
+	delete sounds;
+
 	// delete chest;
-	// delete debug;
-	// delete filemanager;
-	// delete entities;
-}
 
-void GameLoop::Begin(bool passed_start){
-	enemies->SpawnEnemy(10, 30, 3, 100, pub);
-	GetStats();
-	LoadFiles();
-	Play();	
-}
+	delete debug;
 
-//this routine takes all the objects created in the constructor and places 
-//them individually into vectors for easy sprite management
-void GameLoop::GroupEntities(){
-
-}
-
-//must load quests before npc's as npc's need a quest to be initialised.
-void GameLoop::LoadFiles(){
-filemanager->HandleQuestFile("res/data/quests.txt");
-filemanager->HandleNPCFile("res/data/npcs.txt");
-filemanager->HandleSpriteFile();
-entities = filemanager->GetEntities();
+	delete filemanager;
+	delete entities;
 }
 
 void GameLoop::StartMenu(){
@@ -103,11 +91,14 @@ while (!quit && csdl_setup->GetMainEvent()->type != SDL_QUIT && start != true)
 		csdl_setup->Begin();
 		SDL_GetMouseState(&MouseX,&MouseY);
 
+		cout << MouseX;
+
 		mainmenu->Draw();
 		//if user presses start, start the game
 		if (mainmenu->GetButtonClick() == 1)
 		{
-		start = true;
+			start = true;
+			Begin();
 		}
 		//if user presses options, get options
 		else if (mainmenu->GetButtonClick() == 2)
@@ -129,71 +120,101 @@ while (!quit && csdl_setup->GetMainEvent()->type != SDL_QUIT && start != true)
 	}
 }
 
+void GameLoop::Begin(){
+	// enemies->SpawnEnemy(10, 30, 3, 100, pub);
+	GetStats();
+	LoadFiles();
+	Play();
+}
+
+//this routine takes all the objects created in the constructor and places
+//them individually into vectors for easy sprite management
+void GameLoop::GroupEntities(){
+
+}
+
+//must load quests before npc's as npc's need a quest to be initialised.
+void GameLoop::LoadFiles(){
+filemanager->HandleQuestFile("res/data/quests.txt");
+filemanager->HandleNPCFile("res/data/npcs.txt");
+filemanager->HandleSpriteFile();
+// entities = filemanager->GetEntities();
+}
+
+
 
 //really, this should have loadMap() which inits vector of npcs, chests, other various entities such as enemies and so on.
 void GameLoop::Play(){
 	while (!quit && csdl_setup->GetMainEvent()->type != SDL_QUIT){
 		csdl_setup->Begin();
-		SDL_GetMouseState(&MouseX,&MouseY);
-		if (enemies->GetEnemies()->size() != 0){
-			enemies->PrintEnemyTestLoc();
-		}
-		cout << "PlayerX: " << player->GetPlayerSprite()->GetSpriteCameraX() << endl;
-		cout << "PlayerY: " << player->GetPlayerSprite()->GetSpriteCameraY() << endl;
+
+		// cout << "Test" << endl;
+
+		// SDL_GetMouseState(&MouseX,&MouseY);
+
+		// if (enemies->GetEnemies()->size() != 0){
+		// 	// enemies->PrintEnemyTestLoc();
+		// }
+	
+		// cout << "PlayerX: " << player->GetPlayerSprite()->GetSpriteCameraX() << endl;
+		// cout << "PlayerY: " << player->GetPlayerSprite()->GetSpriteCameraY() << endl;
+	
 		pub->DrawBack();
 		player->Draw();
-		player->Update(*enemies->GetEnemies(), pub->GetMapElements());
+		// player->Update(*enemies->GetEnemies(), pub->GetMapElements());
 		pub->Update();
 		pub->DrawFront();
-		sounds->GetSceneMusic();
+		// sounds->GetSceneMusic();
 
 		//draws NPC's for the time being, should draw every form of sprite however.
-		entities->DrawAll();
+		// entities->DrawAll();
 
 		//just to enable quest success.
-		battlemanager->SetKillCount(5);
+		// battlemanager->SetKillCount(5);
 
-		const float LOOTRANGE = 60;
-		if (playermanager->IsClose(loot->GetLoot(), LOOTRANGE)){
-			loot->OpenChest();
-			player->StopMove();
-			//Sprites shouldn't come from battle, this is just temporary testing usage. There instead should be a class that deals with DialogSprites and returns them.
-			events->ChestDialogEvent(player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(), 
-				battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies());
-		}
+		// const float LOOTRANGE = 60;
 
-		if (entities->CheckPlayerClose(player->GetPlayerSprite())){
-			npcs->DisplayQuestMenu(1, entities->GetQuests(), player, player->GetPlayerSprite(), 
-				battle->GetDiaBoxSprite(), battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies());
-		}
+		// if (playermanager->IsClose(loot->GetLoot(), LOOTRANGE)){
+		// 	loot->OpenChest();
+		// 	player->StopMove();
+		// 	//Sprites shouldn't come from battle, this is just temporary testing usage. There instead should be a class that deals with DialogSprites and returns them.
+		// 	events->ChestDialogEvent(player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(),
+		// 		battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies());
+		// }
+
+		// if (entities->CheckPlayerClose(player->GetPlayerSprite())){
+		// 	npcs->DisplayQuestMenu(1, entities->GetQuests(), player, player->GetPlayerSprite(),
+		// 		battle->GetDiaBoxSprite(), battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies());
+		// }
 
 		//should be draw all loot objects.
-		loot->DrawChest();
+		// loot->DrawChest();
 
-		enemies->Draw();
-		enemies->GetEnemies();
-		enemies->DetectPlayer(player->GetPlayerSprite());
+		// enemies->Draw();
+		// enemies->GetEnemies();
+		// enemies->DetectPlayer(player->GetPlayerSprite());
 
-		battlemanager->HandlePlayerAttack(player, player->GetPlayerSprite(), battle->GetEnHP(), pub, enemies->GetEnemies(), sounds);
-		battlemanager->HandleEnemyMeleeAttack(player, player->GetPlayerSprite(), battle->GetEnHP(), pub, enemies->GetEnemies(), sounds);
+		// battlemanager->HandlePlayerAttack(player, player->GetPlayerSprite(), battle->GetEnHP(), pub, enemies->GetEnemies(), sounds);
+		// battlemanager->HandleEnemyMeleeAttack(player, player->GetPlayerSprite(), battle->GetEnHP(), pub, enemies->GetEnemies(), sounds);
 
 		//if quest finished. Get gamemenu object to remove the quest from the quests.
-		if (quests->CheckQuestComplete(1, battlemanager)){
-			quests->QuestSuccess(entities->GetQuests(), 0, player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(), 
-				battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies(), events);
-			gamemenu->RemoveQuest(battlemanager, entities);
+		// if (quests->CheckQuestComplete(1, battlemanager)){
+		// 	quests->QuestSuccess(entities->GetQuests(), 0, player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(),
+		// 		battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies(), events);
+		// 	gamemenu->RemoveQuest(battlemanager, entities);
 
-		}
+		// }
 
-		DrawPlayerDebugStats();
+		// DrawPlayerDebugStats();
 
-		gamemenu->CheckForEsc(csdl_setup);
-		if (gamemenu->IsEscPressed()){
-			gamemenu->DisplayGameMenu(player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(), 
-				battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies(), entities);
-		}
+		// gamemenu->CheckForEsc(csdl_setup);
+		// if (gamemenu->IsEscPressed()){
+		// 	gamemenu->DisplayGameMenu(player, player->GetPlayerSprite(), battle->GetDiaBoxSprite(),
+		// 		battle->GetEnHP(), interaction, pub, battle->GetDialogIcon(), *enemies->GetEnemies(), entities);
+		// }
 
-		GetStats();
+		// GetStats();
+
 		csdl_setup->End();	
 	}
 }

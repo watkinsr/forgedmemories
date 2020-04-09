@@ -111,6 +111,7 @@ void MainCharacter::CheckLevelUp(){
 void MainCharacter::Draw(){
 	playerStats->DrawSteady();
 	playerSprite->DrawSteady();
+	UpdateAnimation(playerSprite);
 }
 
 void MainCharacter::UpdateAnimation(Sprite* some_sprite){
@@ -203,106 +204,106 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 
 			bool colliding = false;
 
-			for (unsigned int i = 0; i < Environment->GetTrees().size(); i++)
-			{
-				if (playerSprite->isColliding(Environment->GetTrees()[i]->GetTrunk()->GetCollisionRect()))
-				{
-					cout << "Player sprite is colliding with a tree!" << endl;
-					colliding = true;
-				}
-			}
+			// for (unsigned int i = 0; i < Environment->GetTrees().size(); i++)
+			// {
+			// 	if (playerSprite->isColliding(Environment->GetTrees()[i]->GetTrunk()->GetCollisionRect()))
+			// 	{
+			// 		cout << "Player sprite is colliding with a tree!" << endl;
+			// 		colliding = true;
+			// 	}
+			// }
 
-			for (unsigned int i = 0; i < Enemies.size(); i++)
-			{
-				if (playerSprite->isColliding(Enemies[i]->GetEnemySprite()->GetCollisionRect()))
-				{
-					cout << "Player sprite is colliding with a enemy sprite!" << endl;
-					if (*CameraX > Follow_Point_X)
-					{
-						*CameraX = *CameraX + 5;
-					}
-					if (*CameraX < Follow_Point_X)
-					{
-						*CameraX = *CameraX - 5;
-					}
-					if (*CameraY > Follow_Point_Y)
-					{
-						*CameraY = *CameraY + 5;
-					}
-					if (*CameraY < Follow_Point_Y)
-					{
-						*CameraY = *CameraY - 5;
-					}
-					Follow_Point_X = (int)*CameraX;
-					Follow_Point_Y = (int)*CameraY;
-					distance = 0;
-					Follow = false;
+			// for (unsigned int i = 0; i < Enemies.size(); i++)
+			// {
+			// 	if (playerSprite->isColliding(Enemies[i]->GetEnemySprite()->GetCollisionRect()))
+			// 	{
+			// 		cout << "Player sprite is colliding with a enemy sprite!" << endl;
+			// 		if (*CameraX > Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX + 5;
+			// 		}
+			// 		if (*CameraX < Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX - 5;
+			// 		}
+			// 		if (*CameraY > Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY + 5;
+			// 		}
+			// 		if (*CameraY < Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY - 5;
+			// 		}
+			// 		Follow_Point_X = (int)*CameraX;
+			// 		Follow_Point_Y = (int)*CameraY;
+			// 		distance = 0;
+			// 		Follow = false;
 
-					colliding = true;
-				}
+			// 		colliding = true;
+			// 	}
 
-			}
+			// }
 
-			for (int i = 0; i < Maps[i]->GetTableNum(); i++)
-			{
-				if (playerSprite->isColliding(Maps[i]->GetTable()->GetCollisionRect()))
-				{
-					cout << "Player sprite is colliding with a table!" << endl;
-					if (*CameraX > Follow_Point_X)
-					{
-						*CameraX = *CameraX + 5;
-					}
-					if (*CameraX < Follow_Point_X)
-					{
-						*CameraX = *CameraX - 5;
-					}
-					if (*CameraY > Follow_Point_Y)
-					{
-						*CameraY = *CameraY + 5;
-					}
-					if (*CameraY < Follow_Point_Y)
-					{
-						*CameraY = *CameraY - 5;
-					}
-					Follow_Point_X = (int)*CameraX;
-					Follow_Point_Y = (int)*CameraY;
-					distance = 0;
-					Follow = false;
+			// for (int i = 0; i < Maps[i]->GetTableNum(); i++)
+			// {
+			// 	if (playerSprite->isColliding(Maps[i]->GetTable()->GetCollisionRect()))
+			// 	{
+			// 		cout << "Player sprite is colliding with a table!" << endl;
+			// 		if (*CameraX > Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX + 5;
+			// 		}
+			// 		if (*CameraX < Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX - 5;
+			// 		}
+			// 		if (*CameraY > Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY + 5;
+			// 		}
+			// 		if (*CameraY < Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY - 5;
+			// 		}
+			// 		Follow_Point_X = (int)*CameraX;
+			// 		Follow_Point_Y = (int)*CameraY;
+			// 		distance = 0;
+			// 		Follow = false;
 
-					colliding = true;
-				}
-			}
+			// 		colliding = true;
+			// 	}
+			// }
 
-			for (int i = 0; i < Maps[i]->GetTableNum(); i++)
-			{
-				if (playerSprite->isColliding(Maps[i]->GetWallOutline_Top()->GetCollisionRect()) || playerSprite->isColliding(Maps[i]->GetWallOutline_Left()->GetCollisionRect())
-					|| playerSprite->isColliding(Maps[i]->GetWallOutline_Bottom()->GetCollisionRect()) || playerSprite->isColliding(Maps[i]->GetWallOutline_Right()->GetCollisionRect()))
-				{
-					cout << "Player sprite is colliding with outside wall" << endl;
-					if (*CameraX > Follow_Point_X)
-					{
-						*CameraX = *CameraX + 5;
-					}
-					if (*CameraX < Follow_Point_X)
-					{
-						*CameraX = *CameraX - 5;
-					}
-					if (*CameraY > Follow_Point_Y)
-					{
-						*CameraY = *CameraY + 5;
-					}
-					if (*CameraY < Follow_Point_Y)
-					{
-						*CameraY = *CameraY - 5;
-					}
-					Follow_Point_X = (int)*CameraX;
-					Follow_Point_Y = (int)*CameraY;
-					distance = 0;
-					Follow = false;
+			// for (int i = 0; i < Maps[i]->GetTableNum(); i++)
+			// {
+			// 	if (playerSprite->isColliding(Maps[i]->GetWallOutline_Top()->GetCollisionRect()) || playerSprite->isColliding(Maps[i]->GetWallOutline_Left()->GetCollisionRect())
+			// 		|| playerSprite->isColliding(Maps[i]->GetWallOutline_Bottom()->GetCollisionRect()) || playerSprite->isColliding(Maps[i]->GetWallOutline_Right()->GetCollisionRect()))
+			// 	{
+			// 		cout << "Player sprite is colliding with outside wall" << endl;
+			// 		if (*CameraX > Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX + 5;
+			// 		}
+			// 		if (*CameraX < Follow_Point_X)
+			// 		{
+			// 			*CameraX = *CameraX - 5;
+			// 		}
+			// 		if (*CameraY > Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY + 5;
+			// 		}
+			// 		if (*CameraY < Follow_Point_Y)
+			// 		{
+			// 			*CameraY = *CameraY - 5;
+			// 		}
+			// 		Follow_Point_X = (int)*CameraX;
+			// 		Follow_Point_Y = (int)*CameraY;
+			// 		distance = 0;
+			// 		Follow = false;
 
-					colliding = true;
-				}
-			}
+			// 		colliding = true;
+			// 	}
+			// }
 
 			if (!colliding)
 			{
@@ -323,6 +324,7 @@ void MainCharacter::UpdateControls(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 		timeCheck = SDL_GetTicks();
 	}
 }
+
 
 void MainCharacter::Update(vector<CEnemy*>Enemies, vector<CMap*>Maps){
 	UpdateAnimation(playerSprite);
