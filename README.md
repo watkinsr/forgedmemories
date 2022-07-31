@@ -2,14 +2,10 @@
 Basic SDL engine in C++
 
 # Prerequisites
-sudo apt-get install -y libsdl2-image-dev 
-
-sudo apt-get install -y libsdl2-ttf-dev
-
-sudo apt-get install -y libsdl2-mixer-dev
+``sudo apt-get install -y libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev``
 
 # Build
-make
+``./Meta/engine.sh build``
 
 # Run
-./build/rpg
+``./Meta/engine.sh run``
