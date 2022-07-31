@@ -12,5 +12,5 @@ include_directories("${PROJECT_INCLUDE_DIR}")
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
-add_executable(engine src/main.cpp)
+add_executable(engine src/main.cpp src/EventLoop.cpp src/SDLInitManager.cpp)
 target_link_libraries(engine ${SDL2_LIBRARIES})

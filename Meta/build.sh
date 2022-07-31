@@ -9,6 +9,8 @@ print_help() {
 Usage: $NAME COMMAND
     $NAME run
         Runs the thing
+    $NAME build
+        Builds the thing
 EOF
 }
 
