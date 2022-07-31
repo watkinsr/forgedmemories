@@ -1,8 +1,0 @@
-* Description
-2D RPG Game coded with SDL Libraries in C++
-
-* Dependencies
-- SDL2-devel
-- SDL2_image-deel
-- SDL2_mixer-devel
-- SDL2_TTF-devel
