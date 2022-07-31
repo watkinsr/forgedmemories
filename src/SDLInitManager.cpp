@@ -1,4 +1,4 @@
-#include "SDLInitManager.h"
+#include "../include/SDLInitManager.h"
 #include "iostream"
 
 using namespace std;
@@ -6,37 +6,43 @@ using namespace std;
 SDLInitManager::SDLInitManager() {
 	SDL_Init(SDL_INIT_VIDEO);
 
-	window = NULL;
-	window = SDL_CreateWindow("Game", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
-	if (window == NULL) {
+	m_window = NULL;
+	m_window = SDL_CreateWindow("Game", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
+	if (m_window == NULL) {
 		cout << "panic: Window failed to create at SDL_CreateWindow" << endl;
 	}
 
-	renderer = NULL;
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
+	m_renderer = NULL;
+	m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
+    SDL_RenderClear(m_renderer);
+    SDL_RenderPresent(m_renderer);
+    m_sdl_event = new SDL_Event();
 }
 
 SDLInitManager::~SDLInitManager(){
-	SDL_DestroyWindow(window);
-	SDL_DestroyRenderer(renderer);
-	delete mainEvent;
+	SDL_DestroyWindow(m_window);
+	SDL_DestroyRenderer(m_renderer);
+    delete m_sdl_event;
 }
 
 SDL_Renderer* SDLInitManager::GetRenderer(){
-	return renderer;
+	return m_renderer;
+}
+
+SDL_Event* SDLInitManager::GetMainSDLEvent(){
+    return m_sdl_event;
 }
 
 void SDLInitManager::Begin(){
+    SDL_PollEvent(m_sdl_event);
+    SDL_RenderClear(m_renderer);
 }
 
 void SDLInitManager::End(){
-	SDL_RenderPresent(renderer);
-
+	SDL_RenderPresent(m_renderer);
 }
 
 SDL_Window* SDLInitManager::GetWindow(){
-	return window;
+	return m_window;
 }
