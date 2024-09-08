@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -x
 set -e
 
 ARG0=$0
@@ -24,10 +25,17 @@ usage() {
     exit 1
 }
 
+build() {
+    mkdir -p build;
+    cd build;
+    cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -S ../ -B . --verbose;
+    ninja;    
+}
+
 CMD=$1
 case "$CMD" in
     build)
-        mkdir -p build && cd build && cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -S ../ -B . && ninja;
+	build
         ;;
     run)
         ./target/rpg;

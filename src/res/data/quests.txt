@@ -1,8 +1,0 @@
---BEGIN QUESTS--
-quest_type: kill
-quest_desc: go kill five enemies
-gold: 200
-xp: 200
-level_threshold: 1
-item_threshold: 0
---END QUESTS--
