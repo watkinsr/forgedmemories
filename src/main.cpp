@@ -1,8 +1,11 @@
-#include "../include/EventLoop.h"
+#include "Game.h"
+#include <memory>
 
-int main()
-{
-	EventLoop* event_loop = new EventLoop(640, 480);
-    event_loop->Start();
+int main() {
+    std::unique_ptr<Game> game = std::make_unique<Game>();
+    game->LoadTexture("assets/menu.gif");
+    while (game->GetEvent()->type != SDL_QUIT){
+        game->Draw();
+	}
 	return 0;
 }
