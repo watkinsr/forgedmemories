@@ -42,6 +42,16 @@ Game::Game() {
     _event = new SDL_Event();
 }
 
+void Game::IncrementSceneStack() {
+    scene_t scene;
+    if (_scene_stack_idx < SCENE_STACK_MAX_SIZE) {
+	_scene_stack_idx++;
+	_scenes.push_back(scene);
+	_scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
+	_scenes[_scene_stack_idx].texture_rects = std::vector<SDL_Rect>();
+    }
+}
+
 std::pair<int, int> Game::GetTextureDimensions(SDL_Texture* texture) {
     int width = 0;
     int height = 0;
@@ -53,7 +63,7 @@ std::pair<int, int> Game::GetTextureDimensions(SDL_Texture* texture) {
     return std::pair(width, height);
 }
 
-void Game::AllocateTextTexture(SDL_Color color, std::string text) {
+void Game::AllocateTextTexture(const uint8_t scene_idx, const SDL_Color color, const std::string text, const uint32_t x, const uint32_t y) {
     SDL_Surface* surface = TTF_RenderText_Solid(
         _font,
         text.c_str(),
@@ -69,7 +79,17 @@ void Game::AllocateTextTexture(SDL_Color color, std::string text) {
         printf("Panic: Failed to create texture for text, abort.\n");
         exit(EXIT_FAILURE);
     }
-    _textures.push_back(text_texture);
+
+    _scenes[scene_idx].textures.push_back(text_texture);
+    SDL_Rect texture_rect;
+    std::pair<int, int> texture_dims = GetTextureDimensions(text_texture);
+    const int width = std::get<0>(texture_dims);
+    const int height = std::get<1>(texture_dims);
+    texture_rect.x = x - width/2;
+    texture_rect.y = y;
+    texture_rect.w = width;
+    texture_rect.h = height;
+    _scenes[scene_idx].texture_rects.push_back(texture_rect);
 }
 
 Game::~Game() {
@@ -81,40 +101,44 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
-void Game::RenderScene() {
-    // FIXME: Texture rectangles should be abstracted.
-    // FIXME: All textures and their rectangles should be drawn.
+void Game::InitDefaultScene() {
+    scene_t scene;
+    _scenes.push_back(scene);
+    if (_scenes.size() < 1) {
+	printf("Panic: Failed to init scene.\n");
+	exit(EXIT_FAILURE);
+    }
+    _scenes[0].textures = std::vector<SDL_Texture*>();
+    _scenes[0].texture_rects = std::vector<SDL_Rect>();
+    LoadTexture(0, "assets/menu.gif", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    AllocateTextTexture(0, {255,255,255,255}, "Play", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 1);
+}
 
+void Game::RenderScene() {
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
 
-    SDL_Rect texture_rect;
-    texture_rect.x = 0;
-    texture_rect.y = 0;
-    texture_rect.w = SCREEN_WIDTH;
-    texture_rect.h = SCREEN_WIDTH;
-    SDL_RenderCopy(_renderer, _textures[0], NULL, &texture_rect);
-
-    std::pair<int, int> play_button_dims = GetTextureDimensions(_textures[1]);
-    SDL_Rect play_button_rect;
-    int play_width = std::get<0>(play_button_dims);
-    int play_height = std::get<1>(play_button_dims);
-    play_button_rect.x = SCREEN_WIDTH/2 - (play_width/2);
-    play_button_rect.y = SCREEN_HEIGHT/2 - 1;
-    play_button_rect.w = play_width;
-    play_button_rect.h = play_height;
-
-    SDL_RenderCopy(_renderer, _textures[1], NULL, &play_button_rect);
+    for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
+	SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];
+	SDL_Rect rect = _scenes[_scene_stack_idx].texture_rects[i];
+	SDL_RenderCopy(_renderer, texture, NULL, &rect);
+    }
 
     SDL_RenderPresent(_renderer);
 }
 
-void Game::LoadTexture(std::string path) {
+void Game::LoadTexture(const uint8_t scene_idx, const std::string path, const uint32_t x, const uint32_t y, const uint32_t w, const uint32_t h) {
     SDL_Texture* texture = IMG_LoadTexture(_renderer, path.c_str());
-    if (texture == NULL){
+    if (texture == NULL) {
         printf("Panic: Failed to load texture at %s.\n", path.c_str());
         exit(EXIT_FAILURE);
-	} else {
-        _textures.push_back(texture);
+    } else {
+	_scenes[scene_idx].textures.push_back(texture);
+	SDL_Rect texture_rect;
+	texture_rect.x = x;
+	texture_rect.y = y;
+	texture_rect.w = w;
+	texture_rect.h = h;
+	_scenes[scene_idx].texture_rects.push_back(texture_rect);
     }
 }
