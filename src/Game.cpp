@@ -71,7 +71,7 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
-void Game::Draw() {
+void Game::RenderScene() {
     // FIXME: Texture rectangles should be abstracted.
     // FIXME: All textures and their rectangles should be drawn.
 
@@ -84,8 +84,6 @@ void Game::Draw() {
     texture_rect.w = SCREEN_WIDTH;
     texture_rect.h = SCREEN_WIDTH;
     SDL_RenderCopy(_renderer, _textures[0], NULL, &texture_rect);
-
-    // FIXME: Draw Play button as text inside a rect.
 
     std::pair<int, int> play_button_dims = GetTextureDimensions(_textures[1]);
     SDL_Rect play_button_rect;
