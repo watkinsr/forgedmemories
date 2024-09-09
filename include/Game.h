@@ -17,7 +17,7 @@ public:
     void LoadTexture(std::string);
     void AllocateTextTexture(SDL_Color, std::string);
     std::pair<int, int> GetTextureDimensions(SDL_Texture*);
-    void Draw();
+    void RenderScene();
 private:
     SDL_Window*               _window;
     SDL_Renderer*             _renderer;
