@@ -17,14 +17,19 @@ struct scene_t {
     vector<SDL_Rect> texture_rects;
 };
 
+struct gametexture_t {
+    string text_or_uri;
+    SDL_Rect rect;
+    SDL_Color color;
+    uint8_t tag;
+};
+
 class Game {
 public:
     Game();
     ~Game();
     SDL_Event* GetEvent();
-    void LoadTexture(const uint8_t, string, const uint32_t, const uint32_t, const uint32_t, const uint32_t);
-    void AllocateTextTexture(const uint8_t, const SDL_Color, const string, const uint32_t, const uint32_t);
-
+    void LoadTexture(const uint8_t, gametexture_t);
     pair<int, int> GetTextureDimensions(SDL_Texture*);
     void RenderScene();
     void AllocateScene(bool);
@@ -37,7 +42,7 @@ private:
     uint8_t                   _scene_stack_idx = 0;
     vector<SDL_Texture*> _textures = vector<SDL_Texture*>();
     vector<scene_t> _scenes = vector<scene_t>();
-    vector<vector<string>> _scene_texture_locations = vector<vector<string>>();
+    vector<vector<gametexture_t>> _scene_texture_locations = vector<vector<gametexture_t>>();
     const uint32_t SCREEN_WIDTH = 640;
     const uint32_t SCREEN_HEIGHT = 480;
     const uint8_t  MAIN_TEXTURE_SIZE = 2;

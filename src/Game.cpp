@@ -44,11 +44,24 @@ Game::Game() {
 }
 
 void Game::_SetTextureLocations() {
-    const vector<string> SCENE_1 = {
-	"assets/menu.gif"
+    const vector<gametexture_t> SCENE_1 = {
+	{ .text_or_uri = "assets/menu.gif",
+	  .rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT},
+	  .color = {0,0,0,0},
+	  .tag = 0x02
+        },
+        { .text_or_uri = "<SPC> to play",
+	  .rect = {SCREEN_WIDTH/2.5, SCREEN_HEIGHT/2 - 1, 0, 0},
+          .color = {255,255,255,255},
+	  .tag = 0x01
+	}
     };
-    const vector<string> SCENE_2 = {
-	"assets/floorbig.png"
+    const vector<gametexture_t> SCENE_2 = {
+	{ .text_or_uri = "assets/floorbig.png",
+	   .rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT},
+	   .color = {0,0,0,0},
+	   .tag = 0x02
+	}
     };
     _scene_texture_locations.push_back(SCENE_1);
     _scene_texture_locations.push_back(SCENE_2);
@@ -66,12 +79,8 @@ void Game::AllocateScene(bool incrementStackIdx) {
         _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
         _scenes[_scene_stack_idx].texture_rects = std::vector<SDL_Rect>();
 	for (uint8_t i = 0; i < _scene_texture_locations[_scene_stack_idx].size(); ++i) {
-	    LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i], 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	    LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i]);
 	}
-
-	// FIXME: Need a way of specifying text textures generically.
-	AllocateTextTexture(_scene_stack_idx, {255,255,255,255}, "<SPC> to play", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 1);
-	// FIXME: Need a generic way to get the next scene's textures.
 	// FIXME: We might need to destroy the old textures.
     }
 }
@@ -85,35 +94,6 @@ std::pair<int, int> Game::GetTextureDimensions(SDL_Texture* texture) {
     }
 
     return std::pair(width, height);
-}
-
-void Game::AllocateTextTexture(const uint8_t scene_idx, const SDL_Color color, const std::string text, const uint32_t x, const uint32_t y) {
-    SDL_Surface* surface = TTF_RenderText_Solid(
-        _font,
-        text.c_str(),
-        color
-    );
-    if (!surface) {
-        printf("Panic: Failed to obtain surface, abort.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
-    if (!text_texture) {
-        printf("Panic: Failed to create texture for text, abort.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    _scenes[scene_idx].textures.push_back(text_texture);
-    SDL_Rect texture_rect;
-    std::pair<int, int> texture_dims = GetTextureDimensions(text_texture);
-    const int width = std::get<0>(texture_dims);
-    const int height = std::get<1>(texture_dims);
-    texture_rect.x = x - width/2;
-    texture_rect.y = y;
-    texture_rect.w = width;
-    texture_rect.h = height;
-    _scenes[scene_idx].texture_rects.push_back(texture_rect);
 }
 
 Game::~Game() {
@@ -138,19 +118,44 @@ void Game::RenderScene() {
     SDL_RenderPresent(_renderer);
 }
 
-void Game::LoadTexture(const uint8_t scene_idx, string path, const uint32_t x, const uint32_t y, const uint32_t w, const uint32_t h) {
+void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
     LOG_INFO("Game::LoadTexture(...)");
-    SDL_Texture* texture = IMG_LoadTexture(_renderer, path.c_str());
-    if (texture == NULL) {
-        printf("Panic: Failed to load texture at %s.\n", path.c_str());
-        exit(EXIT_FAILURE);
+    if (game_texture.tag & 0x01 == 0x01) {
+	LOG_INFO("Game::LoadTexture(...) => Received text texture");
+
+	SDL_Surface* surface = TTF_RenderText_Solid(
+            _font,
+            game_texture.text_or_uri.c_str(),
+            game_texture.color
+	);
+	if (!surface) {
+            printf("Panic: Failed to obtain surface, abort.\n");
+            exit(EXIT_FAILURE);
+	}
+
+	SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
+	if (!text_texture) {
+            printf("Panic: Failed to create texture for text, abort.\n");
+            exit(EXIT_FAILURE);
+	}
+	pair<int, int> texture_dims = GetTextureDimensions(text_texture);
+	const int width = std::get<0>(texture_dims);
+	const int height = std::get<1>(texture_dims);
+	game_texture.rect.w = width;
+	game_texture.rect.h = height;
+
+	_scenes[scene_idx].textures.push_back(text_texture);
+	_scenes[scene_idx].texture_rects.push_back(game_texture.rect);
     } else {
-	SDL_Rect texture_rect;
-	texture_rect.x = x;
-	texture_rect.y = y;
-	texture_rect.w = w;
-	texture_rect.h = h;
-	_scenes[scene_idx].textures.push_back(texture);
-	_scenes[scene_idx].texture_rects.push_back(texture_rect);
+	LOG_INFO("Game::LoadTexture(...) => Received image texture");
+	const char* path = game_texture.text_or_uri.c_str();
+	SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
+	if (texture == NULL) {
+            printf("Panic: Failed to load texture at %s.\n", path);
+            exit(EXIT_FAILURE);
+	} else {
+	    _scenes[scene_idx].textures.push_back(texture);
+	    _scenes[scene_idx].texture_rects.push_back(game_texture.rect);
+	}
     }
 }
