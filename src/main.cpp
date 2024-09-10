@@ -2,12 +2,11 @@
 #include <memory>
 
 void handleSpaceKey(std::unique_ptr<Game>& game) {
-    game->IncrementSceneStack();
+    game->AllocateScene(true);
 }
 
 int main() {
     std::unique_ptr<Game> game = std::make_unique<Game>();
-    game->InitDefaultScene();
     SDL_Event* e = game->GetEvent();
     while (e->type != SDL_QUIT){
         switch(e->type) {

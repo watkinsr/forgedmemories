@@ -11,8 +11,6 @@ GameLoop::GameLoop(int passed_ScreenWidth, int passed_ScreenHeight){
 	csdl_setup = new CSDL_Setup(&quit, ScreenWidth, ScreenHeight);
 	mainmenu = new MainMenu(csdl_setup, &MouseX, &MouseY, ScreenWidth, ScreenHeight, &CameraX, &CameraY); //5mb
 
-
-
 	pub = new CEnvironment(ScreenWidth, ScreenHeight, &CameraX, &CameraY, "res/data/environment/pub/floorbig.png", csdl_setup,2,2,640,480, true, false, 1);	//13mb
 	player = new MainCharacter(csdl_setup, &MouseX, &MouseY, &CameraX, &CameraY, pub); //shouldn't even be taking in pub, it makes no sense.
 	playermanager = new PlayerManager(csdl_setup,&CameraX, &CameraY);

@@ -2,8 +2,6 @@
 #include <string>
 #include <cstdlib>
 
-void allocate_play_texture();
-
 static constexpr std::string getDefaultFontPath() {
     // FIXME: Implement a way to get a default monospaced font.
     // return "/usr/share/fonts/truetype/freefont/FreeMono.ttf";
@@ -40,15 +38,41 @@ Game::Game() {
     }
 
     _event = new SDL_Event();
+
+    _SetTextureLocations();
+    AllocateScene(false);
 }
 
-void Game::IncrementSceneStack() {
-    scene_t scene;
-    if (_scene_stack_idx < SCENE_STACK_MAX_SIZE) {
-	_scene_stack_idx++;
-	_scenes.push_back(scene);
-	_scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
-	_scenes[_scene_stack_idx].texture_rects = std::vector<SDL_Rect>();
+void Game::_SetTextureLocations() {
+    const vector<string> SCENE_1 = {
+	"assets/menu.gif"
+    };
+    const vector<string> SCENE_2 = {
+	"assets/floorbig.png"
+    };
+    _scene_texture_locations.push_back(SCENE_1);
+    _scene_texture_locations.push_back(SCENE_2);
+    LOG_INFO("Game::SetTextureLocations() => Allocated %li Scene Texture Locations.", _scene_texture_locations.size());
+}
+
+void Game::AllocateScene(bool incrementStackIdx) {
+    if (_scene_stack_idx + 1 < SCENE_STACK_MAX_SIZE) {
+	if (incrementStackIdx) _scene_stack_idx++;
+	scene_t scene;
+        _scenes.push_back(scene);
+	LOG_INFO("Game::AllocateScene() => Scene stack size: %li.", _scenes.size());
+	LOG_INFO("Game::AllocateScene() => Scene stack index: %li.", _scene_stack_idx);
+	LOG_INFO("Game::AllocateScene() => There are %li texture locations for scene[%i]", _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
+        _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
+        _scenes[_scene_stack_idx].texture_rects = std::vector<SDL_Rect>();
+	for (uint8_t i = 0; i < _scene_texture_locations[_scene_stack_idx].size(); ++i) {
+	    LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i], 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	}
+
+	// FIXME: Need a way of specifying text textures generically.
+	AllocateTextTexture(_scene_stack_idx, {255,255,255,255}, "<SPC> to play", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 1);
+	// FIXME: Need a generic way to get the next scene's textures.
+	// FIXME: We might need to destroy the old textures.
     }
 }
 
@@ -101,19 +125,6 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
-void Game::InitDefaultScene() {
-    scene_t scene;
-    _scenes.push_back(scene);
-    if (_scenes.size() < 1) {
-	printf("Panic: Failed to init scene.\n");
-	exit(EXIT_FAILURE);
-    }
-    _scenes[0].textures = std::vector<SDL_Texture*>();
-    _scenes[0].texture_rects = std::vector<SDL_Rect>();
-    LoadTexture(0, "assets/menu.gif", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    AllocateTextTexture(0, {255,255,255,255}, "Play", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 1);
-}
-
 void Game::RenderScene() {
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
@@ -127,18 +138,19 @@ void Game::RenderScene() {
     SDL_RenderPresent(_renderer);
 }
 
-void Game::LoadTexture(const uint8_t scene_idx, const std::string path, const uint32_t x, const uint32_t y, const uint32_t w, const uint32_t h) {
+void Game::LoadTexture(const uint8_t scene_idx, string path, const uint32_t x, const uint32_t y, const uint32_t w, const uint32_t h) {
+    LOG_INFO("Game::LoadTexture(...)");
     SDL_Texture* texture = IMG_LoadTexture(_renderer, path.c_str());
     if (texture == NULL) {
         printf("Panic: Failed to load texture at %s.\n", path.c_str());
         exit(EXIT_FAILURE);
     } else {
-	_scenes[scene_idx].textures.push_back(texture);
 	SDL_Rect texture_rect;
 	texture_rect.x = x;
 	texture_rect.y = y;
 	texture_rect.w = w;
 	texture_rect.h = h;
+	_scenes[scene_idx].textures.push_back(texture);
 	_scenes[scene_idx].texture_rects.push_back(texture_rect);
     }
 }
