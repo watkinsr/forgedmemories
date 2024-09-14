@@ -14,12 +14,15 @@ using namespace std;
 
 struct scene_t {
     vector<SDL_Texture*> textures;
-    vector<SDL_Rect> texture_rects;
+    vector<uint8_t> tags;
+    vector<SDL_Rect> texture_src_rects;
+    vector<SDL_Rect> texture_dst_rects;
 };
 
 struct gametexture_t {
     string text_or_uri;
-    SDL_Rect rect;
+    SDL_Rect src_rect;
+    SDL_Rect dst_rect;
     SDL_Color color;
     uint8_t tag;
 };
@@ -33,6 +36,10 @@ public:
     pair<int, int> GetTextureDimensions(SDL_Texture*);
     void RenderScene();
     void AllocateScene(bool);
+    void SetPlayerY(const int32_t y) { _player_y = y; };
+    const int32_t GetPlayerY() { return _player_y; };
+    void SetPlayerX(const int32_t x) { _player_x = x; };
+    const int32_t GetPlayerX() { return _player_x; };
 private:
     void _SetTextureLocations();
     SDL_Window*               _window;
@@ -44,6 +51,8 @@ private:
     vector<scene_t> _scenes = vector<scene_t>();
     vector<vector<gametexture_t>> _scene_texture_locations = vector<vector<gametexture_t>>();
     const uint32_t SCREEN_WIDTH = 640;
+    int32_t _player_y = 250;
+    int32_t _player_x = 250;
     const uint32_t SCREEN_HEIGHT = 480;
     const uint8_t  MAIN_TEXTURE_SIZE = 2;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
