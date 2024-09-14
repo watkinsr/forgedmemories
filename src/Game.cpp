@@ -2,11 +2,12 @@
 #include <string>
 #include <cstdlib>
 
-static constexpr std::string getDefaultFontPath() {
-    // FIXME: Implement a way to get a default monospaced font.
-    // return "/usr/share/fonts/truetype/freefont/FreeMono.ttf";
-    return "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf";
-}
+constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
+
+constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
+    "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+    "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
+};
 
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
@@ -39,10 +40,13 @@ Game::Game() {
         exit(EXIT_FAILURE);
     }
 
-    _font = TTF_OpenFont(getDefaultFontPath().c_str(), 24);
-    if (!_font) {
-        printf("Panic: Failed to load font, abort.\n");
-        exit(EXIT_FAILURE);
+    for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
+	_font = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+	if (_font) break;
+	if (!_font && i == DEFAULT_FONT_ARRAY_LEN - 1) {
+            printf("Panic: Failed to load a default font, abort.\n");
+            exit(EXIT_FAILURE);
+	}
     }
 
     _event = new SDL_Event();
