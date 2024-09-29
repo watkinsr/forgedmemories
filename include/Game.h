@@ -27,6 +27,12 @@ struct gametexture_t {
     uint8_t tag;
 };
 
+enum player_state_t {
+    STOPPED,
+    MOVING,
+    ATTACK
+};
+
 class Game {
 public:
     Game();
@@ -39,8 +45,11 @@ public:
     void SetPlayerY(const int32_t y) { _player_y = y; };
     const int32_t GetPlayerY() { return _player_y; };
     void SetPlayerX(const int32_t x) { _player_x = x; };
+    void SetPlayerState(const player_state_t state) { _player_state = state; };
     const int32_t GetPlayerX() { return _player_x; };
+    const bool AfterMainMenu();
 private:
+    player_state_t _player_state = player_state_t::STOPPED;
     void _SetTextureLocations();
     SDL_Window*               _window;
     SDL_Renderer*             _renderer;

@@ -3,6 +3,8 @@
 #include <cstdlib>
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
+constexpr uint8_t PLAYER_WIDTH = 50;
+constexpr uint8_t PLAYER_HEIGHT = 55;
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
     "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
@@ -78,33 +80,37 @@ void Game::_SetTextureLocations() {
           .tag = IMAGE_TAG
         },
         { .text_or_uri = "assets/player_spritesheet.png",
-	  .src_rect = {0, 0, 50, 50},
-          .dst_rect = {_player_x, _player_y, 50, 50},
+          .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+          .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
           .tag = SPRITE_TAG
-	}
+        }
     };
     _scene_texture_locations.push_back(SCENE_1);
     _scene_texture_locations.push_back(SCENE_2);
     LOG_INFO("Game::SetTextureLocations() => Allocated %li Scene Texture Locations.", _scene_texture_locations.size());
 }
 
+const bool Game::AfterMainMenu() {
+    return _scene_stack_idx + 1 >= SCENE_STACK_MAX_SIZE;
+}
+
 void Game::AllocateScene(bool incrementStackIdx) {
     if (_scene_stack_idx + 1 < SCENE_STACK_MAX_SIZE) {
-	if (incrementStackIdx) _scene_stack_idx++;
-	scene_t scene;
+        if (incrementStackIdx) _scene_stack_idx++;
+        scene_t scene;
         _scenes.push_back(scene);
-	LOG_INFO("Game::AllocateScene() => Scene stack size: %li.", _scenes.size());
-	LOG_INFO("Game::AllocateScene() => Scene stack index: %li.", _scene_stack_idx);
-	LOG_INFO("Game::AllocateScene() => There are %li textures to allocate for Scene: %i", _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
+        LOG_INFO("Game::AllocateScene() => Scene stack size: %li.", _scenes.size());
+        LOG_INFO("Game::AllocateScene() => Scene stack index: %li.", _scene_stack_idx);
+        LOG_INFO("Game::AllocateScene() => There are %li textures to allocate for Scene: %i", _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
         _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
-	_scenes[_scene_stack_idx].texture_src_rects = std::vector<SDL_Rect>();
+        _scenes[_scene_stack_idx].texture_src_rects = std::vector<SDL_Rect>();
         _scenes[_scene_stack_idx].texture_dst_rects = std::vector<SDL_Rect>();
         _scenes[_scene_stack_idx].tags = std::vector<uint8_t>();
-	for (uint8_t i = 0; i < _scene_texture_locations[_scene_stack_idx].size(); ++i) {
-	    LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i]);
-	}
-	// FIXME: We might need to destroy the old textures.
+        for (uint8_t i = 0; i < _scene_texture_locations[_scene_stack_idx].size(); ++i) {
+            LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i]);
+        }
+        // FIXME: We might need to destroy the old textures.
     }
 }
 
@@ -129,32 +135,59 @@ SDL_Event* Game::GetEvent() {
 }
 
 void Game::RenderScene() {
+    float tick = SDL_GetTicks();
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
 
     for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
-	SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];
-	SDL_Rect src_rect = _scenes[_scene_stack_idx].texture_src_rects[i];
-	SDL_Rect dst_rect = _scenes[_scene_stack_idx].texture_dst_rects[i];
-	uint8_t tag = _scenes[_scene_stack_idx].tags[i];
-	if (src_rect.w == 0) {
-	    SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
-	} else {
-	    if (isSpriteTexture(tag)) {
-		dst_rect.x = GetPlayerX();
-		dst_rect.y = GetPlayerY();
-	    }
-	    SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-	}
+        SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];
+        SDL_Rect src_rect = _scenes[_scene_stack_idx].texture_src_rects[i];
+        SDL_Rect dst_rect = _scenes[_scene_stack_idx].texture_dst_rects[i];
+        uint8_t tag = _scenes[_scene_stack_idx].tags[i];
+        if (src_rect.w == 0) {
+            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
+        } else {
+            if (isSpriteTexture(tag)) {
+                if (_player_state == player_state_t::MOVING) {
+                    src_rect.x = 0;
+                    src_rect.y = 0;
+                } else if (_player_state == player_state_t::STOPPED) {
+                    src_rect.x = 60;
+                    src_rect.y = 0;
+                } else if (_player_state == player_state_t::ATTACK) {
+                    src_rect.x = 60;
+                    src_rect.y = 60;
+                }
+                dst_rect.x = GetPlayerX();
+                dst_rect.y = GetPlayerY();
+            }
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+        }
     }
 
     SDL_RenderPresent(_renderer);
+
+    uint32_t deltaTick = SDL_GetTicks() - tick;
+    uint32_t fps = 1000.0 / deltaTick;
+    gametexture_t fps_texture = {
+        .text_or_uri = "FPS: " + std::to_string(fps),
+        .src_rect = {0, 0, 0, 0},
+        .dst_rect = {20, 20, 0, 0},
+        .color = {255,255,255,255},
+        .tag = TEXT_TAG
+    };
+
+    if (_scenes[_scene_stack_idx].textures.size() == 3) {
+        _scenes[_scene_stack_idx].textures.pop_back();
+    }
+
+    LoadTexture(_scene_stack_idx, fps_texture);
 }
 
 void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
-    LOG_INFO("Game::LoadTexture(...)");
+    // LOG_INFO("Game::LoadTexture(...)");
     if (isTextTexture(game_texture.tag)) {
-        LOG_INFO("Game::LoadTexture(...) => Received text texture");
+        // LOG_INFO("Game::LoadTexture(...) => Received text texture");
 
         SDL_Surface* surface = TTF_RenderText_Solid(
             _font,
@@ -178,9 +211,9 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         game_texture.dst_rect.h = height;
 
         _scenes[scene_idx].textures.push_back(text_texture);
-	_scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
+        _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
-	_scenes[scene_idx].tags.push_back(game_texture.tag);
+        _scenes[scene_idx].tags.push_back(game_texture.tag);
     } else if (isImageTexture(game_texture.tag)) {
         LOG_INFO("Game::LoadTexture(...) => Received image texture");
         const char* path = game_texture.text_or_uri.c_str();
@@ -190,12 +223,12 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             exit(EXIT_FAILURE);
         } else {
             _scenes[scene_idx].textures.push_back(texture);
-	    _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
+            _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
-	    _scenes[scene_idx].tags.push_back(game_texture.tag);
+            _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
     } else if (isSpriteTexture(game_texture.tag)) {
-        LOG_INFO("Game::LoadTexture(...) => Received Sprite texture");
+        // LOG_INFO("Game::LoadTexture(...) => Received Sprite texture");
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
@@ -203,11 +236,11 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             exit(EXIT_FAILURE);
         } else {
             _scenes[scene_idx].textures.push_back(texture);
-	    _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
+            _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
-	    _scenes[scene_idx].tags.push_back(game_texture.tag);
+            _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
     } else {
-	LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture.");
+        LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture.");
     }
 }

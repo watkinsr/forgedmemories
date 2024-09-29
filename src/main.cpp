@@ -1,48 +1,54 @@
 #include "Game.h"
 #include <memory>
 
+#define STEP_SIZE 3
+
 void handleSpaceKey(std::unique_ptr<Game>& game) {
-    game->AllocateScene(true);
+    if (!game->AfterMainMenu()) game->AllocateScene(true);
+    else {
+        LOG_INFO("Attack !");
+        game->SetPlayerState(player_state_t::ATTACK);
+    }
 }
 
 void handleUpKey(std::unique_ptr<Game>& game) {
-    game->SetPlayerY(game->GetPlayerY() - 1);
+    game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
+    game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleDownKey(std::unique_ptr<Game>& game) {
-    game->SetPlayerY(game->GetPlayerY() + 1);
+    game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
+    game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleLeftKey(std::unique_ptr<Game>& game) {
-    game->SetPlayerX(game->GetPlayerX() - 1);
+    game->SetPlayerX(game->GetPlayerX() - STEP_SIZE);
+    game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleRightKey(std::unique_ptr<Game>& game) {
-    game->SetPlayerX(game->GetPlayerX() + 1);
+    game->SetPlayerX(game->GetPlayerX() + STEP_SIZE);
+    game->SetPlayerState(player_state_t::MOVING);
 }
 
 int main() {
     std::unique_ptr<Game> game = std::make_unique<Game>();
     SDL_Event* e = game->GetEvent();
     while (e->type != SDL_QUIT){
-        switch(e->type) {
-            case SDL_KEYDOWN:
-                if (e->key.keysym.sym == SDLK_SPACE) {
-                    printf("Detected keydown on <SPC>\n");
-                    handleSpaceKey(game);
-                } else if (e->key.keysym.sym == SDLK_UP) {
-                    handleUpKey(game);
-                } else if (e->key.keysym.sym == SDLK_DOWN) {
-                    handleDownKey(game);
-                } else if (e->key.keysym.sym == SDLK_LEFT) {
-                    handleLeftKey(game);
-                } else if (e->key.keysym.sym == SDLK_RIGHT) {
-                    handleRightKey(game);
-                }
-                break;
-            default:
-                break;
-	    }
+        const Uint8* state = SDL_GetKeyboardState(NULL);
+        if (state[SDL_SCANCODE_SPACE]) {
+            handleSpaceKey(game);
+        } else if (state[SDL_SCANCODE_UP]) {
+            handleUpKey(game);
+        } else if (state[SDL_SCANCODE_DOWN]) {
+            handleDownKey(game);
+        } else if (state[SDL_SCANCODE_LEFT]) {
+            handleLeftKey(game);
+        } else if (state[SDL_SCANCODE_RIGHT]) {
+            handleRightKey(game);
+        } else {
+            game->SetPlayerState(player_state_t::STOPPED);
+        }
 
         game->RenderScene();
         e = game->GetEvent();
