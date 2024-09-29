@@ -6,6 +6,13 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 constexpr uint8_t PLAYER_WIDTH = 48;
 constexpr uint8_t PLAYER_HEIGHT = 48;
 
+constexpr uint8_t MAP[4][4] = {
+    {1, 0, 0, 1},
+    {0, 0, 0, 0},
+    {1, 0, 1, 0},
+    {0, 0, 0, 0}
+};
+
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
     "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
     "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
@@ -14,10 +21,26 @@ constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
 #define SPRITE_TAG 1 << 2
+#define PLAYER_SPRITE_FLAG 1 << 0
+#define BACKGROUND_SPRITE_FLAG 1 << 1
 
-constexpr bool isTextTexture(uint8_t tag) { return (tag & TEXT_TAG) == TEXT_TAG; }
-constexpr bool isImageTexture(uint8_t tag) { return (tag & IMAGE_TAG) == IMAGE_TAG; }
-constexpr bool isSpriteTexture(uint8_t tag) { return (tag & SPRITE_TAG) == SPRITE_TAG; }
+constexpr bool isPlayerSpriteTexture(uint8_t tag) {
+    return (tag & (SPRITE_TAG | PLAYER_SPRITE_FLAG)) == (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+}
+constexpr bool isBackgroundSpriteTexture(uint8_t tag) {
+    return (tag & (SPRITE_TAG | BACKGROUND_SPRITE_FLAG)) == (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+}
+constexpr bool isTextTexture(uint8_t tag) {
+    if (isPlayerSpriteTexture(tag)) return false;
+    return (tag & TEXT_TAG) == TEXT_TAG;
+}
+constexpr bool isImageTexture(uint8_t tag) {
+    if (isBackgroundSpriteTexture(tag)) return false;
+    return (tag & IMAGE_TAG) == IMAGE_TAG;
+}
+constexpr bool isSpriteTexture(uint8_t tag) {
+    return (tag & SPRITE_TAG) == SPRITE_TAG || isPlayerSpriteTexture(tag) || isBackgroundSpriteTexture(tag);
+}
 
 Game::Game() {
     if(SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -43,12 +66,12 @@ Game::Game() {
     }
 
     for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
-	_font = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
-	if (_font) break;
-	if (!_font && i == DEFAULT_FONT_ARRAY_LEN - 1) {
+        _font = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+        if (_font) break;
+        if (!_font && i == DEFAULT_FONT_ARRAY_LEN - 1) {
             printf("Panic: Failed to load a default font, abort.\n");
             exit(EXIT_FAILURE);
-	}
+        }
     }
 
     _event = new SDL_Event();
@@ -60,30 +83,30 @@ Game::Game() {
 void Game::_SetTextureLocations() {
     const vector<gametexture_t> SCENE_1 = {
         { .text_or_uri = "Forged Memories",
-	  .src_rect = {0, 0, 0, 0},
+          .src_rect = {0, 0, 0, 0},
           .dst_rect = {SCREEN_WIDTH/2.5 - 20, 50, 0, 0},
           .color = {255,255,255,255},
           .tag = TEXT_TAG
         },
         { .text_or_uri = "<SPC> to play",
-	  .src_rect = {0, 0, 0, 0},
+          .src_rect = {0, 0, 0, 0},
           .dst_rect = {SCREEN_WIDTH/2.5, SCREEN_HEIGHT/2 - 1, 0, 0},
           .color = {255,255,255,255},
           .tag = TEXT_TAG
         }
     };
     const vector<gametexture_t> SCENE_2 = {
-        { .text_or_uri = "assets/floorbig.png",
-	  .src_rect = {0, 0, 0, 0},
-          .dst_rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT},
+        { .text_or_uri = "assets/bg/Berry Garden.png",
+          .src_rect = {0, 0, 16, 16},
+          .dst_rect = {0, 0, 64, 128},
           .color = {0,0,0,0},
-          .tag = IMAGE_TAG
+          .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
         },
         { .text_or_uri = "assets/player.png",
           .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
           .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
-          .tag = SPRITE_TAG
+          .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
         }
     };
     _scene_texture_locations.push_back(SCENE_1);
@@ -148,14 +171,33 @@ void Game::RenderScene() {
         if (src_rect.w == 0) {
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
         } else {
-            if (isSpriteTexture(tag)) {
+            if (isBackgroundSpriteTexture(tag)) {
+                dst_rect.w = 16;
+                dst_rect.h = 16;
+                for (uint16_t i = 0; i < SCREEN_WIDTH; i+=16) {
+                    dst_rect.x = i;
+                    for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=16) {
+                        dst_rect.y = j;
+                        uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (MAP[map_segment_y][map_segment_x] == 1) {
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            src_rect.x = 17;
+                            src_rect.y = 64;
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            } else if (isPlayerSpriteTexture(tag)) {
                 if (_player_state == player_state_t::MOVING) {
-		    _deltaTick = SDL_GetTicks() - _tick;
-		    if (_deltaTick >= 100) {
-			_deltaTick = _deltaTick % 100;
-			_tick = SDL_GetTicks();
-			src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
-		    }		    
+                    _deltaTick = SDL_GetTicks() - _tick;
+                    if (_deltaTick >= 100) {
+                        _deltaTick = _deltaTick % 100;
+                        _tick = SDL_GetTicks();
+                        src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                    }
                     src_rect.y = 0;
                     _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;                    
                 } else if (_player_state == player_state_t::STOPPED) {
@@ -175,6 +217,11 @@ void Game::RenderScene() {
 
     SDL_RenderPresent(_renderer);
 
+    if (_scenes[_scene_stack_idx].textures.size() == 3) {
+        // Remove the FPS texture.
+        _scenes[_scene_stack_idx].textures.pop_back();
+    }
+
     uint32_t deltaTick = SDL_GetTicks() - tick;
     uint32_t fps = 1000.0 / deltaTick;
     gametexture_t fps_texture = {
@@ -185,11 +232,9 @@ void Game::RenderScene() {
         .tag = TEXT_TAG
     };
 
-    if (_scenes[_scene_stack_idx].textures.size() == 3) {
-        _scenes[_scene_stack_idx].textures.pop_back();
-    }
-
     LoadTexture(_scene_stack_idx, fps_texture);
+
+
 }
 
 void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
@@ -219,6 +264,7 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
+        // LOG_INFO("Loaded text texture: %s", game_texture.text_or_uri.c_str());
     } else if (isImageTexture(game_texture.tag)) {
         LOG_INFO("Game::LoadTexture(...) => Received image texture");
         const char* path = game_texture.text_or_uri.c_str();
@@ -232,11 +278,13 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
             _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
+        LOG_INFO("Loaded image texture at %s", path);
     } else if (isSpriteTexture(game_texture.tag)) {
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
             printf("Panic: Failed to load texture at %s.\n", path);
+            SDL_Quit();
             exit(EXIT_FAILURE);
         } else {
             _scenes[scene_idx].textures.push_back(texture);
@@ -244,7 +292,10 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
             _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
+        LOG_INFO("Loaded sprite texture at %s", path);
     } else {
-        LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture.");
+        LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture. Abort !");
+        SDL_Quit();
+        exit(EXIT_FAILURE);
     }
 }
