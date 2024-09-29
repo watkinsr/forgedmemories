@@ -42,6 +42,22 @@ constexpr bool isSpriteTexture(uint8_t tag) {
     return (tag & SPRITE_TAG) == SPRITE_TAG || isPlayerSpriteTexture(tag) || isBackgroundSpriteTexture(tag);
 }
 
+const bool Game::IsColliding(uint16_t x, uint16_t y) {
+
+    uint16_t collide_y = (y + ((PLAYER_HEIGHT/4) * 3.5));
+    uint16_t collide_x_right = (x + ((PLAYER_WIDTH/4) * 3.5));
+
+    if (collide_x_right >= SCREEN_WIDTH || x <= 0) return false;
+
+    uint8_t segment_x_left = (uint8_t)((x + PLAYER_WIDTH/4)/(SCREEN_WIDTH/4));
+    uint8_t segment_x_right = (uint8_t)(collide_x_right/(SCREEN_WIDTH/4));
+    uint8_t segment_y = (uint8_t)(collide_y/(SCREEN_HEIGHT/4));
+    const bool is_colliding = MAP[segment_y][segment_x_left] == 1 ||
+    MAP[segment_y][segment_x_right] == 1;
+    if (is_colliding) LOG_INFO("Collision !");
+    return is_colliding;
+}
+
 Game::Game() {
     if(SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("Panic: SDL initialization failed, abort.\n");
@@ -162,6 +178,16 @@ void Game::RenderScene() {
     if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
+
+    if (_player_y <= 2) {
+        _player_y = SCREEN_HEIGHT - 10;
+    } else if (SCREEN_HEIGHT - _player_y <= 2) {
+        _player_y = 10;
+    } else if (_player_x <= 2) {
+        _player_x = SCREEN_WIDTH - 10;
+    } else if (SCREEN_WIDTH - _player_x <= 2) {
+        _player_x = 10;
+    }
 
     for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
         SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];

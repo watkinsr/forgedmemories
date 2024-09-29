@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -x
 set -e
@@ -8,8 +8,6 @@ print_help() {
     NAME=$(basename "$ARG0")
     cat <<EOF
 Usage: $NAME COMMAND
-    $NAME run
-        Runs the thing
     $NAME build
         Builds the thing
 EOF
@@ -26,7 +24,6 @@ usage() {
 }
 
 build() {
-    rm -rf build;
     mkdir -p build;
     cd build;
     cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -S ../ -B .;
@@ -37,9 +34,6 @@ CMD=$1
 case "$CMD" in
     build)
 	build
-        ;;
-    run)
-        ./target/rpg;
         ;;
     *)
         >&2 echo "Unknown command: $CMD"

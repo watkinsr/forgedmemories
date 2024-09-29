@@ -11,21 +11,25 @@ void handleSpaceKey(std::unique_ptr<Game>& game) {
 }
 
 void handleUpKey(std::unique_ptr<Game>& game) {
+    if (game->IsColliding(game->GetPlayerX(), game->GetPlayerY() - STEP_SIZE)) return;
     game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleDownKey(std::unique_ptr<Game>& game) {
+    if (game->IsColliding(game->GetPlayerX(), game->GetPlayerY() + STEP_SIZE)) return;
     game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleLeftKey(std::unique_ptr<Game>& game) {
+    if (game->IsColliding(game->GetPlayerX() - STEP_SIZE, game->GetPlayerY())) return;
     game->SetPlayerX(game->GetPlayerX() - STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
 }
 
 void handleRightKey(std::unique_ptr<Game>& game) {
+    if (game->IsColliding(game->GetPlayerX() + STEP_SIZE, game->GetPlayerY())) return;
     game->SetPlayerX(game->GetPlayerX() + STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
 }
