@@ -59,11 +59,11 @@ Game::Game() {
 
 void Game::_SetTextureLocations() {
     const vector<gametexture_t> SCENE_1 = {
-        { .text_or_uri = "assets/menu.gif",
+        { .text_or_uri = "Forged Memories",
 	  .src_rect = {0, 0, 0, 0},
-          .dst_rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT},
-          .color = {0,0,0,0},
-          .tag = IMAGE_TAG
+          .dst_rect = {SCREEN_WIDTH/2.5 - 20, 50, 0, 0},
+          .color = {255,255,255,255},
+          .tag = TEXT_TAG
         },
         { .text_or_uri = "<SPC> to play",
 	  .src_rect = {0, 0, 0, 0},
@@ -136,7 +136,8 @@ SDL_Event* Game::GetEvent() {
 
 void Game::RenderScene() {
     float tick = SDL_GetTicks();
-    SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
+    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
 
     for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
