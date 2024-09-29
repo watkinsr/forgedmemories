@@ -51,6 +51,8 @@ public:
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     void _SetTextureLocations();
+    uint32_t _tick;
+    uint32_t _deltaTick;
     SDL_Window*               _window;
     SDL_Renderer*             _renderer;
     SDL_Event*                _event;

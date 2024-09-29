@@ -6,7 +6,6 @@
 void handleSpaceKey(std::unique_ptr<Game>& game) {
     if (!game->AfterMainMenu()) game->AllocateScene(true);
     else {
-        LOG_INFO("Attack !");
         game->SetPlayerState(player_state_t::ATTACK);
     }
 }

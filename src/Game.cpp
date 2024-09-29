@@ -3,8 +3,8 @@
 #include <cstdlib>
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-constexpr uint8_t PLAYER_WIDTH = 50;
-constexpr uint8_t PLAYER_HEIGHT = 55;
+constexpr uint8_t PLAYER_WIDTH = 48;
+constexpr uint8_t PLAYER_HEIGHT = 48;
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
     "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
@@ -79,7 +79,7 @@ void Game::_SetTextureLocations() {
           .color = {0,0,0,0},
           .tag = IMAGE_TAG
         },
-        { .text_or_uri = "assets/player_spritesheet.png",
+        { .text_or_uri = "assets/player.png",
           .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
           .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
@@ -149,15 +149,22 @@ void Game::RenderScene() {
         } else {
             if (isSpriteTexture(tag)) {
                 if (_player_state == player_state_t::MOVING) {
-                    src_rect.x = 0;
+		    _deltaTick = SDL_GetTicks() - _tick;
+		    if (_deltaTick >= 100) {
+			_deltaTick = _deltaTick % 100;
+			_tick = SDL_GetTicks();
+			src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+		    }		    
                     src_rect.y = 0;
+                    _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;                    
                 } else if (_player_state == player_state_t::STOPPED) {
-                    src_rect.x = 60;
+                    src_rect.x = PLAYER_WIDTH;
                     src_rect.y = 0;
                 } else if (_player_state == player_state_t::ATTACK) {
-                    src_rect.x = 60;
-                    src_rect.y = 60;
+                    src_rect.x = PLAYER_WIDTH;
+                    src_rect.y = PLAYER_HEIGHT;
                 }
+
                 dst_rect.x = GetPlayerX();
                 dst_rect.y = GetPlayerY();
             }
@@ -185,10 +192,7 @@ void Game::RenderScene() {
 }
 
 void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
-    // LOG_INFO("Game::LoadTexture(...)");
     if (isTextTexture(game_texture.tag)) {
-        // LOG_INFO("Game::LoadTexture(...) => Received text texture");
-
         SDL_Surface* surface = TTF_RenderText_Solid(
             _font,
             game_texture.text_or_uri.c_str(),
@@ -228,7 +232,6 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
     } else if (isSpriteTexture(game_texture.tag)) {
-        // LOG_INFO("Game::LoadTexture(...) => Received Sprite texture");
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
