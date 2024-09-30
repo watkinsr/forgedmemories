@@ -8,7 +8,7 @@ constexpr uint8_t PLAYER_HEIGHT = 48;
 
 constexpr uint8_t MAP[4][4] = {
     {1, 0, 0, 1},
-    {0, 0, 0, 0},
+    {0, 0, 2, 0},
     {1, 0, 1, 0},
     {0, 0, 0, 0}
 };
@@ -21,29 +21,45 @@ constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
 #define SPRITE_TAG 1 << 2
+
 #define PLAYER_SPRITE_FLAG 1 << 0
 #define BACKGROUND_SPRITE_FLAG 1 << 1
+#define ENEMY_SPRITE_FLAG 0x03
+
+constexpr bool isEnemySpriteTexture(uint8_t tag) {
+    return (tag & (SPRITE_TAG | ENEMY_SPRITE_FLAG)) ==
+                  (SPRITE_TAG | ENEMY_SPRITE_FLAG);
+}
 
 constexpr bool isPlayerSpriteTexture(uint8_t tag) {
-    return (tag & (SPRITE_TAG | PLAYER_SPRITE_FLAG)) == (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+    if (isEnemySpriteTexture(tag)) return false;
+    return (tag & (SPRITE_TAG | PLAYER_SPRITE_FLAG)) ==
+                  (SPRITE_TAG | PLAYER_SPRITE_FLAG);
 }
+
 constexpr bool isBackgroundSpriteTexture(uint8_t tag) {
-    return (tag & (SPRITE_TAG | BACKGROUND_SPRITE_FLAG)) == (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+    if (isEnemySpriteTexture(tag)) return false;
+    return (tag & (SPRITE_TAG | BACKGROUND_SPRITE_FLAG)) ==
+                  (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
 }
 constexpr bool isTextTexture(uint8_t tag) {
-    if (isPlayerSpriteTexture(tag)) return false;
+    if (isPlayerSpriteTexture(tag) || isEnemySpriteTexture(tag)) return false;
     return (tag & TEXT_TAG) == TEXT_TAG;
 }
 constexpr bool isImageTexture(uint8_t tag) {
-    if (isBackgroundSpriteTexture(tag)) return false;
+    if (isBackgroundSpriteTexture(tag) ||
+        isEnemySpriteTexture(tag)) return false;
     return (tag & IMAGE_TAG) == IMAGE_TAG;
 }
 constexpr bool isSpriteTexture(uint8_t tag) {
-    return (tag & SPRITE_TAG) == SPRITE_TAG || isPlayerSpriteTexture(tag) || isBackgroundSpriteTexture(tag);
+    // LOG_INFO("isSpriteTexture(%u)", tag);
+    return (tag & SPRITE_TAG) == SPRITE_TAG ||
+           isPlayerSpriteTexture(tag) ||
+           isBackgroundSpriteTexture(tag) ||
+           isEnemySpriteTexture(tag);
 }
 
 const bool Game::IsColliding(uint16_t x, uint16_t y) {
-
     uint16_t collide_y = (y + ((PLAYER_HEIGHT/4) * 3.5));
     uint16_t collide_x_right = (x + ((PLAYER_WIDTH/4) * 3.5));
 
@@ -69,13 +85,15 @@ Game::Game() {
         exit(EXIT_FAILURE);
     }
 
-    _window = SDL_CreateWindow("Game", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    _window = SDL_CreateWindow("Game", 100, 100, SCREEN_WIDTH,
+                               SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (!_window) {
         printf("panic: Window creation failed, abort.\n");
         exit(EXIT_FAILURE);
     }
 
-    _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    _renderer = SDL_CreateRenderer(_window, -1,
+                         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!_renderer) {
         printf("panic: SDL Renderer creation failed, abort.\n");
         exit(EXIT_FAILURE);
@@ -123,11 +141,18 @@ void Game::_SetTextureLocations() {
           .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
           .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
+        },
+        { .text_or_uri = "assets/enemy.png",
+          .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+          .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+          .color = {0,0,0,0},
+          .tag = SPRITE_TAG | ENEMY_SPRITE_FLAG
         }
     };
     _scene_texture_locations.push_back(SCENE_1);
     _scene_texture_locations.push_back(SCENE_2);
-    LOG_INFO("Game::SetTextureLocations() => Allocated %li Scene Texture Locations.", _scene_texture_locations.size());
+    LOG_INFO("Game::SetTextureLocations() => Allocated %li locations !",
+              _scene_texture_locations.size());
 }
 
 const bool Game::AfterMainMenu() {
@@ -139,9 +164,12 @@ void Game::AllocateScene(bool incrementStackIdx) {
         if (incrementStackIdx) _scene_stack_idx++;
         scene_t scene;
         _scenes.push_back(scene);
-        LOG_INFO("Game::AllocateScene() => Scene stack size: %li.", _scenes.size());
-        LOG_INFO("Game::AllocateScene() => Scene stack index: %li.", _scene_stack_idx);
-        LOG_INFO("Game::AllocateScene() => There are %li textures to allocate for Scene: %i", _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
+        LOG_INFO("Game::AllocateScene() => Stack size: %li.", _scenes.size());
+        LOG_INFO("Game::AllocateScene() => Stack index: %li.",
+                  _scene_stack_idx);
+        LOG_INFO("Game::AllocateScene() => Allocate %li textures for Scene: %i",
+        _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
+
         _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
         _scenes[_scene_stack_idx].texture_src_rects = std::vector<SDL_Rect>();
         _scenes[_scene_stack_idx].texture_dst_rects = std::vector<SDL_Rect>();
@@ -198,6 +226,7 @@ void Game::RenderScene() {
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
         } else {
             if (isBackgroundSpriteTexture(tag)) {
+                // LOG_INFO("Background tag: %u", tag);
                 dst_rect.w = 16;
                 dst_rect.h = 16;
                 for (uint16_t i = 0; i < SCREEN_WIDTH; i+=16) {
@@ -217,6 +246,7 @@ void Game::RenderScene() {
                     }
                 }
             } else if (isPlayerSpriteTexture(tag)) {
+                // LOG_INFO("Player tag: %u", tag);
                 if (_player_state == player_state_t::MOVING) {
                     _deltaTick = SDL_GetTicks() - _tick;
                     if (_deltaTick >= 100) {
@@ -236,6 +266,10 @@ void Game::RenderScene() {
 
                 dst_rect.x = GetPlayerX();
                 dst_rect.y = GetPlayerY();
+            } else if (isEnemySpriteTexture(tag)) {
+                // LOG_INFO("Enemy tag: %u", tag);
+                dst_rect.x = 200;
+                dst_rect.y = 200;
             }
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
         }
@@ -243,9 +277,16 @@ void Game::RenderScene() {
 
     SDL_RenderPresent(_renderer);
 
-    if (_scenes[_scene_stack_idx].textures.size() == 3) {
-        // Remove the FPS texture.
-        _scenes[_scene_stack_idx].textures.pop_back();
+    if (_scene_stack_idx == 0) {
+        if (_scenes[_scene_stack_idx].textures.size() == 3) {
+            // Remove the FPS texture.
+            _scenes[_scene_stack_idx].textures.pop_back();
+        }
+    } else if (_scene_stack_idx == 1) {
+        if (_scenes[_scene_stack_idx].textures.size() == 4) {
+            // Remove the FPS texture.
+            _scenes[_scene_stack_idx].textures.pop_back();
+        }
     }
 
     uint32_t deltaTick = SDL_GetTicks() - tick;
@@ -259,8 +300,6 @@ void Game::RenderScene() {
     };
 
     LoadTexture(_scene_stack_idx, fps_texture);
-
-
 }
 
 void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
@@ -272,6 +311,7 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         );
         if (!surface) {
             printf("Panic: Failed to obtain surface, abort.\n");
+            SDL_Quit();
             exit(EXIT_FAILURE);
         }
 
@@ -296,7 +336,8 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
-            printf("Panic: Failed to load texture at %s.\n", path);
+            printf("Panic: Failed to load image texture at %s.\n", path);
+            SDL_Quit();
             exit(EXIT_FAILURE);
         } else {
             _scenes[scene_idx].textures.push_back(texture);
@@ -309,7 +350,7 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
-            printf("Panic: Failed to load texture at %s.\n", path);
+            printf("Panic: Failed to load sprite texture at %s.\n", path);
             SDL_Quit();
             exit(EXIT_FAILURE);
         } else {
