@@ -49,6 +49,7 @@ public:
     const int32_t GetPlayerX() { return _player_x; };
     const bool AfterMainMenu();
     const bool IsColliding(uint16_t, uint16_t);
+    void UpdateMap();
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     void _SetTextureLocations();

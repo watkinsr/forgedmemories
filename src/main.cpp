@@ -11,27 +11,39 @@ void handleSpaceKey(std::unique_ptr<Game>& game) {
 }
 
 void handleUpKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(game->GetPlayerX(), game->GetPlayerY() - STEP_SIZE)) return;
+    if (game->IsColliding(
+        game->GetPlayerX(),
+        game->GetPlayerY() - STEP_SIZE)) return;
     game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
+    game->UpdateMap();
 }
 
 void handleDownKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(game->GetPlayerX(), game->GetPlayerY() + STEP_SIZE)) return;
+    if (game->IsColliding(
+        game->GetPlayerX(),
+        game->GetPlayerY() + STEP_SIZE)) return;
     game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
+    game->UpdateMap();
 }
 
 void handleLeftKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(game->GetPlayerX() - STEP_SIZE, game->GetPlayerY())) return;
+    if (game->IsColliding(
+        game->GetPlayerX() - STEP_SIZE,
+        game->GetPlayerY())) return;
     game->SetPlayerX(game->GetPlayerX() - STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
+    game->UpdateMap();
 }
 
 void handleRightKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(game->GetPlayerX() + STEP_SIZE, game->GetPlayerY())) return;
+    if (game->IsColliding(
+        game->GetPlayerX() + STEP_SIZE,
+        game->GetPlayerY())) return;
     game->SetPlayerX(game->GetPlayerX() + STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
+    game->UpdateMap();
 }
 
 int main() {
@@ -55,6 +67,6 @@ int main() {
 
         game->RenderScene();
         e = game->GetEvent();
-	}
-	return 0;
+    }
+    return 0;
 }

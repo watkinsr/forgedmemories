@@ -6,11 +6,28 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 constexpr uint8_t PLAYER_WIDTH = 48;
 constexpr uint8_t PLAYER_HEIGHT = 48;
 
-constexpr uint8_t MAP[4][4] = {
-    {1, 0, 0, 1},
-    {0, 0, 2, 0},
-    {1, 0, 1, 0},
-    {0, 0, 0, 0}
+// Center
+#define MAP1 { {1, 0, 0, 1}, {0, 0, 2, 0}, {0, 0, 1, 0}, {1, 1, 1, 1} }
+
+// Left of center
+#define MAP2 { {1, 1, 1, 1}, {1, 0, 2, 0}, {1, 0, 1, 0}, {1, 1, 1, 1} }
+
+// Right of center
+#define MAP3 { {1, 1, 1, 1}, {0, 0, 2, 1}, {0, 0, 1, 1}, {0, 1, 1, 1} }
+
+// Above center
+#define MAP4 { {1, 1, 1, 1}, {1, 0, 2, 1}, {1, 0, 1, 1}, {1, 0, 0, 1} }
+
+// One above, one left, one right, one below.
+const uint8_t MAP_SIZE = 4;
+
+// Current player map.
+uint8_t MAP[4][4] = MAP1;
+
+uint8_t map_idx = 0;
+
+constexpr uint8_t MAPS[MAP_SIZE][4][4] = {
+    MAP1, MAP2, MAP3, MAP4
 };
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
@@ -27,20 +44,20 @@ constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
 #define ENEMY_SPRITE_FLAG 0x03
 
 constexpr bool isEnemySpriteTexture(uint8_t tag) {
-    return (tag & (SPRITE_TAG | ENEMY_SPRITE_FLAG)) ==
-                  (SPRITE_TAG | ENEMY_SPRITE_FLAG);
+    uint8_t combined_tag = (SPRITE_TAG | ENEMY_SPRITE_FLAG);
+    return (tag & combined_tag) == combined_tag;
 }
 
 constexpr bool isPlayerSpriteTexture(uint8_t tag) {
     if (isEnemySpriteTexture(tag)) return false;
-    return (tag & (SPRITE_TAG | PLAYER_SPRITE_FLAG)) ==
-                  (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+    uint8_t combined_tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+    return (tag & combined_tag) == combined_tag;
 }
 
 constexpr bool isBackgroundSpriteTexture(uint8_t tag) {
     if (isEnemySpriteTexture(tag)) return false;
-    return (tag & (SPRITE_TAG | BACKGROUND_SPRITE_FLAG)) ==
-                  (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+    uint8_t combined_tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+    return (tag & combined_tag) == combined_tag;
 }
 constexpr bool isTextTexture(uint8_t tag) {
     if (isPlayerSpriteTexture(tag) || isEnemySpriteTexture(tag)) return false;
@@ -48,15 +65,15 @@ constexpr bool isTextTexture(uint8_t tag) {
 }
 constexpr bool isImageTexture(uint8_t tag) {
     if (isBackgroundSpriteTexture(tag) ||
-        isEnemySpriteTexture(tag)) return false;
+    isEnemySpriteTexture(tag)) return false;
     return (tag & IMAGE_TAG) == IMAGE_TAG;
 }
 constexpr bool isSpriteTexture(uint8_t tag) {
     // LOG_INFO("isSpriteTexture(%u)", tag);
     return (tag & SPRITE_TAG) == SPRITE_TAG ||
-           isPlayerSpriteTexture(tag) ||
-           isBackgroundSpriteTexture(tag) ||
-           isEnemySpriteTexture(tag);
+    isPlayerSpriteTexture(tag) ||
+    isBackgroundSpriteTexture(tag) ||
+    isEnemySpriteTexture(tag);
 }
 
 const bool Game::IsColliding(uint16_t x, uint16_t y) {
@@ -68,14 +85,14 @@ const bool Game::IsColliding(uint16_t x, uint16_t y) {
     uint8_t segment_x_left = (uint8_t)((x + PLAYER_WIDTH/4)/(SCREEN_WIDTH/4));
     uint8_t segment_x_right = (uint8_t)(collide_x_right/(SCREEN_WIDTH/4));
     uint8_t segment_y = (uint8_t)(collide_y/(SCREEN_HEIGHT/4));
-    const bool is_colliding = MAP[segment_y][segment_x_left] == 1 ||
-    MAP[segment_y][segment_x_right] == 1;
+    const bool is_colliding = MAPS[map_idx][segment_y][segment_x_left] == 1 ||
+    MAPS[map_idx][segment_y][segment_x_right] == 1;
     if (is_colliding) LOG_INFO("Collision !");
     return is_colliding;
 }
 
 Game::Game() {
-    if(SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if(SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         printf("Panic: SDL initialization failed, abort.\n");
         exit(EXIT_FAILURE);
     }
@@ -201,21 +218,49 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
+void Game::UpdateMap() {
+    if (_player_y <= 2) {
+        if (map_idx == 0) {
+            map_idx = 3;
+            _player_y = SCREEN_HEIGHT - 10;
+            LOG_INFO("Map index moved to: %i", map_idx);
+        }
+    } else if (SCREEN_HEIGHT - _player_y <= 2) {
+        if (map_idx == 3) {
+            map_idx = 0;
+            _player_y = 10;
+            LOG_INFO("Map index moved to: %i", map_idx);
+        }
+    } else if (_player_x <= 0) {
+        // Move left to a new map.
+        if (map_idx == 2) {
+            map_idx = 0;
+            LOG_INFO("Map index moved to: %i", map_idx);
+            _player_x = SCREEN_WIDTH - 10;
+        } else if (map_idx == 0) {
+            map_idx = 1;
+            LOG_INFO("Map index moved to: %i", map_idx);
+            _player_x = SCREEN_WIDTH - 10;
+        }
+    } else if (SCREEN_WIDTH - _player_x <= 2) {
+        // Move right to a new map.
+        if (map_idx == 0) {
+            map_idx = 2;
+            LOG_INFO("Map index moved to: %i", map_idx);
+            _player_x = 10;
+        } else if (map_idx == 1) {
+            map_idx = 0;
+            LOG_INFO("Map index moved to: %i", map_idx);
+            _player_x = 10;
+        }
+    }
+}
+
 void Game::RenderScene() {
     float tick = SDL_GetTicks();
     if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
-
-    if (_player_y <= 2) {
-        _player_y = SCREEN_HEIGHT - 10;
-    } else if (SCREEN_HEIGHT - _player_y <= 2) {
-        _player_y = 10;
-    } else if (_player_x <= 2) {
-        _player_x = SCREEN_WIDTH - 10;
-    } else if (SCREEN_WIDTH - _player_x <= 2) {
-        _player_x = 10;
-    }
 
     for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
         SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];
@@ -235,7 +280,7 @@ void Game::RenderScene() {
                         dst_rect.y = j;
                         uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        if (MAP[map_segment_y][map_segment_x] == 1) {
+                        if (MAPS[map_idx][map_segment_y][map_segment_x] == 1) {
                             src_rect.x = 49;
                             src_rect.y = 48;
                         } else {
@@ -255,7 +300,7 @@ void Game::RenderScene() {
                         src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
                     }
                     src_rect.y = 0;
-                    _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;                    
+                    _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;
                 } else if (_player_state == player_state_t::STOPPED) {
                     src_rect.x = PLAYER_WIDTH;
                     src_rect.y = 0;
@@ -316,6 +361,7 @@ void Game::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         }
 
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
+        SDL_FreeSurface(surface);
         if (!text_texture) {
             printf("Panic: Failed to create texture for text, abort.\n");
             exit(EXIT_FAILURE);
