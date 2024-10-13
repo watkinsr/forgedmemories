@@ -33,6 +33,9 @@ enum player_state_t {
     ATTACK
 };
 
+constexpr uint8_t PLAYER_WIDTH = 48;
+constexpr uint8_t PLAYER_HEIGHT = 48;
+
 class Game {
 public:
     Game();
@@ -64,9 +67,11 @@ private:
     vector<scene_t> _scenes = vector<scene_t>();
     vector<vector<gametexture_t>> _scene_texture_locations = vector<vector<gametexture_t>>();
     const uint32_t SCREEN_WIDTH = 640;
-    int32_t _player_y = 250;
-    int32_t _player_x = 250;
     const uint32_t SCREEN_HEIGHT = 480;
+    const uint32_t PLAYER_BEGIN_X = SCREEN_WIDTH/2 - PLAYER_WIDTH/2;
+    const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
+    int32_t _player_x = PLAYER_BEGIN_X;
+    int32_t _player_y = PLAYER_BEGIN_Y;
     const uint8_t  MAIN_TEXTURE_SIZE = 2;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
 };

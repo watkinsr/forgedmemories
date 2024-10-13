@@ -1,11 +1,11 @@
 # Description
-Attempt at making a 2D RPG in SDL a long time ago.
+Unfinished 2D Side-scrolling game in SDL2.
 
-# Prerequisites
-``sudo apt-get install -y libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev``
+# Dependencies
+SDL2, SDL2_Image, SDL2_Mixer, SDL2_TTF
 
 # Build
-``./Meta/engine.sh build``
+``make build``
 
 # Run
-``./Meta/engine.sh run``
+``make run``

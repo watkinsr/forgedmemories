@@ -14,7 +14,9 @@ void handleUpKey(std::unique_ptr<Game>& game) {
     if (game->IsColliding(
         game->GetPlayerX(),
         game->GetPlayerY() - STEP_SIZE)) return;
-    game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
+    int32_t next_y = game->GetPlayerY() - STEP_SIZE;
+    game->SetPlayerY(next_y);
+    LOG_INFO("Player y: %i", next_y);
     game->SetPlayerState(player_state_t::MOVING);
     game->UpdateMap();
 }
@@ -23,7 +25,9 @@ void handleDownKey(std::unique_ptr<Game>& game) {
     if (game->IsColliding(
         game->GetPlayerX(),
         game->GetPlayerY() + STEP_SIZE)) return;
-    game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
+    int32_t next_y = game->GetPlayerY() + STEP_SIZE;
+    game->SetPlayerY(next_y);
+    LOG_INFO("Player y: %i", next_y);
     game->SetPlayerState(player_state_t::MOVING);
     game->UpdateMap();
 }
@@ -32,7 +36,9 @@ void handleLeftKey(std::unique_ptr<Game>& game) {
     if (game->IsColliding(
         game->GetPlayerX() - STEP_SIZE,
         game->GetPlayerY())) return;
-    game->SetPlayerX(game->GetPlayerX() - STEP_SIZE);
+    int32_t next_x = game->GetPlayerX() - STEP_SIZE;
+    game->SetPlayerX(next_x);
+    LOG_INFO("Player x: %i", next_x);
     game->SetPlayerState(player_state_t::MOVING);
     game->UpdateMap();
 }
@@ -41,7 +47,9 @@ void handleRightKey(std::unique_ptr<Game>& game) {
     if (game->IsColliding(
         game->GetPlayerX() + STEP_SIZE,
         game->GetPlayerY())) return;
-    game->SetPlayerX(game->GetPlayerX() + STEP_SIZE);
+    int32_t next_x = game->GetPlayerX() + STEP_SIZE;
+    game->SetPlayerX(next_x);
+    LOG_INFO("Player x: %i", next_x);
     game->SetPlayerState(player_state_t::MOVING);
     game->UpdateMap();
 }

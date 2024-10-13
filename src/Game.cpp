@@ -3,20 +3,38 @@
 #include <cstdlib>
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-constexpr uint8_t PLAYER_WIDTH = 48;
-constexpr uint8_t PLAYER_HEIGHT = 48;
 
 // Center
-#define MAP1 { {1, 0, 0, 1}, {0, 0, 2, 0}, {0, 0, 1, 0}, {1, 1, 1, 1} }
+#define MAP1 {\
+    {1, 0, 0, 1},\
+    {0, 0, 2, 0},\
+    {0, 0, 0, 0},\
+    {1, 1, 1, 1}\
+}
 
 // Left of center
-#define MAP2 { {1, 1, 1, 1}, {1, 0, 2, 0}, {1, 0, 1, 0}, {1, 1, 1, 1} }
+#define MAP2 {\
+    {1, 1, 1, 1},\
+    {1, 0, 2, 0},\
+    {1, 0, 1, 0},\
+    {1, 1, 1, 1}\
+}
 
 // Right of center
-#define MAP3 { {1, 1, 1, 1}, {0, 0, 2, 1}, {0, 0, 1, 1}, {0, 1, 1, 1} }
+#define MAP3 {\
+    {1, 1, 1, 1},\
+    {0, 0, 2, 1},\
+    {0, 0, 1, 1},\
+    {1, 1, 1, 1}\
+}
 
 // Above center
-#define MAP4 { {1, 1, 1, 1}, {1, 0, 2, 1}, {1, 0, 1, 1}, {1, 0, 0, 1} }
+#define MAP4 {\
+    {1, 1, 1, 1},\
+    {1, 0, 2, 1},\
+    {1, 0, 1, 1},\
+    {1, 0, 0, 1}\
+}
 
 // One above, one left, one right, one below.
 const uint8_t MAP_SIZE = 4;
@@ -219,40 +237,44 @@ SDL_Event* Game::GetEvent() {
 }
 
 void Game::UpdateMap() {
-    if (_player_y <= 2) {
+    if (_player_y <= 0) {
+        // Move north a map
         if (map_idx == 0) {
             map_idx = 3;
-            _player_y = SCREEN_HEIGHT - 10;
+            _player_y = SCREEN_HEIGHT + _player_y;
+            if (_player_y == SCREEN_HEIGHT) _player_y = SCREEN_HEIGHT - 1;
             LOG_INFO("Map index moved to: %i", map_idx);
         }
-    } else if (SCREEN_HEIGHT - _player_y <= 2) {
+    } else if (_player_y >= SCREEN_HEIGHT) {
+        // Move south a map
         if (map_idx == 3) {
             map_idx = 0;
-            _player_y = 10;
+            _player_y = SCREEN_HEIGHT - _player_y;
+            if (_player_y == 0) _player_y = 1;
             LOG_INFO("Map index moved to: %i", map_idx);
         }
     } else if (_player_x <= 0) {
-        // Move left to a new map.
+        // Move west a map
         if (map_idx == 2) {
             map_idx = 0;
             LOG_INFO("Map index moved to: %i", map_idx);
-            _player_x = SCREEN_WIDTH - 10;
         } else if (map_idx == 0) {
             map_idx = 1;
             LOG_INFO("Map index moved to: %i", map_idx);
-            _player_x = SCREEN_WIDTH - 10;
         }
-    } else if (SCREEN_WIDTH - _player_x <= 2) {
-        // Move right to a new map.
+        _player_x = SCREEN_WIDTH - abs(_player_x);
+        if (_player_x == SCREEN_WIDTH) _player_x = SCREEN_WIDTH - 1;
+    } else if (_player_x >= SCREEN_WIDTH) {
+        // Move east a map
         if (map_idx == 0) {
             map_idx = 2;
             LOG_INFO("Map index moved to: %i", map_idx);
-            _player_x = 10;
         } else if (map_idx == 1) {
             map_idx = 0;
             LOG_INFO("Map index moved to: %i", map_idx);
-            _player_x = 10;
         }
+        _player_x -= SCREEN_WIDTH;
+        if (_player_x == 0) _player_x = 1;
     }
 }
 
@@ -261,26 +283,61 @@ void Game::RenderScene() {
     if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
-
     for (uint8_t i = 0; i < _scenes[_scene_stack_idx].textures.size(); ++i) {
         SDL_Texture* texture = _scenes[_scene_stack_idx].textures[i];
         SDL_Rect src_rect = _scenes[_scene_stack_idx].texture_src_rects[i];
         SDL_Rect dst_rect = _scenes[_scene_stack_idx].texture_dst_rects[i];
         uint8_t tag = _scenes[_scene_stack_idx].tags[i];
-        if (src_rect.w == 0) {
+        if (isTextTexture(tag)) {
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
-        } else {
-            if (isBackgroundSpriteTexture(tag)) {
-                // LOG_INFO("Background tag: %u", tag);
-                dst_rect.w = 16;
-                dst_rect.h = 16;
-                for (uint16_t i = 0; i < SCREEN_WIDTH; i+=16) {
-                    dst_rect.x = i;
+        }  else if (isBackgroundSpriteTexture(tag)) {
+            dst_rect.w = 16;
+            dst_rect.h = 16;
+
+            // Render map in bounds
+
+            // If player is to the right of current map segment
+            // We only care about everything in that viewport of the segment
+            uint32_t left_edge = 0;
+            int32_t player_x_delta = _player_x - PLAYER_BEGIN_X;
+            int32_t player_y_delta = _player_y - PLAYER_BEGIN_Y;
+            if (player_x_delta >= 16) left_edge = player_x_delta - (player_x_delta % 16);
+            for (uint16_t i = left_edge; i < SCREEN_WIDTH; i+=16) {
+                dst_rect.x = i - player_x_delta;
+                uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=16) {
+                    dst_rect.y = j - player_y_delta;
+                    uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                    if (MAPS[map_idx][map_segment_y][map_segment_x] == 1) {
+                        src_rect.x = 49;
+                        src_rect.y = 48;
+                    } else {
+                        src_rect.x = 17;
+                        src_rect.y = 64;
+                    }
+                    SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                }
+            }
+
+            // Check for other maps.
+            uint32_t delta_x = _player_x % PLAYER_BEGIN_X;
+            uint32_t delta_y = _player_y % PLAYER_BEGIN_Y;
+
+            // if (delta_x != 0 && _player_x % SCREEN_WIDTH > PLAYER_BEGIN_X) {
+            if (player_x_delta > 0) {
+                // Map to the right.
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the right");
+                auto other_map_idx = map_idx;
+                if (map_idx == 0) other_map_idx = 2;
+                else if (map_idx == 1) other_map_idx = 0;
+
+                for (uint16_t i = 0; i < SCREEN_WIDTH-left_edge+PLAYER_WIDTH; i+=16) {
+                    dst_rect.x = i - player_x_delta + SCREEN_WIDTH;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
                     for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=16) {
-                        dst_rect.y = j;
-                        uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                        dst_rect.y = j - (_player_y - PLAYER_BEGIN_Y);
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        if (MAPS[map_idx][map_segment_y][map_segment_x] == 1) {
+                        if (MAPS[other_map_idx][map_segment_y][map_segment_x] == 1) {
                             src_rect.x = 49;
                             src_rect.y = 48;
                         } else {
@@ -290,34 +347,114 @@ void Game::RenderScene() {
                         SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
                     }
                 }
-            } else if (isPlayerSpriteTexture(tag)) {
-                // LOG_INFO("Player tag: %u", tag);
-                if (_player_state == player_state_t::MOVING) {
-                    _deltaTick = SDL_GetTicks() - _tick;
-                    if (_deltaTick >= 100) {
-                        _deltaTick = _deltaTick % 100;
-                        _tick = SDL_GetTicks();
-                        src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
-                    }
-                    src_rect.y = 0;
-                    _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;
-                } else if (_player_state == player_state_t::STOPPED) {
-                    src_rect.x = PLAYER_WIDTH;
-                    src_rect.y = 0;
-                } else if (_player_state == player_state_t::ATTACK) {
-                    src_rect.x = PLAYER_WIDTH;
-                    src_rect.y = PLAYER_HEIGHT;
-                }
-
-                dst_rect.x = GetPlayerX();
-                dst_rect.y = GetPlayerY();
-            } else if (isEnemySpriteTexture(tag)) {
-                // LOG_INFO("Enemy tag: %u", tag);
-                dst_rect.x = 200;
-                dst_rect.y = 200;
             }
+            else if (player_x_delta < 0) {
+                // Map to the left
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the left");
+                auto other_map_idx = map_idx;
+                if (map_idx >= 2) other_map_idx = 0;
+                else other_map_idx = 1;
+
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Player x delta: %i", player_x_delta);
+                // Amount to show from left hand side.
+                int32_t left_edge = SCREEN_WIDTH + player_x_delta;
+
+                for (uint16_t i = left_edge-(left_edge%16); i < SCREEN_WIDTH; i+=16) {
+                    dst_rect.x = i-left_edge;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=16) {
+                        dst_rect.y = j - (_player_y - PLAYER_BEGIN_Y);;
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (MAPS[other_map_idx][map_segment_y][map_segment_x] == 1) {
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            src_rect.x = 17;
+                            src_rect.y = 64;
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+
+            if (player_y_delta > 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south");
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Player y delta: %i", player_y_delta);
+                // Map to the south
+                auto other_map_idx = 0;
+
+                for (uint16_t i = 0; i < SCREEN_WIDTH; i+=16) {
+                    dst_rect.x = i - (_player_x - PLAYER_BEGIN_X);
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = 0; j < player_y_delta+(player_y_delta%16); j+=16) {
+                        dst_rect.y = (SCREEN_HEIGHT-player_y_delta) + j;
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (MAPS[other_map_idx][map_segment_y][map_segment_x] == 1) {
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            src_rect.x = 17;
+                            src_rect.y = 64;
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+            else if (player_y_delta < 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north");
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Player y delta: %i", player_y_delta);
+                // Map to the north
+                auto other_map_idx = 3;
+
+                for (uint16_t i = 0; i < SCREEN_WIDTH; i+=16) {
+                    dst_rect.x = i - (_player_x - PLAYER_BEGIN_X);
+                    if (_player_x % SCREEN_WIDTH > PLAYER_BEGIN_X) dst_rect.x + SCREEN_WIDTH;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    auto amount_to_show = SCREEN_HEIGHT - abs(player_y_delta);
+                    auto begin = amount_to_show - 16 + (abs(player_y_delta)%16);
+                    for (uint16_t j = begin; j < SCREEN_HEIGHT; j+=16) {
+                        dst_rect.y = j - amount_to_show;
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (MAPS[other_map_idx][map_segment_y][map_segment_x] == 1) {
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            src_rect.x = 17;
+                            src_rect.y = 64;
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+        } else if (isPlayerSpriteTexture(tag)) {
+            // LOG_INFO("Player tag: %u", tag);
+            if (_player_state == player_state_t::MOVING) {
+                _deltaTick = SDL_GetTicks() - _tick;
+                if (_deltaTick >= 100) {
+                    _deltaTick = _deltaTick % 100;
+                    _tick = SDL_GetTicks();
+                    src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                }
+                src_rect.y = 0;
+                _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;
+            } else if (_player_state == player_state_t::STOPPED) {
+                src_rect.x = PLAYER_WIDTH;
+                src_rect.y = 0;
+            } else if (_player_state == player_state_t::ATTACK) {
+                src_rect.x = PLAYER_WIDTH;
+                src_rect.y = PLAYER_HEIGHT;
+            }
+
+            dst_rect.x = PLAYER_BEGIN_X;
+            dst_rect.y = PLAYER_BEGIN_Y;
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-        }
+       }
+       // else if (isEnemySpriteTexture(tag)) {
+       //     // LOG_INFO("Enemy tag: %u", tag);
+       //     dst_rect.x = 200;
+       //     dst_rect.y = 200;
+       //     SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+       // }
     }
 
     SDL_RenderPresent(_renderer);
