@@ -5,7 +5,7 @@
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 
 // Center
-#define MAP1 {\
+#define C1 {\
     {1, 0, 0, 1},\
     {0, 0, 2, 0},\
     {0, 0, 0, 0},\
@@ -13,7 +13,7 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 }
 
 // Left of center
-#define MAP2 {\
+#define L1 {\
     {1, 1, 1, 1},\
     {1, 0, 2, 0},\
     {1, 0, 1, 0},\
@@ -21,7 +21,7 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 }
 
 // Right of center
-#define MAP3 {\
+#define R1 {\
     {1, 1, 1, 1},\
     {0, 0, 2, 1},\
     {0, 0, 1, 1},\
@@ -29,7 +29,7 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 }
 
 // Above center
-#define MAP4 {\
+#define U1 {\
     {1, 1, 1, 1},\
     {1, 0, 2, 1},\
     {1, 0, 1, 1},\
@@ -40,12 +40,13 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 const uint8_t MAP_SIZE = 4;
 
 // Current player map.
-uint8_t MAP[4][4] = MAP1;
+uint8_t MAP[4][4] = C1;
 
-uint8_t map_idx = 0;
+// Player starts in the first center.
+uint8_t map_idx = 4;
 
 constexpr uint8_t MAPS[MAP_SIZE][4][4] = {
-    MAP1, MAP2, MAP3, MAP4
+    L1, R1, U1, C1
 };
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
@@ -103,8 +104,8 @@ const bool Game::IsColliding(uint16_t x, uint16_t y) {
     uint8_t segment_x_left = (uint8_t)((x + PLAYER_WIDTH/4)/(SCREEN_WIDTH/4));
     uint8_t segment_x_right = (uint8_t)(collide_x_right/(SCREEN_WIDTH/4));
     uint8_t segment_y = (uint8_t)(collide_y/(SCREEN_HEIGHT/4));
-    const bool is_colliding = MAPS[map_idx][segment_y][segment_x_left] == 1 ||
-    MAPS[map_idx][segment_y][segment_x_right] == 1;
+    const bool is_colliding = MAPS[map_idx-1][segment_y][segment_x_left] == 1 ||
+    MAPS[map_idx-1][segment_y][segment_x_right] == 1;
     if (is_colliding) LOG_INFO("Collision !");
     return is_colliding;
 }
@@ -236,50 +237,83 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
+uint8_t GetCenterIdx(uint8_t idx, bool log) {
+    uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 4;
+    if (log) printf("GetCenterIdx(idx=%i) => %i\n", idx, next_idx);
+    return next_idx;
+}
+
+uint8_t GetNorthIdx(uint8_t idx) {
+    // If map is west/east BUT there is no next north, return 0
+    if (idx % 4 == 1 || idx % 4 == 2) return 0;
+    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 3;
+    if (idx % 4 != 0) {
+        next_idx = (uint8_t)(idx / 4) * 4 + 3;
+    }
+    printf("GetNorthIdx(idx=%i) => %i\n", idx, next_idx);
+    return next_idx;
+}
+
+uint8_t GetSouthIdx(uint8_t idx) {
+    if (idx % 4 == 3) return GetCenterIdx(idx, false);
+    // FIXME
+    return 0;
+}
+
+uint8_t GetWestIdx(uint8_t idx) {
+    // If the map is right, the actual left map is the center.
+    if (idx % 4 == 2) return GetCenterIdx(idx, false);
+    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 1;
+    if (idx % 4 != 0) {
+        next_idx = (uint8_t)(idx / 4) * 4 + 1;
+    }
+    printf("GetWestIdx(idx=%i) => %i\n", idx, next_idx);
+
+    return next_idx;
+}
+
+uint8_t GetEastIdx(uint8_t idx) {
+    // If the map is left, the actual right map is the center.
+    if (idx % 4 == 1) return GetCenterIdx(idx, false);
+    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 2;
+    if (idx % 4 != 0) {
+        next_idx = (uint8_t)(idx / 4) * 4 + 2;
+    }
+    printf("GetEastIdx(idx=%i) => %i\n", idx, next_idx);
+
+    return next_idx;
+}
+
 void Game::UpdateMap() {
     if (_player_y <= 0) {
         // Move north a map
-        if (map_idx == 0) {
-            map_idx = 3;
-            _player_y = SCREEN_HEIGHT + _player_y;
-            if (_player_y == SCREEN_HEIGHT) _player_y = SCREEN_HEIGHT - 1;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        }
+        map_idx = GetNorthIdx(map_idx);
+        _player_y = SCREEN_HEIGHT + _player_y;
+        if (_player_y == SCREEN_HEIGHT) _player_y = SCREEN_HEIGHT - 1;
+        LOG_INFO("Map index moved to: %i", map_idx);
     } else if (_player_y >= SCREEN_HEIGHT) {
         // Move south a map
-        if (map_idx == 3) {
-            map_idx = 0;
-            _player_y = SCREEN_HEIGHT - _player_y;
-            if (_player_y == 0) _player_y = 1;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        }
+        map_idx = GetSouthIdx(map_idx);
+        _player_y = SCREEN_HEIGHT - _player_y;
+        if (_player_y == 0) _player_y = 1;
+        LOG_INFO("Map index moved to: %i", map_idx);
     } else if (_player_x <= 0) {
         // Move west a map
-        if (map_idx == 2) {
-            map_idx = 0;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        } else if (map_idx == 0) {
-            map_idx = 1;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        }
+        map_idx = GetWestIdx(map_idx);
+        LOG_INFO("Map index moved to: %i", map_idx);
         _player_x = SCREEN_WIDTH - abs(_player_x);
         if (_player_x == SCREEN_WIDTH) _player_x = SCREEN_WIDTH - 1;
     } else if (_player_x >= SCREEN_WIDTH) {
         // Move east a map
-        if (map_idx == 0) {
-            map_idx = 2;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        } else if (map_idx == 1) {
-            map_idx = 0;
-            LOG_INFO("Map index moved to: %i", map_idx);
-        }
+        map_idx = GetEastIdx(map_idx);
+        LOG_INFO("Map index moved to: %i", map_idx);
         _player_x -= SCREEN_WIDTH;
         if (_player_x == 0) _player_x = 1;
     }
 }
 
 void AdjustBackgroundSprite(SDL_Rect* src_rect, uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
-    if (MAPS[map_idx][segment_y][segment_x] == 1) {
+    if (MAPS[map_idx-1][segment_y][segment_x] == 1) {
         src_rect->x = 49;
         src_rect->y = 48;
     } else {
@@ -331,10 +365,10 @@ void Game::RenderScene() {
                 }
             }
 
-            if (camera_y > 0) {
+            if (camera_y > 0 && GetSouthIdx(map_idx) != 0) {
                 // Map to the south
                 if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south");
-                auto other_map_idx = 0;
+                auto other_map_idx = GetSouthIdx(map_idx);
 
                 uint16_t begin_x = 0;
                 if (camera_x > 16) {
@@ -356,10 +390,10 @@ void Game::RenderScene() {
                     }
                 }
             }
-            if (camera_y < 0) {
+            if (camera_y < 0 && GetNorthIdx(map_idx) != 0 && map_idx % 4 != 3) {
                 // Map to the north
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north");
-                auto other_map_idx = 3;
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north, player is in %i", map_idx);
+                auto other_map_idx = GetNorthIdx(map_idx);
 
                 uint16_t begin_x = 0;
                 if (camera_x > 16) {
@@ -388,12 +422,10 @@ void Game::RenderScene() {
                 }
             }
 
-            if (camera_x > 0) {
+            if (camera_x > 0 && map_idx % 4 != 2) {
                 // Map to the right.
                 if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the right");
-                auto other_map_idx = map_idx;
-                if (map_idx == 0) other_map_idx = 2;
-                else if (map_idx == 1) other_map_idx = 0;
+                auto other_map_idx = GetEastIdx(map_idx);
 
                 uint16_t begin_x = 0;
                 uint16_t end_x = SCREEN_WIDTH-camera_x+PLAYER_WIDTH;
@@ -420,12 +452,10 @@ void Game::RenderScene() {
                     }
                 }
             }
-            if (camera_x < 0) {
+            if (camera_x < 0 && map_idx % 4 != 1) {
                 // Map to the left
                 if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the left");
-                auto other_map_idx = map_idx;
-                if (map_idx >= 2) other_map_idx = 0;
-                else other_map_idx = 1;
+                auto other_map_idx = GetWestIdx(map_idx);
 
                 // We consider either "exactly" the right amount or 16 off.
                 uint16_t begin_x = SCREEN_WIDTH + camera_x - (16 - abs(camera_x)%16);
