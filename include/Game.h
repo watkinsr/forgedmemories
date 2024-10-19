@@ -53,6 +53,15 @@ public:
     const bool AfterMainMenu();
     const bool IsColliding(uint16_t, uint16_t);
     void UpdateMap();
+    uint8_t GetCenterIdx(uint8_t);
+    uint8_t GetEastIdx(uint8_t);
+    uint8_t GetWestIdx(uint8_t);
+    uint8_t GetSouthIdx(uint8_t);
+    uint8_t GetNorthIdx(uint8_t);
+    uint8_t GetNorthEastIdx(uint8_t);
+    uint8_t GetNorthWestIdx(uint8_t);
+    uint8_t GetSouthEastIdx(uint8_t);
+    uint8_t GetSouthWestIdx(uint8_t);
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     void _SetTextureLocations();

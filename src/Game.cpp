@@ -28,25 +28,30 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
     {1, 1, 1, 1}\
 }
 
-// Above center
-#define U1 {\
+#define C2 {\
     {1, 1, 1, 1},\
     {1, 0, 2, 1},\
     {1, 0, 1, 1},\
     {1, 0, 0, 1}\
 }
 
-// One above, one left, one right, one below.
-const uint8_t MAP_SIZE = 4;
+#define E {\
+    {1, 1, 1, 1},\
+    {1, 1, 1, 1},\
+    {1, 1, 1, 1},\
+    {1, 1, 1, 1}\
+}
+
+const uint8_t MAP_SIZE = 6;
 
 // Current player map.
 uint8_t MAP[4][4] = C1;
 
 // Player starts in the first center.
-uint8_t map_idx = 4;
+uint8_t map_idx = 2;
 
 constexpr uint8_t MAPS[MAP_SIZE][4][4] = {
-    L1, R1, U1, C1
+    L1, C1, R1, E, C2, E
 };
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
@@ -104,9 +109,13 @@ const bool Game::IsColliding(uint16_t x, uint16_t y) {
     uint8_t segment_x_left = (uint8_t)((x + PLAYER_WIDTH/4)/(SCREEN_WIDTH/4));
     uint8_t segment_x_right = (uint8_t)(collide_x_right/(SCREEN_WIDTH/4));
     uint8_t segment_y = (uint8_t)(collide_y/(SCREEN_HEIGHT/4));
+    if (segment_y >= 4) return false;
     const bool is_colliding = MAPS[map_idx-1][segment_y][segment_x_left] == 1 ||
     MAPS[map_idx-1][segment_y][segment_x_right] == 1;
-    if (is_colliding) LOG_INFO("Collision !");
+    if (is_colliding) {
+        LOG_INFO("Collision on map_idx=%i, player x: %i, player y: %i !!!", map_idx, _player_x, _player_y);
+        LOG_INFO("In segment_y: %i, segment_x_left: %i, segment_x_right: %i", segment_y, segment_x_left, segment_x_right);
+    }
     return is_colliding;
 }
 
@@ -237,50 +246,68 @@ SDL_Event* Game::GetEvent() {
     return _event;
 }
 
-uint8_t GetCenterIdx(uint8_t idx, bool log) {
-    uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 4;
-    if (log) printf("GetCenterIdx(idx=%i) => %i\n", idx, next_idx);
+uint8_t Game::GetCenterIdx(uint8_t idx) {
+    uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 2;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetCenterIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
-uint8_t GetNorthIdx(uint8_t idx) {
-    // If map is west/east BUT there is no next north, return 0
-    if (idx % 4 == 1 || idx % 4 == 2) return 0;
-    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 3;
-    if (idx % 4 != 0) {
-        next_idx = (uint8_t)(idx / 4) * 4 + 3;
-    }
-    printf("GetNorthIdx(idx=%i) => %i\n", idx, next_idx);
+uint8_t Game::GetNorthIdx(uint8_t idx) {
+    // If no next north, return default
+    uint8_t next_idx = idx + 3;
+    if (next_idx > MAP_SIZE) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
-uint8_t GetSouthIdx(uint8_t idx) {
-    if (idx % 4 == 3) return GetCenterIdx(idx, false);
-    // FIXME
-    return 0;
+uint8_t Game::GetSouthIdx(uint8_t idx) {
+    uint8_t next_idx = idx - 3;
+    if ((idx - 3) < 1) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthIdx(idx=%i) => %i", idx, next_idx);
+    return next_idx;
 }
 
-uint8_t GetWestIdx(uint8_t idx) {
-    // If the map is right, the actual left map is the center.
-    if (idx % 4 == 2) return GetCenterIdx(idx, false);
-    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 1;
-    if (idx % 4 != 0) {
-        next_idx = (uint8_t)(idx / 4) * 4 + 1;
-    }
-    printf("GetWestIdx(idx=%i) => %i\n", idx, next_idx);
+uint8_t Game::GetWestIdx(uint8_t idx) {
+    uint8_t next_idx = idx - 1;
+    if (next_idx < 1) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetWestIdx(idx=%i) => %i", idx, next_idx);
+    return next_idx;
+}
+
+uint8_t Game::GetEastIdx(uint8_t idx) {
+    // For now, consider a row as size 3.
+    uint8_t next_idx = idx + 1;
+    if (next_idx > MAP_SIZE) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetEastIdx(idx=%i) => %i", idx, next_idx);
 
     return next_idx;
 }
 
-uint8_t GetEastIdx(uint8_t idx) {
-    // If the map is left, the actual right map is the center.
-    if (idx % 4 == 1) return GetCenterIdx(idx, false);
-    uint8_t next_idx = ((uint8_t)((idx-1) / 4)) * 4 + 2;
-    if (idx % 4 != 0) {
-        next_idx = (uint8_t)(idx / 4) * 4 + 2;
-    }
-    printf("GetEastIdx(idx=%i) => %i\n", idx, next_idx);
+uint8_t Game::GetNorthEastIdx(uint8_t idx) {
+    uint8_t next_idx = idx + 4;
+    if (idx + 4 > MAP_SIZE) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthEastIdx(idx=%i) => %i", idx, next_idx);
+    return next_idx;
+}
 
+uint8_t Game::GetNorthWestIdx(uint8_t idx) {
+    uint8_t next_idx = idx + 2;
+    if (idx + 2 > MAP_SIZE) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthWestIdx(idx=%i) => %i", idx, next_idx);
+    return next_idx;
+}
+
+uint8_t Game::GetSouthEastIdx(uint8_t idx) {
+    uint8_t next_idx = idx - 2;
+    if (idx - 2 < 1) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthEastIdx(idx=%i) => %i", idx, next_idx);
+    return next_idx;
+}
+
+uint8_t Game::GetSouthWestIdx(uint8_t idx) {
+    uint8_t next_idx = idx - 4;
+    if (idx - 4 < 1) next_idx = 0;
+    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthWestIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
@@ -365,7 +392,119 @@ void Game::RenderScene() {
                 }
             }
 
-            if (camera_y > 0 && GetSouthIdx(map_idx) != 0) {
+            if (camera_y < 0 && camera_x > 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north east");
+                auto other_map_idx = GetNorthEastIdx(map_idx);
+
+                uint16_t begin_x = 0;
+                uint16_t end_x = SCREEN_WIDTH-camera_x+PLAYER_WIDTH;
+
+                uint16_t begin_y = SCREEN_HEIGHT - abs(camera_y) - ((SCREEN_HEIGHT - abs(camera_y))%16);
+                uint16_t map_camera_offset_y = ((SCREEN_HEIGHT - abs(camera_y))%16);
+
+                for (uint16_t i = begin_x; i < end_x; i+=16) {
+                    uint16_t delta_map_x = i - begin_x;
+                    dst_rect.x = i - camera_x + SCREEN_WIDTH;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = begin_y; j < SCREEN_HEIGHT; j+=16) {
+                        uint16_t delta_map_y = j - begin_y;
+                        dst_rect.y = delta_map_y - (((SCREEN_HEIGHT - abs(camera_y))%16) > 0 ? 16 : 0) + (abs(camera_y)%16);
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (GetNorthEastIdx(map_idx) == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+
+            if (camera_y < 0 && camera_x < 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north west");
+                auto other_map_idx = GetNorthWestIdx(map_idx);
+
+                // We consider either "exactly" the right amount or 16 off.
+                uint16_t begin_x = SCREEN_WIDTH + camera_x - (16 - abs(camera_x)%16);
+
+                uint16_t begin_y = SCREEN_HEIGHT - abs(camera_y) - ((SCREEN_HEIGHT - abs(camera_y))%16);
+                uint16_t map_camera_offset_y = ((SCREEN_HEIGHT - abs(camera_y))%16);
+
+                for (uint16_t i = begin_x; i < SCREEN_WIDTH; i+=16) {
+                    uint16_t delta_map_x = i - begin_x;
+                    dst_rect.x = -16 + (abs(camera_x)%16) + delta_map_x;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = begin_y; j < SCREEN_HEIGHT; j+=16) {
+                        uint16_t delta_map_y = j - begin_y;
+                        dst_rect.y = delta_map_y - (((SCREEN_HEIGHT - abs(camera_y))%16) > 0 ? 16 : 0) + (abs(camera_y)%16);
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+
+            if (camera_y > 0 && camera_x > 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south east");
+                auto other_map_idx = GetSouthEastIdx(map_idx);
+
+                uint16_t begin_x = 0;
+                uint16_t end_x = SCREEN_WIDTH-camera_x+PLAYER_WIDTH;
+
+                for (uint16_t i = begin_x; i < end_x; i+=16) {
+                    uint16_t delta_map_x = i - begin_x;
+                    dst_rect.x = i - camera_x + SCREEN_WIDTH;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = 0; j < camera_y+(camera_y%16); j+=16) {
+                        dst_rect.y = (SCREEN_HEIGHT-camera_y) + j;
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+
+            if (camera_y > 0 && camera_x < 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south west");
+                auto other_map_idx = GetSouthWestIdx(map_idx);
+
+                // We consider either "exactly" the right amount or 16 off.
+                uint16_t begin_x = SCREEN_WIDTH + camera_x - (16 - abs(camera_x)%16);
+
+                for (uint16_t i = begin_x; i < SCREEN_WIDTH; i+=16) {
+                    uint16_t delta_map_x = i - begin_x;
+                    dst_rect.x = -16 + (abs(camera_x)%16) + delta_map_x;
+                    uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+                    for (uint16_t j = 0; j < camera_y+(camera_y%16); j+=16) {
+                        dst_rect.y = (SCREEN_HEIGHT-camera_y) + j;
+                        uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
+                        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+                    }
+                }
+            }
+
+            if (camera_y > 0) {
                 // Map to the south
                 if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south");
                 auto other_map_idx = GetSouthIdx(map_idx);
@@ -385,12 +524,18 @@ void Game::RenderScene() {
                     for (uint16_t j = 0; j < camera_y+(camera_y%16); j+=16) {
                         dst_rect.y = (SCREEN_HEIGHT-camera_y) + j;
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
                         SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
                     }
                 }
             }
-            if (camera_y < 0 && GetNorthIdx(map_idx) != 0 && map_idx % 4 != 3) {
+            if (camera_y < 0) {
                 // Map to the north
                 if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north, player is in %i", map_idx);
                 auto other_map_idx = GetNorthIdx(map_idx);
@@ -416,15 +561,21 @@ void Game::RenderScene() {
                         uint16_t delta_map_y = j - begin_y;
                         dst_rect.y = delta_map_y - (((SCREEN_HEIGHT - abs(camera_y))%16) > 0 ? 16 : 0) + (abs(camera_y)%16);
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
                         SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
                     }
                 }
             }
 
-            if (camera_x > 0 && map_idx % 4 != 2) {
+            if (camera_x > 0) {
                 // Map to the right.
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the right");
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the east");
                 auto other_map_idx = GetEastIdx(map_idx);
 
                 uint16_t begin_x = 0;
@@ -447,14 +598,19 @@ void Game::RenderScene() {
                             dst_rect.y = delta_map_y + abs(camera_y);
                         }
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
                         SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
                     }
                 }
             }
-            if (camera_x < 0 && map_idx % 4 != 1) {
-                // Map to the left
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the left");
+            if (camera_x < 0) {
+                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the west");
                 auto other_map_idx = GetWestIdx(map_idx);
 
                 // We consider either "exactly" the right amount or 16 off.
@@ -478,7 +634,13 @@ void Game::RenderScene() {
                             dst_rect.y = delta_map_y + abs(camera_y);
                         }
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        if (other_map_idx == 0) {
+                            // Render default sprite
+                            src_rect.x = 49;
+                            src_rect.y = 48;
+                        } else {
+                            AdjustBackgroundSprite(&src_rect, other_map_idx, map_segment_y, map_segment_x);
+                        }
                         SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
                     }
                 }
