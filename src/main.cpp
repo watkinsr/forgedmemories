@@ -18,6 +18,7 @@ void handleUpKey(std::unique_ptr<Game>& game) {
     game->SetPlayerY(next_y);
     LOG_INFO("Player y: %i", next_y);
     game->SetPlayerState(player_state_t::MOVING);
+    game->SetPlayerDirection(player_direction_t::UP);
     game->UpdateMap();
 }
 
@@ -29,6 +30,7 @@ void handleDownKey(std::unique_ptr<Game>& game) {
     game->SetPlayerY(next_y);
     LOG_INFO("Player y: %i", next_y);
     game->SetPlayerState(player_state_t::MOVING);
+    game->SetPlayerDirection(player_direction_t::DOWN);
     game->UpdateMap();
 }
 
@@ -40,6 +42,7 @@ void handleLeftKey(std::unique_ptr<Game>& game) {
     game->SetPlayerX(next_x);
     LOG_INFO("Player x: %i", next_x);
     game->SetPlayerState(player_state_t::MOVING);
+    game->SetPlayerDirection(player_direction_t::LEFT);
     game->UpdateMap();
 }
 
@@ -51,6 +54,7 @@ void handleRightKey(std::unique_ptr<Game>& game) {
     game->SetPlayerX(next_x);
     LOG_INFO("Player x: %i", next_x);
     game->SetPlayerState(player_state_t::MOVING);
+    game->SetPlayerDirection(player_direction_t::RIGHT);
     game->UpdateMap();
 }
 

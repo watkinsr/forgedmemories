@@ -29,9 +29,9 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 }
 
 #define C2 {\
-    {1, 1, 1, 1},\
-    {1, 0, 2, 1},\
-    {1, 0, 1, 1},\
+    {1, 0, 0, 1},\
+    {1, 0, 2, 0},\
+    {1, 0, 1, 0},\
     {1, 0, 0, 1}\
 }
 
@@ -42,7 +42,12 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
     {1, 1, 1, 1}\
 }
 
-const uint8_t MAP_SIZE = 6;
+#define C3 {\
+    {1, 1, 1, 1},\
+    {1, 0, 2, 1},\
+    {1, 0, 1, 1},\
+    {1, 0, 0, 1}\
+}
 
 // Current player map.
 uint8_t MAP[4][4] = C1;
@@ -50,8 +55,9 @@ uint8_t MAP[4][4] = C1;
 // Player starts in the first center.
 uint8_t map_idx = 2;
 
+const uint8_t MAP_SIZE = 9;
 constexpr uint8_t MAPS[MAP_SIZE][4][4] = {
-    L1, C1, R1, E, C2, E
+    L1, C1, R1, E, C2, E, R1, C3, E
 };
 
 constexpr std::array<std::string_view, DEFAULT_FONT_ARRAY_LEN> DEFAULT_FONTS = {
@@ -181,8 +187,8 @@ void Game::_SetTextureLocations() {
           .color = {0,0,0,0},
           .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
         },
-        { .text_or_uri = "assets/player.png",
-          .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+        { .text_or_uri = "assets/player2.png",
+          .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
           .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
           .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
@@ -248,7 +254,7 @@ SDL_Event* Game::GetEvent() {
 
 uint8_t Game::GetCenterIdx(uint8_t idx) {
     uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 2;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetCenterIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetCenterIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
@@ -256,21 +262,21 @@ uint8_t Game::GetNorthIdx(uint8_t idx) {
     // If no next north, return default
     uint8_t next_idx = idx + 3;
     if (next_idx > MAP_SIZE) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetSouthIdx(uint8_t idx) {
     uint8_t next_idx = idx - 3;
     if ((idx - 3) < 1) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetWestIdx(uint8_t idx) {
     uint8_t next_idx = idx - 1;
     if (next_idx < 1) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetWestIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetWestIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
@@ -278,7 +284,7 @@ uint8_t Game::GetEastIdx(uint8_t idx) {
     // For now, consider a row as size 3.
     uint8_t next_idx = idx + 1;
     if (next_idx > MAP_SIZE) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetEastIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetEastIdx(idx=%i) => %i", idx, next_idx);
 
     return next_idx;
 }
@@ -286,28 +292,28 @@ uint8_t Game::GetEastIdx(uint8_t idx) {
 uint8_t Game::GetNorthEastIdx(uint8_t idx) {
     uint8_t next_idx = idx + 4;
     if (idx + 4 > MAP_SIZE) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthEastIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthEastIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetNorthWestIdx(uint8_t idx) {
     uint8_t next_idx = idx + 2;
     if (idx + 2 > MAP_SIZE) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthWestIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetNorthWestIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetSouthEastIdx(uint8_t idx) {
     uint8_t next_idx = idx - 2;
     if (idx - 2 < 1) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthEastIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthEastIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetSouthWestIdx(uint8_t idx) {
     uint8_t next_idx = idx - 4;
     if (idx - 4 < 1) next_idx = 0;
-    if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthWestIdx(idx=%i) => %i", idx, next_idx);
+    // if (_player_state == player_state_t::MOVING) LOG_INFO("GetSouthWestIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
@@ -367,16 +373,16 @@ void Game::RenderScene() {
 
             int32_t camera_x = _player_x - PLAYER_BEGIN_X;
             int32_t camera_y = _player_y - PLAYER_BEGIN_Y;
+
             uint32_t begin_x = 0;
             if (camera_x >= 16) begin_x = camera_x - (camera_x % 16);
             uint16_t end_x = SCREEN_WIDTH;
             if (camera_x < 0) end_x = SCREEN_WIDTH - abs(camera_x);
-
             uint32_t begin_y = 0;
             if (camera_y >= 16) begin_y = camera_y - (camera_y % 16);
 
-            if (_player_state == player_state_t::MOVING) LOG_INFO("Camera X: %i", camera_x);
-            if (_player_state == player_state_t::MOVING) LOG_INFO("Camera Y: %i", camera_y);
+            // if (_player_state == player_state_t::MOVING) LOG_INFO("Camera X: %i", camera_x);
+            // if (_player_state == player_state_t::MOVING) LOG_INFO("Camera Y: %i", camera_y);
 
             // Render the map the player is in
             for (uint16_t i = begin_x; i < end_x; i+=16) {
@@ -393,14 +399,13 @@ void Game::RenderScene() {
             }
 
             if (camera_y < 0 && camera_x > 0) {
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north east");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north east");
                 auto other_map_idx = GetNorthEastIdx(map_idx);
 
                 uint16_t begin_x = 0;
                 uint16_t end_x = SCREEN_WIDTH-camera_x+PLAYER_WIDTH;
 
                 uint16_t begin_y = SCREEN_HEIGHT - abs(camera_y) - ((SCREEN_HEIGHT - abs(camera_y))%16);
-                uint16_t map_camera_offset_y = ((SCREEN_HEIGHT - abs(camera_y))%16);
 
                 for (uint16_t i = begin_x; i < end_x; i+=16) {
                     uint16_t delta_map_x = i - begin_x;
@@ -410,7 +415,7 @@ void Game::RenderScene() {
                         uint16_t delta_map_y = j - begin_y;
                         dst_rect.y = delta_map_y - (((SCREEN_HEIGHT - abs(camera_y))%16) > 0 ? 16 : 0) + (abs(camera_y)%16);
                         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-                        if (GetNorthEastIdx(map_idx) == 0) {
+                        if (other_map_idx == 0) {
                             // Render default sprite
                             src_rect.x = 49;
                             src_rect.y = 48;
@@ -423,14 +428,12 @@ void Game::RenderScene() {
             }
 
             if (camera_y < 0 && camera_x < 0) {
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north west");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north west");
                 auto other_map_idx = GetNorthWestIdx(map_idx);
 
                 // We consider either "exactly" the right amount or 16 off.
                 uint16_t begin_x = SCREEN_WIDTH + camera_x - (16 - abs(camera_x)%16);
-
                 uint16_t begin_y = SCREEN_HEIGHT - abs(camera_y) - ((SCREEN_HEIGHT - abs(camera_y))%16);
-                uint16_t map_camera_offset_y = ((SCREEN_HEIGHT - abs(camera_y))%16);
 
                 for (uint16_t i = begin_x; i < SCREEN_WIDTH; i+=16) {
                     uint16_t delta_map_x = i - begin_x;
@@ -453,7 +456,7 @@ void Game::RenderScene() {
             }
 
             if (camera_y > 0 && camera_x > 0) {
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south east");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south east");
                 auto other_map_idx = GetSouthEastIdx(map_idx);
 
                 uint16_t begin_x = 0;
@@ -479,7 +482,7 @@ void Game::RenderScene() {
             }
 
             if (camera_y > 0 && camera_x < 0) {
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south west");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south west");
                 auto other_map_idx = GetSouthWestIdx(map_idx);
 
                 // We consider either "exactly" the right amount or 16 off.
@@ -506,7 +509,7 @@ void Game::RenderScene() {
 
             if (camera_y > 0) {
                 // Map to the south
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the south");
                 auto other_map_idx = GetSouthIdx(map_idx);
 
                 uint16_t begin_x = 0;
@@ -537,7 +540,7 @@ void Game::RenderScene() {
             }
             if (camera_y < 0) {
                 // Map to the north
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north, player is in %i", map_idx);
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the north, player is in %i", map_idx);
                 auto other_map_idx = GetNorthIdx(map_idx);
 
                 uint16_t begin_x = 0;
@@ -550,7 +553,6 @@ void Game::RenderScene() {
                 }
 
                 uint16_t begin_y = SCREEN_HEIGHT - abs(camera_y) - ((SCREEN_HEIGHT - abs(camera_y))%16);
-                uint16_t map_camera_offset_y = ((SCREEN_HEIGHT - abs(camera_y))%16);
 
                 for (uint16_t i = begin_x; i < end_x; i+=16) {
                     uint16_t delta_map_x = i - begin_x;
@@ -575,7 +577,7 @@ void Game::RenderScene() {
 
             if (camera_x > 0) {
                 // Map to the right.
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the east");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the east");
                 auto other_map_idx = GetEastIdx(map_idx);
 
                 uint16_t begin_x = 0;
@@ -610,7 +612,7 @@ void Game::RenderScene() {
                 }
             }
             if (camera_x < 0) {
-                if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the west");
+                // if (_player_state == player_state_t::MOVING) LOG_INFO("Render map to the west");
                 auto other_map_idx = GetWestIdx(map_idx);
 
                 // We consider either "exactly" the right amount or 16 off.
@@ -653,7 +655,11 @@ void Game::RenderScene() {
                 if (_deltaTick >= 100) {
                     _deltaTick = _deltaTick % 100;
                     _tick = SDL_GetTicks();
-                    src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                    if (_player_direction == player_direction_t::UP) {
+                        src_rect.x = PLAYER_WIDTH * 3;
+                    } else {
+                        src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                    }
                 }
                 src_rect.y = 0;
                 _scenes[_scene_stack_idx].texture_src_rects[i] = src_rect;

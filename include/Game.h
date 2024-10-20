@@ -33,6 +33,13 @@ enum player_state_t {
     ATTACK
 };
 
+enum player_direction_t {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT
+};
+
 constexpr uint8_t PLAYER_WIDTH = 48;
 constexpr uint8_t PLAYER_HEIGHT = 48;
 
@@ -49,6 +56,7 @@ public:
     const int32_t GetPlayerY() { return _player_y; };
     void SetPlayerX(const int32_t x) { _player_x = x; };
     void SetPlayerState(const player_state_t state) { _player_state = state; };
+    void SetPlayerDirection(const player_direction_t direction) { _player_direction = direction; };
     const int32_t GetPlayerX() { return _player_x; };
     const bool AfterMainMenu();
     const bool IsColliding(uint16_t, uint16_t);
@@ -64,6 +72,7 @@ public:
     uint8_t GetSouthWestIdx(uint8_t);
 private:
     player_state_t _player_state = player_state_t::STOPPED;
+    player_direction_t _player_direction = player_direction_t::DOWN;
     void _SetTextureLocations();
     uint32_t _tick;
     uint32_t _deltaTick;
