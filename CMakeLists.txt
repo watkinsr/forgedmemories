@@ -33,10 +33,8 @@ include_directories(${SDL2_IMAGE_INCLUDE_DIRS})
 # Collect all .cpp files in the src directory
 file(GLOB SOURCES "src/*.cpp")
 
-# add_executable(forgedmemories src/main.cpp src/EventLoop.cpp src/SDLInitManager.cpp)
-add_executable(forgedmemories src/main.cpp src/Game.cpp)
+add_executable(forgedmemories src/Game.cpp src/Common.cpp)
+add_executable(mapeditor src/MapEditor.cpp src/Common.cpp)
 
 target_link_libraries(forgedmemories ${SDL2_LIBRARIES} ${SDL2_MIXER_LIBRARIES} ${SDL2_TTF_LIBRARIES} ${SDL2_IMAGE_LIBRARIES})
-
-
-
+target_link_libraries(mapeditor ${SDL2_LIBRARIES} ${SDL2_MIXER_LIBRARIES} ${SDL2_TTF_LIBRARIES} ${SDL2_IMAGE_LIBRARIES})
