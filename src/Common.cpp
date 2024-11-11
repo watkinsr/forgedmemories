@@ -78,7 +78,12 @@ void Common::AllocateScene(bool incrementStackIdx) {
 }
 
 void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
-    if (isTextTexture(game_texture.tag)) {
+    if (isRectTexture(game_texture.tag)) {
+        _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
+        _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
+        _scenes[scene_idx].tags.push_back(game_texture.tag);
+        LOG_INFO("Allocated rect");
+    } else if (isTextTexture(game_texture.tag)) {
         SDL_Surface* surface = TTF_RenderText_Solid(
             _font,
             game_texture.text_or_uri.c_str(),
@@ -174,6 +179,10 @@ constexpr bool Common::isSpriteTexture(uint8_t tag) {
     isPlayerSpriteTexture(tag) ||
     isBackgroundSpriteTexture(tag) ||
     isEnemySpriteTexture(tag);
+}
+
+constexpr bool Common::isRectTexture(uint8_t tag) {
+    return (tag & RECT_TAG) == RECT_TAG;
 }
 
 std::pair<int, int> Common::GetTextureDimensions(SDL_Texture* texture) {

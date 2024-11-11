@@ -19,6 +19,7 @@ const uint32_t SCREEN_HEIGHT = 480;
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
 #define SPRITE_TAG 1 << 2
+#define RECT_TAG 1 << 3
 
 #define PLAYER_SPRITE_FLAG 1 << 0
 #define BACKGROUND_SPRITE_FLAG 1 << 1
@@ -61,6 +62,7 @@ public:
     constexpr bool isTextTexture(uint8_t);
     constexpr bool isImageTexture(uint8_t);
     constexpr bool isSpriteTexture(uint8_t);
+    constexpr bool isRectTexture(uint8_t);
     std::pair<int, int> GetTextureDimensions(SDL_Texture*);
     void RenderCurrentScene();
     SDL_Renderer* GetRenderer();
