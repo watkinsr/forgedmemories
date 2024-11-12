@@ -30,6 +30,7 @@ struct scene_t {
     vector<uint8_t> tags;
     vector<SDL_Rect> texture_src_rects;
     vector<SDL_Rect> texture_dst_rects;
+    vector<SDL_Color> colors;
 };
 
 struct gametexture_t {

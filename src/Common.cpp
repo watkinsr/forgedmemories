@@ -82,6 +82,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
+        _scenes[scene_idx].colors.push_back(game_texture.color);
         LOG_INFO("Allocated rect");
     } else if (isTextTexture(game_texture.tag)) {
         SDL_Surface* surface = TTF_RenderText_Solid(

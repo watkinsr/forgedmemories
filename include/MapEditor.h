@@ -12,6 +12,7 @@ public:
     ~MapEditor() {}
     void RenderCurrentScene();
     void _SetTextureLocations();
+    void HandleSelection(const int, const int);
 private:
     std::shared_ptr<Common> _common;
 };
