@@ -13,8 +13,8 @@
 using namespace std;
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-const uint32_t SCREEN_WIDTH = 640;
-const uint32_t SCREEN_HEIGHT = 480;
+const uint32_t SCREEN_WIDTH = 1280;
+const uint32_t SCREEN_HEIGHT = 720;
 
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
@@ -57,16 +57,17 @@ public:
     SDL_Event* GetEvent();
     void AllocateScene(bool);
     void LoadTexture(const uint8_t, gametexture_t);
-    constexpr bool isEnemySpriteTexture(uint8_t);
-    constexpr bool isPlayerSpriteTexture(uint8_t);
-    constexpr bool isBackgroundSpriteTexture(uint8_t);
-    constexpr bool isTextTexture(uint8_t);
-    constexpr bool isImageTexture(uint8_t);
-    constexpr bool isSpriteTexture(uint8_t);
-    constexpr bool isRectTexture(uint8_t);
+    bool isEnemySpriteTexture(uint8_t);
+    bool isPlayerSpriteTexture(uint8_t);
+    bool isBackgroundSpriteTexture(uint8_t);
+    bool isTextTexture(uint8_t);
+    bool isImageTexture(uint8_t);
+    bool isSpriteTexture(uint8_t);
+    bool isRectTexture(uint8_t);
     std::pair<int, int> GetTextureDimensions(SDL_Texture*);
     void RenderCurrentScene();
     SDL_Renderer* GetRenderer();
+    SDL_Window* GetWindow();
     uint8_t GetSceneStackIdx();
     scene_t* GetCurrentScene();
 private:
@@ -78,6 +79,7 @@ private:
     SDL_Renderer*             _renderer;
     SDL_Event*                _event;
     TTF_Font*                 _font;
+    SDL_Surface*              _screen_surface;
     uint8_t                   _scene_stack_idx = 0;
     vector<SDL_Texture*> _textures = vector<SDL_Texture*>();
     vector<scene_t> _scenes = vector<scene_t>();

@@ -1,3 +1,6 @@
 .PHONY: build
 build:
-	mkdir -p build  && cd build && cmake -G "Ninja" -S ../ -B . && ninja
+	mkdir -p build && \
+    cd build && \
+	cmake -DCMAKE_BUILD_TYPE=Debug -G "Ninja" -S ../ -B . && \
+    ninja

@@ -11,7 +11,7 @@ void Common::SetupSDL() {
         exit(EXIT_FAILURE);
     }
 
-    _window = SDL_CreateWindow(_app_name.c_str(), 100, 100, SCREEN_WIDTH,
+    _window = SDL_CreateWindow(_app_name.c_str(), -1, -1, SCREEN_WIDTH,
                                SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (!_window) {
         printf("panic: Window creation failed, abort.\n");
@@ -19,11 +19,14 @@ void Common::SetupSDL() {
     }
 
     _renderer = SDL_CreateRenderer(_window, -1,
-                         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+                         SDL_RENDERER_ACCELERATED);
     if (!_renderer) {
         printf("panic: SDL Renderer creation failed, abort.\n");
         exit(EXIT_FAILURE);
     }
+
+    _screen_surface = SDL_GetWindowSurface(_window);
+    SDL_UpdateWindowSurface(_window);
 
     for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
         _font = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
@@ -33,6 +36,10 @@ void Common::SetupSDL() {
             exit(EXIT_FAILURE);
         }
     }
+
+    // SDL_SetHint("SDL_HINT_TOUCH_MOUSE_EVENTS", "1");
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
     _event = new SDL_Event();
 }
@@ -61,7 +68,7 @@ void Common::AllocateScene(bool incrementStackIdx) {
         scene_t scene;
         _scenes.push_back(scene);
         LOG_INFO("Common::AllocateScene() => Stack size: %li.", _scenes.size());
-        LOG_INFO("Common::AllocateScene() => Stack index: %li.",
+        LOG_INFO("Common::AllocateScene() => Stack index: %i.",
                   _scene_stack_idx);
         LOG_INFO("Common::AllocateScene() => Allocate %li textures for Scene: %i",
         _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
@@ -149,32 +156,32 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
     }
 }
 
-constexpr bool Common::isEnemySpriteTexture(uint8_t tag) {
+bool Common::isEnemySpriteTexture(uint8_t tag) {
     uint8_t combined_tag = (SPRITE_TAG | ENEMY_SPRITE_FLAG);
     return (tag & combined_tag) == combined_tag;
 }
 
-constexpr bool Common::isPlayerSpriteTexture(uint8_t tag) {
+bool Common::isPlayerSpriteTexture(uint8_t tag) {
     if (isEnemySpriteTexture(tag)) return false;
     uint8_t combined_tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
     return (tag & combined_tag) == combined_tag;
 }
 
-constexpr bool Common::isBackgroundSpriteTexture(uint8_t tag) {
+bool Common::isBackgroundSpriteTexture(uint8_t tag) {
     if (isEnemySpriteTexture(tag)) return false;
     uint8_t combined_tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
     return (tag & combined_tag) == combined_tag;
 }
-constexpr bool Common::isTextTexture(uint8_t tag) {
+bool Common::isTextTexture(uint8_t tag) {
     if (isPlayerSpriteTexture(tag) || isEnemySpriteTexture(tag)) return false;
     return (tag & TEXT_TAG) == TEXT_TAG;
 }
-constexpr bool Common::isImageTexture(uint8_t tag) {
+bool Common::isImageTexture(uint8_t tag) {
     if (isBackgroundSpriteTexture(tag) ||
     isEnemySpriteTexture(tag)) return false;
     return (tag & IMAGE_TAG) == IMAGE_TAG;
 }
-constexpr bool Common::isSpriteTexture(uint8_t tag) {
+bool Common::isSpriteTexture(uint8_t tag) {
     // LOG_INFO("isSpriteTexture(%u)", tag);
     return (tag & SPRITE_TAG) == SPRITE_TAG ||
     isPlayerSpriteTexture(tag) ||
@@ -182,7 +189,7 @@ constexpr bool Common::isSpriteTexture(uint8_t tag) {
     isEnemySpriteTexture(tag);
 }
 
-constexpr bool Common::isRectTexture(uint8_t tag) {
+bool Common::isRectTexture(uint8_t tag) {
     return (tag & RECT_TAG) == RECT_TAG;
 }
 
@@ -198,5 +205,6 @@ std::pair<int, int> Common::GetTextureDimensions(SDL_Texture* texture) {
 }
 
 SDL_Renderer* Common::GetRenderer() { return _renderer; }
+SDL_Window* Common::GetWindow() { return _window; }
 uint8_t Common::GetSceneStackIdx() { return _scene_stack_idx; }
 scene_t* Common::GetCurrentScene() { return &_scenes[_scene_stack_idx]; }

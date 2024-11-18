@@ -6,10 +6,11 @@ void MapEditor::RenderCurrentScene() {
     SDL_Renderer* _renderer = _common->GetRenderer();
     uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
-    float tick = SDL_GetTicks();
+
     if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderClear(_renderer);
+
     uint8_t texture_idx = 0;
     uint8_t color_idx = 0;
     for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
@@ -26,44 +27,98 @@ void MapEditor::RenderCurrentScene() {
             SDL_Texture* texture = current_scene->textures[texture_idx++];
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
         } else if (_common->isBackgroundSpriteTexture(tag)) {
+            // Get the spritesheet texture.
             SDL_Texture* texture = current_scene->textures[texture_idx++];
+
+            // If there's a selection, we need to reflect drag and drop.
+            if (_sprite_selection.selection) {
+                src_rect.x = _sprite_selection.x*16;
+                src_rect.y = _sprite_selection.y*16;
+                src_rect.w = 16;
+                src_rect.h = 16;
+                dst_rect.x = _mouse_x;
+                dst_rect.y = _mouse_y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // HACK: Temporary to verify placement logic.
+            if (_placement.x > 0) {
+                src_rect.x = _sprite_selection.x*16;
+                src_rect.y = _sprite_selection.y*16;
+                src_rect.w = 16;
+                src_rect.h = 16;
+                dst_rect.x = _placement.x;
+                dst_rect.y = _placement.y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // Render the spritesheet to the right.
             const uint16_t x_offset = SCREEN_WIDTH - 160;
             const uint16_t y_offset = 64;
-            for (uint8_t i = 0; i < 4; ++i) {
-                for (uint8_t j = 0; j < 8; ++j) {
-                    dst_rect.x = x_offset + (i*16*2);
-                    dst_rect.y = y_offset + (j*16*2);
-                    dst_rect.w = 16 * 2;  // scale by 2.
-                    dst_rect.h = 16 * 2;  // scale by 2.
-                    src_rect.x = i*16;
-                    src_rect.y = j*16;
-                    SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-                }
-            }
+
+            src_rect.x = 0;
+            src_rect.y = 0;
+            src_rect.w = 256;
+            src_rect.h = 256;
+            dst_rect.x = x_offset;
+            dst_rect.y = y_offset;
+            dst_rect.w = 256;
+            dst_rect.h = 256;
+
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
 
         }
     }
     SDL_RenderPresent(_renderer);
+
+    LOG_INFO("Amount of textures in scene: %li", current_scene->textures.size());
+    if (current_scene->textures.size() == 3) {
+        // Remove the FPS texture.
+        current_scene->textures.pop_back();
+        current_scene->texture_src_rects.pop_back();
+        current_scene->texture_dst_rects.pop_back();
+    }
+
+    float tick = SDL_GetTicks();
+    float deltaTick = tick - _prev_tick;
+    uint32_t fps = 1000.0f / deltaTick;
+    gametexture_t fps_texture = {
+        .text_or_uri = "FPS: " + std::to_string(fps),
+        .src_rect = {0, 0, 0, 0},
+        .dst_rect = {100, 5, 0, 0},
+        .color = {255,255,255,255},
+        .tag = TEXT_TAG
+    };
+
+    _prev_tick = tick;
+
+    _common->LoadTexture(_scene_stack_idx, std::move(fps_texture));
 }
 
 void MapEditor::_SetTextureLocations() {
-    uint16_t y = static_cast<float>(SCREEN_HEIGHT)*0.1f;
+    float nav_y_factor = 0.05f;
+    int nav_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(nav_y_factor);
+    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - nav_y_factor);
     const vector<gametexture_t> SCENE_1 = {
         {   .text_or_uri = "",
-            .src_rect = {0, 0, SCREEN_WIDTH, y},
-            .dst_rect = {0, 0, SCREEN_WIDTH, y},
+            .src_rect = {0, 0, SCREEN_WIDTH, nav_y},
+            .dst_rect = {0, 0, SCREEN_WIDTH, nav_y},
             .color = {128,128,128,255},
             .tag = RECT_TAG
         },
         {   .text_or_uri = "",
-            .src_rect = {0, y*1, SCREEN_WIDTH-180, y * 9},
-            .dst_rect = {0, y*1, SCREEN_WIDTH-180, y * 9},
+            .src_rect = {0, nav_y, SCREEN_WIDTH-180, playground_y},
+            .dst_rect = {0, nav_y, SCREEN_WIDTH-180, playground_y},
             .color = {64,64,64,255},
             .tag = RECT_TAG
         },
         {   .text_or_uri = "File",
-            .src_rect = {25, 10, 0, y},
-            .dst_rect = {25, 10, 0, y},
+            .src_rect = {25, 5, 0, nav_y},
+            .dst_rect = {25, 5, 0, nav_y},
             .color = {255,255,255,255},
             .tag = TEXT_TAG
         },
@@ -83,12 +138,10 @@ MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
 }
 
 void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
-    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
     LOG_INFO("Mouse X: %i, Mouse Y: %i", mouse_x, mouse_y);
     for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
         uint8_t tag = current_scene->tags[i];
-        SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
         const uint16_t x_offset = SCREEN_WIDTH - 160;
         const uint16_t y_offset = 64;
         if (_common->isBackgroundSpriteTexture(tag)) {
@@ -96,7 +149,10 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
                 for (uint8_t j = 0; j < 8; ++j) {
                     const uint16_t sprite_x = x_offset + (i*16*2);
                     const uint16_t sprite_y = y_offset + (j*16*2);
-                    if (mouse_x > sprite_x && mouse_x <= sprite_x + 16 && mouse_y > sprite_y && mouse_y <= sprite_y + 16) {
+                    if (mouse_x > sprite_x && mouse_x <= sprite_x + 16*2 && mouse_y > sprite_y && mouse_y <= sprite_y + 16*2) {
+                        _sprite_selection.selection = true;
+                        _sprite_selection.x = i;
+                        _sprite_selection.y = j;
                         LOG_INFO("Selection made on sprite.");
                     }
                 }
@@ -105,39 +161,53 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
     }
 }
 
+void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
+    if (mouse_x > 0 && mouse_x < SCREEN_WIDTH - 160 && mouse_y > 64 && mouse_y < SCREEN_HEIGHT) {
+        _placement.x = mouse_x;
+        _placement.y = mouse_y;
+        _sprite_selection.selection = false;
+    }
+}
+
+void MapEditor::UpdateMouseCoords(int x, int y) {
+    _mouse_x = x;
+    _mouse_y = y;
+}
+
 int main() {
     std::shared_ptr<Common> common_ptr = std::make_shared<Common>("Map Editor");
     std::unique_ptr<MapEditor> map_editor = std::make_unique<MapEditor>(common_ptr);
-    SDL_Event* e = common_ptr->GetEvent();
-    while (e->type != SDL_QUIT){
-        const Uint8* state = SDL_GetKeyboardState(NULL);
 
-        if (e->type == SDL_MOUSEBUTTONDOWN) {
-            int x, y;
-            SDL_GetMouseState( &x, &y );
-            map_editor->HandleSelection(x, y);
+    int quit_app = 0;
+    int dt, start_ticks, end_ticks = 0;
+
+
+    while (quit_app == 0){
+        SDL_Event EventHandler;
+        while (SDL_PollEvent(&EventHandler) != 0) {
+            if (EventHandler.type == SDL_QUIT)
+                quit_app = 1;
+            else if (EventHandler.type == SDL_MOUSEMOTION) {
+                map_editor->UpdateMouseCoords(EventHandler.motion.x, EventHandler.motion.y);
+            }
+            else if (EventHandler.type == SDL_MOUSEBUTTONDOWN) {
+                int x, y;
+                SDL_GetMouseState( &x, &y );
+                map_editor->UpdateMouseCoords(x, y);
+                if (!map_editor->isSelectionActive()) {
+                    map_editor->HandleSelection(x, y);
+                } else {
+                    map_editor->TryToPlace(x, y);
+                }
+            }
         }
 
-        if( e->type == SDL_MOUSEMOTION || e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP ) {
-            //
+        start_ticks = SDL_GetTicks();
+        dt = start_ticks - end_ticks;
+        if (dt > 1000 / 60.0) {
+            map_editor->RenderCurrentScene();
+            end_ticks = start_ticks;
         }
-
-        if (state[SDL_SCANCODE_SPACE]) {
-            // handleSpaceKey(common_ptr, game);
-        } else if (state[SDL_SCANCODE_UP]) {
-            // handleUpKey(game);
-        } else if (state[SDL_SCANCODE_DOWN]) {
-            // handleDownKey(game);
-        } else if (state[SDL_SCANCODE_LEFT]) {
-            // handleLeftKey(game);
-        } else if (state[SDL_SCANCODE_RIGHT]) {
-            // handleRightKey(game);
-        } else {
-            // game->SetPlayerState(player_state_t::STOPPED);
-        }
-
-        map_editor->RenderCurrentScene();
-        e = common_ptr->GetEvent();
     }
     return 0;
 }
