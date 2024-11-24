@@ -15,6 +15,8 @@ struct SpriteSelection {
 struct Placement {
     uint16_t x;
     uint16_t y;
+    uint16_t sprite_x_idx;
+    uint16_t sprite_y_idx;
 };
 
 class MapEditor {
@@ -30,7 +32,7 @@ public:
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
-    Placement _placement;
+    std::vector<Placement> _placements;
     float _prev_tick;
     int _mouse_x;
     int _mouse_y;

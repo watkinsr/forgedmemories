@@ -13,12 +13,11 @@ void MapEditor::RenderCurrentScene() {
 
     uint8_t texture_idx = 0;
     uint8_t color_idx = 0;
+
     for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
-        // LOG_INFO("Current texture: %i", i);
         SDL_Rect src_rect = current_scene->texture_src_rects[i];
         SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
         uint8_t tag = current_scene->tags[i];
-        // LOG_INFO("Tag: %i", tag);
         if (_common->isRectTexture(tag)) {
             SDL_Color color = current_scene->colors[color_idx++];
             SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
@@ -30,7 +29,7 @@ void MapEditor::RenderCurrentScene() {
             // Get the spritesheet texture.
             SDL_Texture* texture = current_scene->textures[texture_idx++];
 
-            // If there's a selection, we need to reflect drag and drop.
+            // Render drag&drop
             if (_sprite_selection.selection) {
                 src_rect.x = _sprite_selection.x*16;
                 src_rect.y = _sprite_selection.y*16;
@@ -43,14 +42,14 @@ void MapEditor::RenderCurrentScene() {
                 SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
             }
 
-            // HACK: Temporary to verify placement logic.
-            if (_placement.x > 0) {
-                src_rect.x = _sprite_selection.x*16;
-                src_rect.y = _sprite_selection.y*16;
+            // Render placements.
+            for (auto placement : _placements) {
+                src_rect.x = placement.sprite_x_idx*16;
+                src_rect.y = placement.sprite_y_idx*16;
                 src_rect.w = 16;
                 src_rect.h = 16;
-                dst_rect.x = _placement.x;
-                dst_rect.y = _placement.y;
+                dst_rect.x = placement.x;
+                dst_rect.y = placement.y;
                 dst_rect.w = 32;
                 dst_rect.h = 32;
                 SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
@@ -73,9 +72,26 @@ void MapEditor::RenderCurrentScene() {
 
         }
     }
+
+    // Render the "snap" lines in the placement area.
+    SDL_SetRenderDrawColor(_renderer, 0x00, 0xFF, 0x00, 0xFF);
+
+    // Note: Offset=68 since menu_y_offset=36, sprite_2x_scale_y=32"
+    uint16_t line_y_offset = 68;
+
+    while(line_y_offset < SCREEN_HEIGHT) {
+        SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-180, line_y_offset);
+        line_y_offset+=32;
+    }
+
+    uint16_t line_x_offset = 32;
+    while(line_x_offset < SCREEN_WIDTH-180) {
+        SDL_RenderDrawLine(_renderer, line_x_offset, 36, line_x_offset, SCREEN_HEIGHT);
+        line_x_offset+=32;
+    }
+
     SDL_RenderPresent(_renderer);
 
-    LOG_INFO("Amount of textures in scene: %li", current_scene->textures.size());
     if (current_scene->textures.size() == 3) {
         // Remove the FPS texture.
         current_scene->textures.pop_back();
@@ -100,28 +116,32 @@ void MapEditor::RenderCurrentScene() {
 }
 
 void MapEditor::_SetTextureLocations() {
-    float nav_y_factor = 0.05f;
-    int nav_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(nav_y_factor);
-    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - nav_y_factor);
+    float menu_y_factor = 0.05f;
+    int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
+    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor);
     const vector<gametexture_t> SCENE_1 = {
+        // Menu bar rectangle.
         {   .text_or_uri = "",
-            .src_rect = {0, 0, SCREEN_WIDTH, nav_y},
-            .dst_rect = {0, 0, SCREEN_WIDTH, nav_y},
+            .src_rect = {0, 0, SCREEN_WIDTH, menu_y},
+            .dst_rect = {0, 0, SCREEN_WIDTH, menu_y},
             .color = {128,128,128,255},
             .tag = RECT_TAG
         },
-        {   .text_or_uri = "",
-            .src_rect = {0, nav_y, SCREEN_WIDTH-180, playground_y},
-            .dst_rect = {0, nav_y, SCREEN_WIDTH-180, playground_y},
-            .color = {64,64,64,255},
-            .tag = RECT_TAG
-        },
+        // Menu item "File"
         {   .text_or_uri = "File",
-            .src_rect = {25, 5, 0, nav_y},
-            .dst_rect = {25, 5, 0, nav_y},
+            .src_rect = {25, 5, 0, menu_y},
+            .dst_rect = {25, 5, 0, menu_y},
             .color = {255,255,255,255},
             .tag = TEXT_TAG
         },
+        // Placement rectangle.
+        {   .text_or_uri = "",
+            .src_rect = {0, menu_y, SCREEN_WIDTH-180, playground_y},
+            .dst_rect = {0, menu_y, SCREEN_WIDTH-180, playground_y},
+            .color = {64,64,64,255},
+            .tag = RECT_TAG
+        },
+        // Spritesheet.
         {   .text_or_uri = "assets/bg/Berry Garden.png",
             .src_rect = {0, 0, 16, 16},
             .dst_rect = {0, 0, 64, 128},
@@ -162,9 +182,14 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
+    // Check if it can be placed in the Placement Area.
     if (mouse_x > 0 && mouse_x < SCREEN_WIDTH - 160 && mouse_y > 64 && mouse_y < SCREEN_HEIGHT) {
-        _placement.x = mouse_x;
-        _placement.y = mouse_y;
+        Placement placement;
+        placement.x = mouse_x;
+        placement.y = mouse_y;
+        placement.sprite_x_idx = _sprite_selection.x;
+        placement.sprite_y_idx = _sprite_selection.y;
+        _placements.push_back(placement);
         _sprite_selection.selection = false;
     }
 }
@@ -211,3 +236,7 @@ int main() {
     }
     return 0;
 }
+
+// TODO: Placement area needs to be signalled to the user.
+// TODO: Placement area needs square snapping.
+// TODO: Placements need to be removable.
