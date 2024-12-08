@@ -76,23 +76,27 @@ void MapEditor::RenderCurrentScene() {
     // Render the "snap" lines in the placement area.
     SDL_SetRenderDrawColor(_renderer, 0x00, 0xFF, 0x00, 0xFF);
 
-    // Note: Offset=68 since menu_y_offset=36, sprite_2x_scale_y=32"
-    uint16_t line_y_offset = 68;
+    // Note: Offset=68 since menu_bar_y_offset=57, sprite_2x_scale_y=32"
+    uint16_t line_y_offset = 64;
+    uint16_t line_x_offset = 0;
 
-    while(line_y_offset < SCREEN_HEIGHT) {
-        SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-180, line_y_offset);
+    const int screen_y_mod = SCREEN_HEIGHT % 32;
+
+    // Draw's the horizontal lines.
+    while(line_y_offset < SCREEN_HEIGHT + (screen_y_mod)) {
+        SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-192, line_y_offset);
         line_y_offset+=32;
     }
 
-    uint16_t line_x_offset = 32;
+    // Draw's the vertical lines.
     while(line_x_offset < SCREEN_WIDTH-180) {
-        SDL_RenderDrawLine(_renderer, line_x_offset, 36, line_x_offset, SCREEN_HEIGHT);
+        SDL_RenderDrawLine(_renderer, line_x_offset, 64, line_x_offset, line_y_offset - 32);
         line_x_offset+=32;
     }
 
     SDL_RenderPresent(_renderer);
 
-    if (current_scene->textures.size() == 3) {
+    if (current_scene->textures.size() == 4) {
         // Remove the FPS texture.
         current_scene->textures.pop_back();
         current_scene->texture_src_rects.pop_back();
@@ -105,8 +109,9 @@ void MapEditor::RenderCurrentScene() {
     gametexture_t fps_texture = {
         .text_or_uri = "FPS: " + std::to_string(fps),
         .src_rect = {0, 0, 0, 0},
-        .dst_rect = {100, 5, 0, 0},
+        .dst_rect = {SCREEN_WIDTH - 190, 5, 0, 0},
         .color = {255,255,255,255},
+        .font_size = Common::FONT_SIZE::SMALL,
         .tag = TEXT_TAG
     };
 
@@ -118,7 +123,12 @@ void MapEditor::RenderCurrentScene() {
 void MapEditor::_SetTextureLocations() {
     float menu_y_factor = 0.05f;
     int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
-    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor);
+
+    float placement_bar_y_factor = 0.03f;
+    int placement_bar_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(placement_bar_y_factor);
+
+    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
+
     const vector<gametexture_t> SCENE_1 = {
         // Menu bar rectangle.
         {   .text_or_uri = "",
@@ -132,12 +142,28 @@ void MapEditor::_SetTextureLocations() {
             .src_rect = {25, 5, 0, menu_y},
             .dst_rect = {25, 5, 0, menu_y},
             .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Placement bar rectangle.
+        {   .text_or_uri = "",
+            .src_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
+            .dst_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
+            .color = {96,96,96,255},
+            .tag = RECT_TAG
+        },
+        // Placement Menu Bar item "File"
+        {   .text_or_uri = "Placement area",
+            .src_rect = {25, 37, 0, menu_y + placement_bar_y},
+            .dst_rect = {25, 37, 0, menu_y + placement_bar_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::SMALL,
             .tag = TEXT_TAG
         },
         // Placement rectangle.
         {   .text_or_uri = "",
-            .src_rect = {0, menu_y, SCREEN_WIDTH-180, playground_y},
-            .dst_rect = {0, menu_y, SCREEN_WIDTH-180, playground_y},
+            .src_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
+            .dst_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
             .color = {64,64,64,255},
             .tag = RECT_TAG
         },
@@ -182,19 +208,35 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
+    LOG_INFO("MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)", mouse_x, mouse_y);
+
+    // Note: Selection cursor is top left of the sprite plus some padding.
+    // Therefore it's best to take a "good guess" on what the sprite x/y is.
+
+    const int sprite_x = mouse_x + 16; // Simulate mouse x as being centre x of the sprite.
+    const int sprite_y = mouse_y + 16; // Simulate mouse y as being centre y of the sprite
+
+    LOG_INFO("MapEditor::TryToPlace(?) - sprite_x=%i, sprite_y=%i", sprite_x, sprite_y);
+
     // Check if it can be placed in the Placement Area.
-    if (mouse_x > 0 && mouse_x < SCREEN_WIDTH - 160 && mouse_y > 64 && mouse_y < SCREEN_HEIGHT) {
-        Placement placement;
-        placement.x = mouse_x;
-        placement.y = mouse_y;
-        placement.sprite_x_idx = _sprite_selection.x;
-        placement.sprite_y_idx = _sprite_selection.y;
-        _placements.push_back(placement);
-        _sprite_selection.selection = false;
-    }
+    if (sprite_x >= SCREEN_WIDTH - 160 || sprite_y < 64) return;
+
+    // Snap grid starts at 64. No need to mod this value for now.
+
+    Placement placement;
+
+    // Adjust origin back to top-left of the sprite.
+    placement.x = sprite_x - (sprite_x % 32);
+    placement.y = sprite_y - (sprite_y % 32);
+
+    placement.sprite_x_idx = _sprite_selection.x;
+    placement.sprite_y_idx = _sprite_selection.y;
+    _placements.push_back(placement);
+    _sprite_selection.selection = false;
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
+    LOG_INFO("MapEditor::UpdateMouseCoords(x=%i, y=%i)", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }

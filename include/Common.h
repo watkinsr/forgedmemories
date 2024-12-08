@@ -8,6 +8,7 @@
 #include <SDL_ttf.h>
 #include <vector>
 #include <string>
+#include <functional>
 #include "Log.h"
 
 using namespace std;
@@ -38,6 +39,7 @@ struct gametexture_t {
     SDL_Rect src_rect;
     SDL_Rect dst_rect;
     SDL_Color color;
+    uint8_t font_size;
     uint8_t tag;
 };
 
@@ -49,6 +51,11 @@ public:
     Common(std::string app_name);
     ~Common();
     void SetupSDL();
+    enum FONT_SIZE {
+        SMALL,
+        MEDIUM,
+        LARGE
+    };
     constexpr static std::array<std::string_view, 2> DEFAULT_FONTS = {
         "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
         "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
@@ -71,20 +78,21 @@ public:
     uint8_t GetSceneStackIdx();
     scene_t* GetCurrentScene();
 private:
+    std::function<void(TTF_Font*)> fontDeleter;
+    const uint8_t  SCENE_STACK_MAX_SIZE = 2;
     void _SetTextureLocations();
     std::string _app_name;
     uint32_t _tick;
     uint32_t _deltaTick;
-    SDL_Window*               _window;
-    SDL_Renderer*             _renderer;
-    SDL_Event*                _event;
-    TTF_Font*                 _font;
-    SDL_Surface*              _screen_surface;
-    uint8_t                   _scene_stack_idx = 0;
-    vector<SDL_Texture*> _textures = vector<SDL_Texture*>();
-    vector<scene_t> _scenes = vector<scene_t>();
-    vector<vector<gametexture_t>> _scene_texture_locations = vector<vector<gametexture_t>>();
-    const uint8_t  SCENE_STACK_MAX_SIZE = 2;
+    SDL_Window*                                                       _window;
+    SDL_Renderer*                                                     _renderer;
+    SDL_Event*                                                        _event;
+    vector<std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>> _fonts;
+    SDL_Surface*                                                      _screen_surface;
+    uint8_t                                                           _scene_stack_idx = 0;
+    vector<SDL_Texture*>                                              _textures = vector<SDL_Texture*>();
+    vector<scene_t>                                                   _scenes = vector<scene_t>();
+    vector<vector<gametexture_t>>                                     _scene_texture_locations = vector<vector<gametexture_t>>();
 };
 
 #endif

@@ -28,14 +28,52 @@ void Common::SetupSDL() {
     _screen_surface = SDL_GetWindowSurface(_window);
     SDL_UpdateWindowSurface(_window);
 
-    for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
-        _font = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
-        if (_font) break;
-        if (!_font && i == DEFAULT_FONT_ARRAY_LEN - 1) {
-            printf("Panic: Failed to load a default font, abort.\n");
-            exit(EXIT_FAILURE);
+    std::function<void(TTF_Font*)> fontDeleter = [](TTF_Font* font) {
+        if (font) {
+            TTF_CloseFont(font);
         }
+    };
+
+    TTF_Font* rawFont;
+
+    // Allocate 3 sizes for each given font.
+    for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
+        for (uint8_t j = 0; j < 3; ++j) {
+            switch (j) {
+            case FONT_SIZE::SMALL:
+                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 12);
+                if (!rawFont) {
+                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    continue;
+                }
+                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                break;
+            case FONT_SIZE::MEDIUM:
+                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 18);
+                if (!rawFont) {
+                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    continue;
+                }
+                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                break;
+            case FONT_SIZE::LARGE:
+                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+                if (!rawFont) {
+                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    continue;
+                }
+                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                break;
+            }
+        }
+        if (_fonts.size() > 0) break;
     }
+    if (_fonts.size() == 0) {
+        printf("Panic: Failed to load a default font, abort.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    LOG_INFO("Fonts allocated: %i", _fonts.size());
 
     // SDL_SetHint("SDL_HINT_TOUCH_MOUSE_EVENTS", "1");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
@@ -92,8 +130,9 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].colors.push_back(game_texture.color);
         LOG_INFO("Allocated rect");
     } else if (isTextTexture(game_texture.tag)) {
+        TTF_Font* rawFont = _fonts[game_texture.font_size].get(); // Access the raw pointer
         SDL_Surface* surface = TTF_RenderText_Solid(
-            _font,
+            rawFont,
             game_texture.text_or_uri.c_str(),
             game_texture.color
         );
