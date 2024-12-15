@@ -77,6 +77,8 @@ public:
     SDL_Window* GetWindow();
     uint8_t GetSceneStackIdx();
     scene_t* GetCurrentScene();
+    void SetInitialSceneTextureSize(const uint8_t);
+    const uint8_t GetInitialSceneTextureSize();
 private:
     std::function<void(TTF_Font*)> fontDeleter;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
@@ -93,6 +95,7 @@ private:
     vector<SDL_Texture*>                                              _textures = vector<SDL_Texture*>();
     vector<scene_t>                                                   _scenes = vector<scene_t>();
     vector<vector<gametexture_t>>                                     _scene_texture_locations = vector<vector<gametexture_t>>();
+    uint8_t                                                           _initial_scene_size = 0;
 };
 
 #endif

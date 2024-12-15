@@ -247,3 +247,7 @@ SDL_Renderer* Common::GetRenderer() { return _renderer; }
 SDL_Window* Common::GetWindow() { return _window; }
 uint8_t Common::GetSceneStackIdx() { return _scene_stack_idx; }
 scene_t* Common::GetCurrentScene() { return &_scenes[_scene_stack_idx]; }
+void Common::SetInitialSceneTextureSize(const uint8_t initial_scene_size) {
+    _initial_scene_size = initial_scene_size;
+}
+const uint8_t Common::GetInitialSceneTextureSize() { return _initial_scene_size; }

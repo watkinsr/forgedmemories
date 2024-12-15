@@ -3,6 +3,7 @@
 
 #include "Log.h"
 #include "Common.h"
+#include <fstream>
 
 using namespace std;
 
@@ -26,9 +27,11 @@ public:
     void RenderCurrentScene();
     void _SetTextureLocations();
     void HandleSelection(const int, const int);
+    void HandleMenuBarSelection(const int, const int);
     void UpdateMouseCoords(int, int);
     bool isSelectionActive() { return _sprite_selection.selection; }
     void TryToPlace(int, int);
+    void save_tile(const std::vector<Placement>&);
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;

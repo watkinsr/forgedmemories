@@ -96,7 +96,7 @@ void MapEditor::RenderCurrentScene() {
 
     SDL_RenderPresent(_renderer);
 
-    if (current_scene->textures.size() == 4) {
+    if (current_scene->textures.size() == _common->GetInitialSceneTextureSize() + 1) {
         // Remove the FPS texture.
         current_scene->textures.pop_back();
         current_scene->texture_src_rects.pop_back();
@@ -145,6 +145,30 @@ void MapEditor::_SetTextureLocations() {
             .font_size = Common::FONT_SIZE::MEDIUM,
             .tag = TEXT_TAG
         },
+        // Menu item "DEL"
+        {   .text_or_uri = "DEL",
+            .src_rect = {245, 5, 0, menu_y},
+            .dst_rect = {245, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Menu item "SAVE"
+        {   .text_or_uri = "SAVE",
+            .src_rect = {300, 5, 0, menu_y},
+            .dst_rect = {300, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Menu item "Mode: "
+        {   .text_or_uri = "Mode: ",
+            .src_rect = {SCREEN_WIDTH - 250, 5, 0, menu_y},
+            .dst_rect = {SCREEN_WIDTH - 250, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::SMALL,
+            .tag = TEXT_TAG
+        },
         // Placement bar rectangle.
         {   .text_or_uri = "",
             .src_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
@@ -175,12 +199,13 @@ void MapEditor::_SetTextureLocations() {
             .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
         },
     };
+    _common->SetInitialSceneTextureSize(SCENE_1.size());
     _common->AddScene(SCENE_1);
 }
 
 MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     _SetTextureLocations();
-    common_ptr->AllocateScene(false);
+    _common->AllocateScene(false);
 }
 
 void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
@@ -205,6 +230,70 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
             }
         }
     }
+}
+
+void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
+    LOG_INFO("MapEditor::HandleMenuBarSelection(mouse_x=%i, mouse_y=%i)", mouse_x, mouse_y);
+    float menu_y_factor = 0.05f;
+    int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
+    if (mouse_x < 245 || mouse_y > menu_y || mouse_x > 350) return;
+    // DEL selection
+    if (mouse_x < 300) {
+        LOG_INFO("DEL menu item selected");
+    } else {
+        LOG_INFO("SAVE menu item selected");
+        if (_placements.size() == 0) return;
+        // We could probably write a file to be Map1.h where by we create 4x4 map tiles.
+        // We have _placements that represent our current "edited map".
+
+        // First we need to sort by y-coordinate with x as second priority.
+        std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
+            return a.y < b.y || (a.y == b.y && a.x < b.x);
+        });
+        std::vector<Placement> tile = {};
+        uint16_t begin_tile_y = _placements[0].y;  // Represents the first "y" within a given 4x4 tile.
+
+        for (const auto& placement : _placements) {
+            if (placement.y >= (begin_tile_y + 128)) {
+                // LOG_INFO("End of 4x4: %i", (begin_tile_y + 128));
+                if (tile.size() > 0) {
+                    save_tile(tile);
+                    tile.resize(0);
+                }
+                begin_tile_y = placement.y;
+            }
+            tile.push_back(placement);
+        }
+        if (tile.size() > 0) save_tile(tile);
+    }
+}
+
+void MapEditor::save_tile(const vector<Placement>& tile) {
+    LOG_INFO("MapEditor::save_tile(?)");
+    std::ofstream out_file;
+    out_file.open("/home/ryanwatkins/workplace/rom/include/Map1.h");
+    if (!out_file.is_open()) {
+        fprintf(stderr, "save_tile(?) - Failed to open tile");
+        return;
+    }
+
+    out_file << "#define MAP {\\" << endl;
+    out_file << "{";
+    uint16_t y = tile[0].y;
+    uint8_t idx = 0;
+    for (const auto& placement : tile) {
+        LOG_INFO("Placement<x: %i, y: %i>", placement.x, placement.y);
+        if (placement.y > y) {
+            out_file << "},\\" << endl << "{";
+            y = placement.y;
+        };
+        out_file << std::to_string((placement.sprite_x_idx * 16) + placement.sprite_y_idx);
+        if (idx < tile.size() - 1 && tile[idx+1].y == y) out_file << ",";
+        idx++;
+    }
+    out_file << "}\\" << endl << "}" << endl;
+
+    out_file.close();
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
@@ -236,7 +325,7 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
-    LOG_INFO("MapEditor::UpdateMouseCoords(x=%i, y=%i)", x, y);
+    // LOG_INFO("MapEditor::UpdateMouseCoords(x=%i, y=%i)", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }
@@ -263,6 +352,9 @@ int main() {
                 map_editor->UpdateMouseCoords(x, y);
                 if (!map_editor->isSelectionActive()) {
                     map_editor->HandleSelection(x, y);
+                    if (!map_editor->isSelectionActive()) {
+                        map_editor->HandleMenuBarSelection(x, y);
+                    }
                 } else {
                     map_editor->TryToPlace(x, y);
                 }
@@ -278,7 +370,5 @@ int main() {
     }
     return 0;
 }
-
-// TODO: Placement area needs to be signalled to the user.
-// TODO: Placement area needs square snapping.
-// TODO: Placements need to be removable.
+// TODO: Placements need to be removable (Deletion mode).
+// TODO: Placements need to be saved (SAVE menu Implementation).
