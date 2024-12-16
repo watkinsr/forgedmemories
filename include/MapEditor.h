@@ -31,7 +31,8 @@ public:
     void UpdateMouseCoords(int, int);
     bool isSelectionActive() { return _sprite_selection.selection; }
     void TryToPlace(int, int);
-    void save_tile(const std::vector<Placement>&);
+    void save_tile(const std::vector<Placement>&, const uint8_t);
+    void set_fps(const uint8_t fps) { _fps = fps; };
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
@@ -39,6 +40,7 @@ private:
     float _prev_tick;
     int _mouse_x;
     int _mouse_y;
+    uint8_t _fps = 0;
 };
 
 #endif

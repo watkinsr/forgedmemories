@@ -14,8 +14,8 @@
 using namespace std;
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-const uint32_t SCREEN_WIDTH = 1280;
-const uint32_t SCREEN_HEIGHT = 720;
+const uint32_t SCREEN_WIDTH = 800;
+const uint32_t SCREEN_HEIGHT = 600;
 
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
@@ -88,7 +88,6 @@ private:
     uint32_t _deltaTick;
     SDL_Window*                                                       _window;
     SDL_Renderer*                                                     _renderer;
-    SDL_Event*                                                        _event;
     vector<std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>> _fonts;
     SDL_Surface*                                                      _screen_surface;
     uint8_t                                                           _scene_stack_idx = 0;

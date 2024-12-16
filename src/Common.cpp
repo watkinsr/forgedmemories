@@ -1,32 +1,48 @@
 #include "Common.h"
 
 void Common::SetupSDL() {
-    if(SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        printf("Panic: SDL initialization failed, abort.\n");
+    if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+        fprintf(stderr, "Panic: SDL initialization failed, abort.\n");
         exit(EXIT_FAILURE);
     }
 
-    if (TTF_Init() < 0) {
-        printf("Panic: Failed to initialize SDL_ttf, abort.\n");
+    //Set texture filtering to linear
+	if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
+		fprintf(stderr, "Warning: Linear texture filtering not enabled!");
+	}
+
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
+
+    _window = SDL_CreateWindow(_app_name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    if (_window == NULL) {
+        fprintf(stderr, "panic: Window creation failed, abort.\n");
         exit(EXIT_FAILURE);
     }
 
-    _window = SDL_CreateWindow(_app_name.c_str(), -1, -1, SCREEN_WIDTH,
-                               SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    if (!_window) {
-        printf("panic: Window creation failed, abort.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    _renderer = SDL_CreateRenderer(_window, -1,
-                         SDL_RENDERER_ACCELERATED);
-    if (!_renderer) {
+    _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
+    if (_renderer == NULL) {
         printf("panic: SDL Renderer creation failed, abort.\n");
         exit(EXIT_FAILURE);
     }
 
-    _screen_surface = SDL_GetWindowSurface(_window);
-    SDL_UpdateWindowSurface(_window);
+    //Initialize renderer color
+	SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xFF );
+
+    //Initialize PNG loading
+	int imgFlags = IMG_INIT_PNG;
+	if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
+        fprintf(stderr, "Error: IMG_INIT_PNG failed !\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // _screen_surface = SDL_GetWindowSurface(_window);
+    // SDL_UpdateWindowSurface(_window);
+
+    if (TTF_Init() < 0) {
+        fprintf(stderr, "Panic: Failed to initialize SDL_ttf, abort.\n");
+        exit(EXIT_FAILURE);
+    }
 
     std::function<void(TTF_Font*)> fontDeleter = [](TTF_Font* font) {
         if (font) {
@@ -69,35 +85,24 @@ void Common::SetupSDL() {
         if (_fonts.size() > 0) break;
     }
     if (_fonts.size() == 0) {
-        printf("Panic: Failed to load a default font, abort.\n");
+        fprintf(stderr, "Panic: Failed to load a default font, abort.\n");
+        SDL_Quit();
         exit(EXIT_FAILURE);
     }
 
     LOG_INFO("Fonts allocated: %i", _fonts.size());
-
-    // SDL_SetHint("SDL_HINT_TOUCH_MOUSE_EVENTS", "1");
-    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
-    SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
-
-    _event = new SDL_Event();
 }
 
 void Common::AddScene(std::vector<gametexture_t> scene) {
     _scene_texture_locations.push_back(scene);
 }
 
-Common::~Common() {
-    _event = NULL;
-}
+Common::~Common() {}
 
 Common::Common(std::string app_name) {
+    LOG_INFO("Common::Common cstror");
     _app_name = app_name;
     SetupSDL();
-}
-
-SDL_Event* Common::GetEvent() {
-    SDL_PollEvent(_event);
-    return _event;
 }
 
 void Common::AllocateScene(bool incrementStackIdx) {
@@ -162,7 +167,13 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
     } else if (isImageTexture(game_texture.tag)) {
         LOG_INFO("Game::LoadTexture(...) => Received image texture");
         const char* path = game_texture.text_or_uri.c_str();
-        SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
+        SDL_Surface* surface = IMG_Load(path);
+        SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
+        SDL_SetTextureBlendMode( texture, SDL_BLENDMODE_BLEND );
+        SDL_FreeSurface(surface);
+
+        // SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
         if (texture == NULL) {
             printf("Panic: Failed to load image texture at %s.\n", path);
             SDL_Quit();
@@ -176,9 +187,15 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         LOG_INFO("Loaded image texture at %s", path);
     } else if (isSpriteTexture(game_texture.tag)) {
         const char* path = game_texture.text_or_uri.c_str();
-        SDL_Texture* texture = IMG_LoadTexture(_renderer, path);
+
+        SDL_Surface* surface = IMG_Load(path);
+        SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
+        SDL_SetTextureBlendMode( texture, SDL_BLENDMODE_BLEND );
+
+        SDL_FreeSurface(surface);
         if (texture == NULL) {
-            printf("Panic: Failed to load sprite texture at %s.\n", path);
+            fprintf(stderr, "Panic: Failed to load sprite texture at %s.\n", path);
             SDL_Quit();
             exit(EXIT_FAILURE);
         } else {

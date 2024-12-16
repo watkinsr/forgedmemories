@@ -2,10 +2,18 @@
 Unfinished 2D Side-scrolling game in SDL2.
 
 # Dependencies
-SDL2, SDL2_Image, SDL2_Mixer, SDL2_TTF
+SDL2
 
 # Build
-``make build``
+```sh
+make build
+```
 
 # Run
-``make run``
+```sh
+./build/mapeditor
+```
+```sh
+./build/forgedmemories
+```
+
