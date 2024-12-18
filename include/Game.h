@@ -46,7 +46,7 @@ public:
     uint8_t GetSouthEastIdx(uint8_t);
     uint8_t GetSouthWestIdx(uint8_t);
     void set_fps(const uint8_t fps) { _fps = fps; };
-    void RenderSprite(SDL_Rect&, SDL_Rect&, const uint8_t, const uint8_t, const uint8_t, const uint8_t, SDL_Texture&);
+    void RenderSprite(SDL_Rect&, SDL_Rect&, const uint8_t, const uint8_t, const uint8_t, SDL_Texture&);
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     player_direction_t _player_direction = player_direction_t::DOWN;
