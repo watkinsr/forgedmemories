@@ -64,23 +64,76 @@ constexpr int MAPS[MAP_SIZE][4][4] = {
     L1, MAP0, R1, E, C2, E, R1, C3, E
 };
 
-const bool Game::IsColliding(uint16_t x, uint16_t y) {
-    uint16_t collide_y = (y + ((PLAYER_HEIGHT/4) * 3.5));
-    uint16_t collide_x_right = (x + ((PLAYER_WIDTH/4) * 3.5));
+const bool Game::IsColliding(const int x, const int y) {
+    uint8_t _map_idx = map_idx;
 
-    if (collide_x_right >= SCREEN_WIDTH || x <= 0) return false;
+    int top_bounding_box = y;
+    int bottom_bounding_box = y + PLAYER_HEIGHT;
+    int left_bounding_box = x;
+    int right_bounding_box = x + PLAYER_WIDTH;
 
-    uint8_t segment_x_left = (uint8_t)((x + PLAYER_WIDTH/4)/(SCREEN_WIDTH/4));
-    uint8_t segment_x_right = (uint8_t)(collide_x_right/(SCREEN_WIDTH/4));
-    uint8_t segment_y = (uint8_t)(collide_y/(SCREEN_HEIGHT/4));
-    if (segment_y >= 4) return false;
-    const bool is_colliding = MAPS[map_idx-1][segment_y][segment_x_left] >= 64 ||
-                              MAPS[map_idx-1][segment_y][segment_x_right] >= 64;
-    if (is_colliding) {
-        LOG_INFO("Collision on map_idx=%i, player x: %i, player y: %i !!!", map_idx, _player_x, _player_y);
-        LOG_INFO("In segment_y: %i, segment_x_left: %i, segment_x_right: %i", segment_y, segment_x_left, segment_x_right);
+    if (top_bounding_box < 0) {
+        top_bounding_box += SCREEN_HEIGHT;
+        _map_idx = GetNorthIdx(map_idx);
+        uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
+        uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
+        return !(
+            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]  == -1 &&
+            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == -1
+        );
     }
-    return is_colliding;
+
+    if (bottom_bounding_box > SCREEN_HEIGHT) {
+        bottom_bounding_box -= SCREEN_HEIGHT;
+        _map_idx = GetSouthIdx(map_idx);
+
+        uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
+        uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
+
+        return !(
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+        );
+    }
+
+    if (right_bounding_box > SCREEN_WIDTH) {
+        right_bounding_box -= SCREEN_WIDTH;
+        _map_idx = GetEastIdx(map_idx);
+        uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
+        return !(
+            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]    == -1 &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1
+        );
+    }
+
+    if (left_bounding_box < 0) {
+        left_bounding_box += SCREEN_WIDTH;
+        _map_idx = GetWestIdx(map_idx);
+        uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
+        return !(
+            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]    == -1 &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+        );
+    }
+
+    uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
+    uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
+    uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
+    uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
+
+    // We check the current map.
+    return !(
+        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == -1 &&
+        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+    );
 }
 
 Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
@@ -202,26 +255,23 @@ uint8_t Game::GetSouthWestIdx(uint8_t idx) {
 }
 
 void Game::UpdateMap() {
-    if (_player_y <= 0) {
-        // Move north a map
+    if (_player_y <= 0) {                    // Move north a map
         map_idx = GetNorthIdx(map_idx);
         _player_y = SCREEN_HEIGHT + _player_y;
         if (_player_y == SCREEN_HEIGHT) _player_y = SCREEN_HEIGHT - 1;
         LOG_INFO("Map index moved to: %i", map_idx);
-    } else if (_player_y >= SCREEN_HEIGHT) {
-        // Move south a map
+    } else if (_player_y >= SCREEN_HEIGHT) { // Move south a map
+
         map_idx = GetSouthIdx(map_idx);
         _player_y = SCREEN_HEIGHT - _player_y;
         if (_player_y == 0) _player_y = 1;
         LOG_INFO("Map index moved to: %i", map_idx);
-    } else if (_player_x <= 0) {
-        // Move west a map
+    } else if (_player_x <= 0) {             // Move west a map
         map_idx = GetWestIdx(map_idx);
         LOG_INFO("Map index moved to: %i", map_idx);
         _player_x = SCREEN_WIDTH - abs(_player_x);
         if (_player_x == SCREEN_WIDTH) _player_x = SCREEN_WIDTH - 1;
-    } else if (_player_x >= SCREEN_WIDTH) {
-        // Move east a map
+    } else if (_player_x >= SCREEN_WIDTH) {  // Move east a map
         map_idx = GetEastIdx(map_idx);
         LOG_INFO("Map index moved to: %i", map_idx);
         _player_x -= SCREEN_WIDTH;
@@ -249,20 +299,14 @@ void Game::RenderSprite(SDL_Rect& src_rect, SDL_Rect& dst_rect, const uint8_t ma
 
     int v = MAPS[map_idx-1][map_segment_y][map_segment_x];
     if (v == -1) {
-        // LOG_INFO("<Src rect x=%i, y=%i, w=%i, h=%i>", src_rect.x, src_rect.y, src_rect.w, src_rect.h);
         SDL_RenderCopy(_renderer, &texture, &src_rect, &dst_rect);
         return;
     }
-    // Render the grass first.
+    // Render the grass first
     SDL_Rect srcRectGrass = {17, 64, src_rect.w, src_rect.h};
     SDL_RenderCopy(_renderer, &texture, &srcRectGrass, &dst_rect);
 
-    // const SDL_Rect sr = {src_rect.x, src_rect.y, src_rect.w, src_rect.h};
-    // const SDL_Rect dr = {dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h};
-    // SDL_Rect dstRectTree = {dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h};
-
-    // Overlay the actual sprite.
-    // SDL_SetTextureAlphaMod(&texture, 0xFF);
+    // Render the actual sprite
     SDL_RenderCopy(_renderer, &texture, &src_rect, &dst_rect);
 }
 
@@ -275,6 +319,10 @@ void Game::RenderCurrentScene() {
 
     SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
     SDL_RenderClear(_renderer);
+
+
+    // Reset the draw color.
+    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
 
     for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
         SDL_Texture* texture = current_scene->textures[i];
@@ -519,32 +567,38 @@ void Game::RenderCurrentScene() {
             dst_rect.y = PLAYER_BEGIN_Y;
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
        }
-    }
+   }
 
-    SDL_RenderPresent(_renderer);
+   // Temporarily draw the bounding box.
+   SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
 
-    if (_scene_stack_idx == 0) return;
-    if (_scene_stack_idx == 1) {
-        if (current_scene->textures.size() >= 4) {
-            // Remove the FPS texture.
-            SDL_DestroyTexture(current_scene->textures[3]);
-            current_scene->textures.pop_back();
-        }
-        gametexture_t fps_texture = {
-            .text_or_uri = "FPS: " + std::to_string(_fps),
-            .src_rect = {0, 0, 0, 0},
-            .dst_rect = {20, 20, 0, 0},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::LARGE,
-            .tag = TEXT_TAG
-        };
+   // Reset the color
+   SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
+   SDL_RenderPresent(_renderer);
 
-        _common->LoadTexture(_scene_stack_idx, fps_texture);
-    }
+   if (_scene_stack_idx == 0) return;
+   if (_scene_stack_idx == 1) {
+       if (current_scene->textures.size() >= 4) {
+           // Remove the FPS texture.
+           SDL_DestroyTexture(current_scene->textures[3]);
+           current_scene->textures.pop_back();
+       }
+       gametexture_t fps_texture = {
+           .text_or_uri = "FPS: " + std::to_string(_fps),
+           .src_rect = {0, 0, 0, 0},
+           .dst_rect = {20, 20, 0, 0},
+           .color = {255,255,255,255},
+           .font_size = Common::FONT_SIZE::LARGE,
+           .tag = TEXT_TAG
+       };
 
+       _common->LoadTexture(_scene_stack_idx, fps_texture);
+   }
 }
-
-#define STEP_SIZE 5
 
 void handleSpaceKey(std::shared_ptr<Common>& common, std::unique_ptr<Game>& game) {
     if (!game->AfterMainMenu()) common->AllocateScene(true);
@@ -554,10 +608,13 @@ void handleSpaceKey(std::shared_ptr<Common>& common, std::unique_ptr<Game>& game
 }
 
 void handleUpKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(
+    if (
+        game->IsColliding(
         game->GetPlayerX(),
         game->GetPlayerY() - STEP_SIZE)
-    ) return;
+    ) {
+        return;
+    }
     game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
     game->SetPlayerDirection(player_direction_t::UP);
@@ -565,10 +622,13 @@ void handleUpKey(std::unique_ptr<Game>& game) {
 }
 
 void handleDownKey(std::unique_ptr<Game>& game) {
-    if (game->IsColliding(
+    if (
+        game->IsColliding(
         game->GetPlayerX(),
         game->GetPlayerY() + STEP_SIZE)
-    ) return;
+    ) {
+        return;
+    }
     game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
     game->SetPlayerState(player_state_t::MOVING);
     game->SetPlayerDirection(player_direction_t::DOWN);

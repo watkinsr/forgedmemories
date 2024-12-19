@@ -22,6 +22,8 @@ enum player_direction_t {
     RIGHT
 };
 
+#define STEP_SIZE 5
+
 class Game {
 public:
     Game(std::shared_ptr<Common> common_ptr);
@@ -34,7 +36,7 @@ public:
     void SetPlayerDirection(const player_direction_t direction) { _player_direction = direction; };
     const int32_t GetPlayerX() { return _player_x; };
     const bool AfterMainMenu();
-    const bool IsColliding(uint16_t, uint16_t);
+    const bool IsColliding(const int, const int);
     void UpdateMap();
     uint8_t GetCenterIdx(uint8_t);
     uint8_t GetEastIdx(uint8_t);
