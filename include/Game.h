@@ -24,6 +24,12 @@ enum player_direction_t {
 
 #define STEP_SIZE 5
 
+struct attack_animation_t {
+    uint8_t runtime;
+    bool active;
+    uint16_t x;
+};
+
 class Game {
 public:
     Game(std::shared_ptr<Common> common_ptr);
@@ -33,6 +39,12 @@ public:
     const int32_t GetPlayerY() { return _player_y; };
     void SetPlayerX(const int32_t x) { _player_x = x; };
     void SetPlayerState(const player_state_t state) { _player_state = state; };
+    void SetAttackAnimation(const uint8_t runtime, const bool active) {
+        if (_attack_animation.runtime > 0) return;
+        _attack_animation.runtime = runtime;
+        _attack_animation.active = active;
+        _attack_animation.x = GetPlayerX();
+    };
     void SetPlayerDirection(const player_direction_t direction) { _player_direction = direction; };
     const int32_t GetPlayerX() { return _player_x; };
     const bool AfterMainMenu();
@@ -59,6 +71,7 @@ private:
     const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
+    attack_animation_t _attack_animation;
     std::shared_ptr<Common> _common;
     uint8_t _fps = 0;
 };

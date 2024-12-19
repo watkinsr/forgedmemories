@@ -64,6 +64,9 @@ constexpr int MAPS[MAP_SIZE][4][4] = {
     L1, MAP0, R1, E, C2, E, R1, C3, E
 };
 
+uint64_t frame_count = 0;
+uint64_t current_ticks = 0;
+
 const bool Game::IsColliding(const int x, const int y) {
     uint8_t _map_idx = map_idx;
 
@@ -546,25 +549,32 @@ void Game::RenderCurrentScene() {
                 }
             }
         } else if (_common->isPlayerSpriteTexture(tag)) {
-            // LOG_INFO("Player tag: %u", tag);
+            if (_attack_animation.runtime == 0) {
+                _attack_animation.active = false;
+                _attack_animation.x = PLAYER_BEGIN_X;
+                dst_rect.x = PLAYER_BEGIN_X;
+                dst_rect.y = PLAYER_BEGIN_Y;
+            }
+
             if (_player_state == player_state_t::MOVING) {
+                src_rect.y = 0;
                 if (_player_direction == player_direction_t::UP) {
-                    src_rect.x = PLAYER_WIDTH * 3;
+                    src_rect.x = current_ticks % 2 == 0 ? PLAYER_WIDTH * 3 : PLAYER_WIDTH * 4;
                 } else {
                     src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
                 }
-                src_rect.y = 0;
                 current_scene->texture_src_rects[i] = src_rect;
             } else if (_player_state == player_state_t::STOPPED) {
                 src_rect.x = PLAYER_WIDTH;
                 src_rect.y = 0;
-            } else if (_player_state == player_state_t::ATTACK) {
-                src_rect.x = PLAYER_WIDTH;
+            }  else if (_attack_animation.active) {
+                _attack_animation.runtime -= 1;
+                src_rect.x = _attack_animation.runtime >= 8 ? PLAYER_WIDTH : PLAYER_WIDTH * 2;
                 src_rect.y = PLAYER_HEIGHT;
+                if (_attack_animation.runtime % 4 == 0)  _attack_animation.x += 1;
+                dst_rect.x = _attack_animation.x;
             }
 
-            dst_rect.x = PLAYER_BEGIN_X;
-            dst_rect.y = PLAYER_BEGIN_Y;
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
        }
    }
@@ -604,6 +614,7 @@ void handleSpaceKey(std::shared_ptr<Common>& common, std::unique_ptr<Game>& game
     if (!game->AfterMainMenu()) common->AllocateScene(true);
     else {
         game->SetPlayerState(player_state_t::ATTACK);
+        game->SetAttackAnimation(16, true);
     }
 }
 
@@ -657,8 +668,7 @@ void handleRightKey(std::unique_ptr<Game>& game) {
     game->UpdateMap();
 }
 
-uint64_t frame_count = 0;
-uint64_t current_ticks = 0;
+
 
 int main() {
     std::shared_ptr<Common> common_ptr = std::make_shared<Common>(std::move(std::string("Forged Memories")));
