@@ -6,15 +6,16 @@ void Common::SetupSDL() {
         exit(EXIT_FAILURE);
     }
 
-    //Set texture filtering to linear
+    // //Set texture filtering to linear
 	if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
 		fprintf(stderr, "Warning: Linear texture filtering not enabled!");
 	}
 
+    // This for drag&drop in MapEditor
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
-    _window = SDL_CreateWindow(_app_name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    _window = SDL_CreateWindow(_app_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (_window == NULL) {
         fprintf(stderr, "panic: Window creation failed, abort.\n");
         exit(EXIT_FAILURE);
@@ -22,7 +23,7 @@ void Common::SetupSDL() {
 
     _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
     if (_renderer == NULL) {
-        printf("panic: SDL Renderer creation failed, abort.\n");
+        fprintf(stderr, "panic: SDL Renderer creation failed, abort.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -101,13 +102,26 @@ Common::~Common() {}
 
 Common::Common(std::string app_name) {
     LOG_INFO("Common::Common cstror");
-    _app_name = app_name;
+    _app_name = app_name.c_str();
     SetupSDL();
 }
 
 void Common::AllocateScene(bool incrementStackIdx) {
     if (_scene_stack_idx + 1 < SCENE_STACK_MAX_SIZE) {
-        if (incrementStackIdx) _scene_stack_idx++;
+        if (incrementStackIdx) {
+            _scenes[_scene_stack_idx].texture_src_rects.clear();
+            _scenes[_scene_stack_idx].texture_src_rects.shrink_to_fit();
+            _scenes[_scene_stack_idx].texture_dst_rects.clear();
+            _scenes[_scene_stack_idx].texture_dst_rects.shrink_to_fit();
+            _scenes[_scene_stack_idx].tags.clear();
+            _scenes[_scene_stack_idx].tags.shrink_to_fit();
+            for (const auto& texture : _scenes[_scene_stack_idx].textures) {
+                SDL_DestroyTexture(texture);
+            }
+            _scenes[_scene_stack_idx].textures.clear();
+            _scenes[_scene_stack_idx].textures.shrink_to_fit();
+            _scene_stack_idx++;
+        }
         scene_t scene;
         _scenes.push_back(scene);
         LOG_INFO("Common::AllocateScene() => Stack size: %li.", _scenes.size());
@@ -123,7 +137,8 @@ void Common::AllocateScene(bool incrementStackIdx) {
         for (uint8_t i = 0; i < _scene_texture_locations[_scene_stack_idx].size(); ++i) {
             LoadTexture(_scene_stack_idx, _scene_texture_locations[_scene_stack_idx][i]);
         }
-        // FIXME: We might need to destroy the old textures.
+        _scene_texture_locations[_scene_stack_idx].clear();
+        _scene_texture_locations[_scene_stack_idx].shrink_to_fit();
     }
 }
 
@@ -142,7 +157,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             game_texture.color
         );
         if (!surface) {
-            printf("Panic: Failed to obtain surface, abort.\n");
+            fprintf(stderr, "Panic: Failed to obtain surface, abort.\n");
             SDL_Quit();
             exit(EXIT_FAILURE);
         }
@@ -243,6 +258,11 @@ bool Common::isSpriteTexture(uint8_t tag) {
     isPlayerSpriteTexture(tag) ||
     isBackgroundSpriteTexture(tag) ||
     isEnemySpriteTexture(tag);
+}
+
+void Common::DestroyFonts() {
+    _fonts.clear();
+    _fonts.shrink_to_fit();
 }
 
 bool Common::isRectTexture(uint8_t tag) {

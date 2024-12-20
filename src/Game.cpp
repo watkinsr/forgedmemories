@@ -175,15 +175,16 @@ void Game::_SetTextureLocations() {
           .color = {0,0,0,0},
           .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
         },
-        { .text_or_uri = "assets/enemy.png",
-          .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
-          .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
-          .color = {0,0,0,0},
-          .tag = SPRITE_TAG | ENEMY_SPRITE_FLAG
-        }
+        // { .text_or_uri = "assets/enemy.png",
+        //   .src_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+        //   .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+        //   .color = {0,0,0,0},
+        //   .tag = SPRITE_TAG | ENEMY_SPRITE_FLAG
+        // }
     };
     _common->AddScene(SCENE_1);
     _common->AddScene(SCENE_2);
+    _common->SetInitialSceneTextureSize(SCENE_2.size());
 }
 
 const bool Game::AfterMainMenu() {
@@ -311,6 +312,12 @@ void Game::RenderSprite(SDL_Rect& src_rect, SDL_Rect& dst_rect, const uint8_t ma
 
     // Render the actual sprite
     SDL_RenderCopy(_renderer, &texture, &src_rect, &dst_rect);
+}
+
+void Game::ResetAttackAnimation() {
+    _attack_animation.active = false;
+    _attack_animation.x = PLAYER_BEGIN_X;
+    _attack_animation.runtime = 0;
 }
 
 void Game::RenderCurrentScene() {
@@ -549,30 +556,32 @@ void Game::RenderCurrentScene() {
                 }
             }
         } else if (_common->isPlayerSpriteTexture(tag)) {
-            if (_attack_animation.runtime == 0) {
-                _attack_animation.active = false;
-                _attack_animation.x = PLAYER_BEGIN_X;
+            if (_attack_animation.active && _attack_animation.runtime > 0) {
+                LOG_INFO("Attack animation x: %i", _attack_animation.x);
+                _attack_animation.runtime -= 1;
+                src_rect.y = PLAYER_HEIGHT;
+                src_rect.x = _attack_animation.runtime >= 8 ? PLAYER_WIDTH : PLAYER_WIDTH * 2;
+
+                float dt = ATTACK_ANIMATION_FRAMES+1 - _attack_animation.runtime / ATTACK_ANIMATION_FRAMES;
+                _attack_animation.x += 0.2 * dt;
+
+                dst_rect.x = _attack_animation.x;
+            } else {
                 dst_rect.x = PLAYER_BEGIN_X;
                 dst_rect.y = PLAYER_BEGIN_Y;
-            }
-
-            if (_player_state == player_state_t::MOVING) {
-                src_rect.y = 0;
-                if (_player_direction == player_direction_t::UP) {
-                    src_rect.x = current_ticks % 2 == 0 ? PLAYER_WIDTH * 3 : PLAYER_WIDTH * 4;
-                } else {
-                    src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                if (_attack_animation.active) ResetAttackAnimation();
+                if (_player_state == player_state_t::MOVING) {
+                    src_rect.y = 0;
+                    if (_player_direction == player_direction_t::UP) {
+                        src_rect.x = current_ticks % 2 == 0 ? PLAYER_WIDTH * 3 : PLAYER_WIDTH * 4;
+                    } else {
+                        src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                    }
+                    current_scene->texture_src_rects[i] = src_rect;
+                } else if (_player_state == player_state_t::STOPPED) {
+                    src_rect.x = PLAYER_WIDTH;
+                    src_rect.y = 0;
                 }
-                current_scene->texture_src_rects[i] = src_rect;
-            } else if (_player_state == player_state_t::STOPPED) {
-                src_rect.x = PLAYER_WIDTH;
-                src_rect.y = 0;
-            }  else if (_attack_animation.active) {
-                _attack_animation.runtime -= 1;
-                src_rect.x = _attack_animation.runtime >= 8 ? PLAYER_WIDTH : PLAYER_WIDTH * 2;
-                src_rect.y = PLAYER_HEIGHT;
-                if (_attack_animation.runtime % 4 == 0)  _attack_animation.x += 1;
-                dst_rect.x = _attack_animation.x;
             }
 
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
@@ -592,9 +601,9 @@ void Game::RenderCurrentScene() {
 
    if (_scene_stack_idx == 0) return;
    if (_scene_stack_idx == 1) {
-       if (current_scene->textures.size() >= 4) {
+       if (current_scene->textures.size() >= _common->GetInitialSceneTextureSize() + 1) {
            // Remove the FPS texture.
-           SDL_DestroyTexture(current_scene->textures[3]);
+           SDL_DestroyTexture(current_scene->textures[_common->GetInitialSceneTextureSize()]);
            current_scene->textures.pop_back();
        }
        gametexture_t fps_texture = {
@@ -611,14 +620,16 @@ void Game::RenderCurrentScene() {
 }
 
 void handleSpaceKey(std::shared_ptr<Common>& common, std::unique_ptr<Game>& game) {
+    if (game->AttackAnimationActive()) return;
     if (!game->AfterMainMenu()) common->AllocateScene(true);
     else {
         game->SetPlayerState(player_state_t::ATTACK);
-        game->SetAttackAnimation(16, true);
+        game->SetAttackAnimation(ATTACK_ANIMATION_FRAMES, true);
     }
 }
 
 void handleUpKey(std::unique_ptr<Game>& game) {
+    if (game->AttackAnimationActive()) return;
     if (
         game->IsColliding(
         game->GetPlayerX(),
@@ -633,6 +644,7 @@ void handleUpKey(std::unique_ptr<Game>& game) {
 }
 
 void handleDownKey(std::unique_ptr<Game>& game) {
+    if (game->AttackAnimationActive()) return;
     if (
         game->IsColliding(
         game->GetPlayerX(),
@@ -647,6 +659,7 @@ void handleDownKey(std::unique_ptr<Game>& game) {
 }
 
 void handleLeftKey(std::unique_ptr<Game>& game) {
+    if (game->AttackAnimationActive()) return;
     if (game->IsColliding(
         game->GetPlayerX() - STEP_SIZE,
         game->GetPlayerY()
@@ -658,6 +671,7 @@ void handleLeftKey(std::unique_ptr<Game>& game) {
 }
 
 void handleRightKey(std::unique_ptr<Game>& game) {
+    if (game->AttackAnimationActive()) return;
     if (game->IsColliding(
         game->GetPlayerX() + STEP_SIZE,
         game->GetPlayerY())

@@ -20,6 +20,14 @@ struct Placement {
     uint16_t sprite_y_idx;
 };
 
+std::string MAP_FILE = "/home/ryan/workplace/forgedmemories/include/Map.h";
+
+struct prev_map_t {
+    int first_tile_x;
+    int first_tile_y;
+    std::vector<std::vector<int>> tiles;
+};
+
 class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
@@ -33,10 +41,12 @@ public:
     void TryToPlace(int, int);
     void save_tile(const std::vector<Placement>&, const uint8_t);
     void set_fps(const uint8_t fps) { _fps = fps; };
+    void TryLoadPreviousMap();
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
     std::vector<Placement> _placements;
+    prev_map_t _prev_map;
     float _prev_tick;
     int _mouse_x;
     int _mouse_y;

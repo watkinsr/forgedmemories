@@ -273,17 +273,10 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) {
-    // Determine the first "x" so we can index every given placement correctly.
-    uint8_t first_x = 255;
-    for (const auto& placement: tile) {
-        if ((placement.x / 32) < first_x) first_x = placement.x / 32;
-    }
+    LOG_INFO("[TRACE] MapEditor::save_tile(?)");
 
-    LOG_INFO("First X: %i", first_x);
-
-    LOG_INFO("MapEditor::save_tile(?)");
     std::ofstream out_file;
-    out_file.open("/home/ryan/workplace/forgedmemories/include/Map.h");
+    out_file.open(MAP_FILE);
     if (!out_file.is_open()) {
         fprintf(stderr, "save_tile(?) - Failed to open tile");
         return;
@@ -293,57 +286,84 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
 
     out_file << "#define MAP" << std::to_string(map_idx) << " {\\" << endl;
     out_file << "    {";
-    uint16_t y = tile[0].y;
+
+    // Determine the "left-most" sprite x so we can index every given placement correctly.
+    uint8_t leftmost_x = 255;
+    for (const auto& placement: tile) {
+        if ((placement.x / 32) < leftmost_x) leftmost_x = placement.x / 32;
+    }
+
     uint16_t prev_x = tile[0].x;
+    uint16_t prev_y = tile[0].y;
     uint8_t idx = 0;
     uint8_t col_cur = 0;
     for (const auto& placement : tile) {
         LOG_INFO("Placement<x: %i, y: %i>", placement.x, placement.y);
-        uint8_t x_offset = (placement.x / 32) - first_x;
-        if (placement.y > y) {
+
+        // State representing Column cursor "jump"
+        uint8_t norm_cur_x = (placement.x / 32);
+        uint8_t norm_prev_x = (prev_x / 32);
+        uint8_t x_norm_jump = 0;
+        if (norm_cur_x > norm_prev_x) x_norm_jump = norm_cur_x - norm_prev_x;
+
+        uint8_t x_offset = norm_cur_x - leftmost_x;
+
+        // If we went down a row.
+        if (placement.y > prev_y) {
+            x_norm_jump = 0;
             // Pad rest of row.
-            if (col_cur < 4) LOG_INFO("Pad rest of row.");
-            while(col_cur < 4) {
-                if (col_cur != 3) out_file << "-1,";
-                else out_file << "-1" << "},\\" << endl;
-                col_cur++;
+            if (col_cur < 4) {
+                LOG_INFO("Pad rest of row.");
+                while(col_cur < 4) {
+                    if (col_cur != 3) out_file << "-1,";
+                    else out_file << "-1";
+                    col_cur++;
+                }
             }
+            out_file << "},\\" << endl;
+
             col_cur = 0;
 
-            uint8_t norm_y_delta = (placement.y / 32) - (y / 32);
-            // Pad complete rows.
-            if (norm_y_delta > 1) LOG_INFO("Pad complete rows.");
-            while(norm_y_delta > 1) {
-                out_file << "    {-1,-1,-1,-1},\\" << endl;
-                norm_y_delta--;
+            // How many rows did we go down?
+            uint8_t norm_y_delta = (placement.y / 32) - (prev_y / 32);
+
+            // Pad remaining rows.
+            if (norm_y_delta > 1) {
+                LOG_INFO("Pad complete rows.");
+                while(norm_y_delta > 1) {
+                    out_file << "    {-1,-1,-1,-1},\\" << endl;
+                    norm_y_delta--;
+                }
             }
 
             out_file << "    {";
-            // Pad beginning of row.
+
+            // Pad beginning of row of placement.
             if (x_offset > 0) LOG_INFO("Pad beginning of row.");
             while(x_offset > 0) {
                 out_file << "-1,";
                 x_offset--;
                 col_cur++;
             }
-            y = placement.y;
-        } else {
-            // If the X cursor jumped > 1, fill the gap.
-            uint8_t norm_cur_x = (placement.x / 32);
-            uint8_t norm_prev_x = (prev_x / 32);
-            uint8_t x_norm_jump = norm_cur_x - norm_prev_x;
-            if (x_norm_jump > 1) LOG_INFO("X cursor jumped, fill gap. (%i - %i)", norm_cur_x, norm_prev_x);
+        }
+
+
+        // If the column cursor jumped, fill the gap.
+        if (x_norm_jump > 1) {
+            LOG_INFO("X cursor jumped, fill gap. (%i - %i)", norm_cur_x, norm_prev_x);
             while(x_norm_jump > 1) {
                 out_file << "-1,";
                 x_norm_jump--;
                 col_cur++;
             }
         }
-        out_file << std::to_string((placement.sprite_x_idx * 16) + placement.sprite_y_idx);
-        if ((idx < tile.size() - 1 && tile[idx+1].y == y) || col_cur < 3) out_file << ",";
+        std::string sprite_encoding = std::to_string((placement.sprite_x_idx * 16) + placement.sprite_y_idx);
+        out_file << sprite_encoding;
+        if ((idx < tile.size() - 1 && tile[idx+1].y == tile[idx].y) || col_cur < 3) out_file << ",";
         col_cur++;
         idx++;
         prev_x = placement.x;
+        prev_y = placement.y;
     }
     // Pad rest of row.
     if (col_cur < 4) LOG_INFO("Pad rest of row.");
@@ -352,23 +372,28 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
         else out_file << "-1";
         col_cur++;
     }
+    col_cur = 0;
 
     // How many rows remaining?
-    uint8_t last_norm_y = (tile[tile.size() - 1].y / 32);
     uint8_t first_norm_y = (tile[0].y / 32);
+    uint8_t last_norm_y = (tile[tile.size() - 1].y / 32);
     uint8_t tile_y_delta = 3 - (last_norm_y - first_norm_y);
 
     LOG_INFO("Need to pad finally %i rows", tile_y_delta);
 
-    if (tile_y_delta > 0) out_file << "},\\" << endl;
-    else out_file << "}\\" << endl;
+    // Finished
+    if (tile_y_delta == 0) out_file << "}\\" << endl;
 
-    // Pad complete rows.
-    if (tile_y_delta > 0) LOG_INFO("Pad complete rows.");
-    while(tile_y_delta > 0) {
-        if (tile_y_delta != 1) out_file << "    {-1,-1,-1,-1},\\" << endl;
-        else out_file << "    {-1,-1,-1,-1}\\" << endl;
-        tile_y_delta--;
+    // Pad remaining rows.
+    else {
+        if (tile_y_delta > 0) LOG_INFO("Pad complete rows.");
+        out_file << "},\\" << endl;
+
+        while(tile_y_delta > 0) {
+            if (tile_y_delta != 1) out_file << "    {-1,-1,-1,-1},\\" << endl;
+            else out_file << "    {-1,-1,-1,-1}\\" << endl;
+            tile_y_delta--;
+        }
     }
 
     out_file << "}" << endl;
@@ -413,6 +438,102 @@ void MapEditor::UpdateMouseCoords(int x, int y) {
 uint64_t frame_count = 0;
 uint64_t current_ticks = 0;
 
+void MapEditor::TryLoadPreviousMap() {
+    LOG_INFO("[TRACE] TryLoadPreviousMap()");
+    std::ifstream file(MAP_FILE.c_str());
+    if (!file.is_open()) {
+        std::cerr << "Failed to open the file." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string line;
+    int x, y;
+    std::vector<std::vector<int>> tiles = {{}};
+    int tile_idx = 0;
+    while (std::getline(file, line)) {
+        if (line.starts_with("#define MAP0_METADATA")) {
+            line = line.substr(sizeof("#define MAP0_METADATA"));
+            size_t pos;
+            while ((pos = line.find(",")) != std::string::npos) {
+                x = atoi(line.substr(0, pos).c_str());
+                line.erase(0, pos + 1);
+                break;
+            }
+            y = atoi(line.c_str());
+            std::cout << "X: " << x << ", Y: " << y << std::endl;
+        } else if (line.starts_with("#define MAP")) continue;
+        else {
+            size_t pos;
+            if (pos = line.find("{") == std::string::npos) continue;
+            line.erase(std::remove(line.begin(), line.end(), '{'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '}'), line.end());
+
+            while ((pos = line.find(",")) != std::string::npos) {
+                if (tiles[tile_idx].size() == 0) tiles[tile_idx] = std::vector<int>();
+                tiles[tile_idx].push_back(atoi(line.substr(0, pos).c_str()));
+                line.erase(0, pos + 1);
+            }
+            if (tile_idx == 3) tiles[tile_idx].push_back(atoi(line.c_str()));
+            tile_idx++;
+            if (tile_idx == 4) break;
+            std::vector<int> v = {};
+            tiles.push_back(std::move(v));
+        }
+    }
+
+
+    for (const auto& tile : tiles) {
+        std::cout << "[";
+        for (const auto& v : tile) {
+            std::cout << v << ", ";
+        }
+        std::cout << "]";
+        std::cout << std::endl;
+    }
+    file.close();
+
+    _prev_map.first_tile_x = x;
+    _prev_map.first_tile_y = y;
+    _prev_map.tiles = std::move(tiles);
+
+    Placement placement = {
+        .x = _prev_map.first_tile_x,
+        .y = _prev_map.first_tile_y,
+    };
+
+    int x_offset_idx = 0;
+    int y_offset_idx = 0;
+    uint8_t x_idx = 0;
+    uint8_t y_idx = 0;
+    bool first_placement_set = false;
+
+    for (const auto& tile : _prev_map.tiles) {
+        for (const auto& v : tile) {
+            if (v != -1 && !first_placement_set) {
+                placement.sprite_x_idx = v / 16;
+                placement.sprite_y_idx = v % 16;
+                x_offset_idx = x_idx;
+                _placements.push_back(placement);
+                first_placement_set = true;
+            } else if (v != -1) {
+                const int x_offset = x_idx - x_offset_idx;
+                const int y_offset = y_idx - y_offset_idx;
+                Placement p = Placement {
+                    .x = _prev_map.first_tile_x + (x_offset * 32),
+                    .y = _prev_map.first_tile_y + (y_offset * 32),
+                    .sprite_x_idx = v / 16,
+                    .sprite_y_idx = v % 16,
+                };
+                _placements.push_back(std::move(p));
+            }
+            x_idx++;
+        }
+        y_idx++;
+        x_idx = 0;
+    }
+    LOG_INFO("Placements after loading previous map: %i", _placements.size());
+}
+
 int main() {
     std::shared_ptr<Common> common_ptr = std::make_shared<Common>("Map Editor");
     std::unique_ptr<MapEditor> map_editor = std::make_unique<MapEditor>(common_ptr);
@@ -420,6 +541,7 @@ int main() {
     int quit_app = 0;
     int dt, start_ticks, end_ticks = 0;
 
+    map_editor->TryLoadPreviousMap();
 
     while (quit_app == 0){
         SDL_Event EventHandler;
@@ -459,5 +581,5 @@ int main() {
     }
     return 0;
 }
+// TODO: Bring back the previous map from include/Map.h
 // TODO: Placements need to be removable (Deletion mode).
-// TODO: Placements need to be saved (SAVE menu Implementation).

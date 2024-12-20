@@ -23,6 +23,7 @@ enum player_direction_t {
 };
 
 #define STEP_SIZE 5
+uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -43,7 +44,7 @@ public:
         if (_attack_animation.runtime > 0) return;
         _attack_animation.runtime = runtime;
         _attack_animation.active = active;
-        _attack_animation.x = GetPlayerX();
+        _attack_animation.x = PLAYER_BEGIN_X;
     };
     void SetPlayerDirection(const player_direction_t direction) { _player_direction = direction; };
     const int32_t GetPlayerX() { return _player_x; };
@@ -61,6 +62,8 @@ public:
     uint8_t GetSouthWestIdx(uint8_t);
     void set_fps(const uint8_t fps) { _fps = fps; };
     void RenderSprite(SDL_Rect&, SDL_Rect&, const uint8_t, const uint8_t, const uint8_t, SDL_Texture&);
+    void ResetAttackAnimation();
+    const bool AttackAnimationActive() { return _attack_animation.active; }
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     player_direction_t _player_direction = player_direction_t::DOWN;
@@ -71,7 +74,7 @@ private:
     const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
-    attack_animation_t _attack_animation;
+    attack_animation_t _attack_animation = {0, false, PLAYER_BEGIN_X};
     std::shared_ptr<Common> _common;
     uint8_t _fps = 0;
 };
