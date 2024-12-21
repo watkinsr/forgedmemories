@@ -140,6 +140,8 @@ void Common::AllocateScene(bool incrementStackIdx) {
         _scene_texture_locations[_scene_stack_idx].clear();
         _scene_texture_locations[_scene_stack_idx].shrink_to_fit();
     }
+    SetInitialSceneTextureSize(_scenes[_scene_stack_idx].textures.size());
+    LOG_INFO("Initial scene texture size: %i", GetInitialSceneTextureSize());
 }
 
 void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
@@ -178,7 +180,6 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
-        // LOG_INFO("Loaded text texture: %s", game_texture.text_or_uri.c_str());
     } else if (isImageTexture(game_texture.tag)) {
         LOG_INFO("Game::LoadTexture(...) => Received image texture");
         const char* path = game_texture.text_or_uri.c_str();

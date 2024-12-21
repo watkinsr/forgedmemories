@@ -1,6 +1,80 @@
 #include "Common.h"
 #include "MapEditor.h"
 
+void MapEditor::_SetTextureLocations() {
+    float menu_y_factor = 0.05f;
+    int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
+
+    float placement_bar_y_factor = 0.03f;
+    int placement_bar_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(placement_bar_y_factor);
+
+    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
+
+    const vector<gametexture_t> SCENE_1 = {
+        // Menu bar rectangle.
+        {   .text_or_uri = "",
+            .src_rect = {0, 0, SCREEN_WIDTH, menu_y},
+            .dst_rect = {0, 0, SCREEN_WIDTH, menu_y},
+            .color = {128,128,128,255},
+            .tag = RECT_TAG
+        },
+        // Menu item "ADD"
+        {   .text_or_uri = "ADD",
+            .src_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
+            .dst_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Menu item "DEL"
+        {   .text_or_uri = "DEL",
+            .src_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
+            .dst_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Menu item "SAVE"
+        {   .text_or_uri = "SAVE",
+            .src_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
+            .dst_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::MEDIUM,
+            .tag = TEXT_TAG
+        },
+        // Placement bar rectangle.
+        {   .text_or_uri = "",
+            .src_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
+            .dst_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
+            .color = {96,96,96,255},
+            .tag = RECT_TAG
+        },
+        // Placement Menu Bar item "File"
+        {   .text_or_uri = "Placement area",
+            .src_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
+            .dst_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::SMALL,
+            .tag = TEXT_TAG
+        },
+        // Placement rectangle.
+        {   .text_or_uri = "",
+            .src_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
+            .dst_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
+            .color = {64,64,64,255},
+            .tag = RECT_TAG
+        },
+        // Spritesheet.
+        {   .text_or_uri = "assets/bg/Berry Garden.png",
+            .src_rect = {0, 0, 16, 16},
+            .dst_rect = {0, 0, 64, 128},
+            .color = {0,0,0,0},
+            .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
+        },
+    };
+    _common->AddScene(SCENE_1);
+}
+
 void MapEditor::RenderCurrentScene() {
     // LOG_INFO("MapEditor::RenderCurrentScene()");
     SDL_Renderer* _renderer = _common->GetRenderer();
@@ -96,13 +170,38 @@ void MapEditor::RenderCurrentScene() {
 
     SDL_RenderPresent(_renderer);
 
-    if (current_scene->textures.size() >= _common->GetInitialSceneTextureSize() + 1) {
+    if (current_scene->textures.size() == _common->GetInitialSceneTextureSize() + _messages_flushed + 1) {
         // Remove the FPS texture.
         SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
         current_scene->textures.pop_back();
         current_scene->texture_src_rects.pop_back();
         current_scene->texture_dst_rects.pop_back();
         current_scene->tags.pop_back();
+    }
+
+    if (_messages.size() > 0) {
+        float y_offset = (SCREEN_HEIGHT * 0.8) + (SCREEN_HEIGHT * (_messages.size() * 0.05));
+        if (_messages_flushed > 0) {
+            if (current_scene->textures.size() == _common->GetInitialSceneTextureSize() + 1) {
+                SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
+                current_scene->textures.pop_back();
+                current_scene->texture_src_rects.pop_back();
+                current_scene->texture_dst_rects.pop_back();
+                current_scene->tags.pop_back();
+            }
+            _messages_flushed = 0;
+        }
+        gametexture_t message = {
+            .text_or_uri = std::move(_messages[_messages.size() - 1]),
+            .src_rect = {0, 0, 0, 0},
+            .dst_rect = {SCREEN_WIDTH * 0.8, y_offset, 0, 0},
+            .color = {255,255,255,255},
+            .font_size = Common::FONT_SIZE::SMALL,
+            .tag = TEXT_TAG
+        };
+        _common->LoadTexture(_scene_stack_idx, std::move(message));
+        _messages.pop_back();
+        _messages_flushed++;
     }
 
     float tick = SDL_GetTicks();
@@ -116,94 +215,12 @@ void MapEditor::RenderCurrentScene() {
         .font_size = Common::FONT_SIZE::SMALL,
         .tag = TEXT_TAG
     };
+    _common->LoadTexture(_scene_stack_idx, std::move(fps_texture));
 
     _prev_tick = tick;
 
-    _common->LoadTexture(_scene_stack_idx, std::move(fps_texture));
 }
 
-void MapEditor::_SetTextureLocations() {
-    float menu_y_factor = 0.05f;
-    int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
-
-    float placement_bar_y_factor = 0.03f;
-    int placement_bar_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(placement_bar_y_factor);
-
-    int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
-
-    const vector<gametexture_t> SCENE_1 = {
-        // Menu bar rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, 0, SCREEN_WIDTH, menu_y},
-            .dst_rect = {0, 0, SCREEN_WIDTH, menu_y},
-            .color = {128,128,128,255},
-            .tag = RECT_TAG
-        },
-        // Menu item "File"
-        {   .text_or_uri = "File",
-            .src_rect = {25, 5, 0, menu_y},
-            .dst_rect = {25, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG
-        },
-        // Menu item "DEL"
-        {   .text_or_uri = "DEL",
-            .src_rect = {245, 5, 0, menu_y},
-            .dst_rect = {245, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG
-        },
-        // Menu item "SAVE"
-        {   .text_or_uri = "SAVE",
-            .src_rect = {300, 5, 0, menu_y},
-            .dst_rect = {300, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG
-        },
-        // Menu item "Mode: "
-        {   .text_or_uri = "Mode: ",
-            .src_rect = {SCREEN_WIDTH - 250, 5, 0, menu_y},
-            .dst_rect = {SCREEN_WIDTH - 250, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::SMALL,
-            .tag = TEXT_TAG
-        },
-        // Placement bar rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
-            .dst_rect = {0, menu_y, SCREEN_WIDTH-180, menu_y + placement_bar_y},
-            .color = {96,96,96,255},
-            .tag = RECT_TAG
-        },
-        // Placement Menu Bar item "File"
-        {   .text_or_uri = "Placement area",
-            .src_rect = {25, 37, 0, menu_y + placement_bar_y},
-            .dst_rect = {25, 37, 0, menu_y + placement_bar_y},
-            .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::SMALL,
-            .tag = TEXT_TAG
-        },
-        // Placement rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
-            .dst_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
-            .color = {64,64,64,255},
-            .tag = RECT_TAG
-        },
-        // Spritesheet.
-        {   .text_or_uri = "assets/bg/Berry Garden.png",
-            .src_rect = {0, 0, 16, 16},
-            .dst_rect = {0, 0, 64, 128},
-            .color = {0,0,0,0},
-            .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
-        },
-    };
-    _common->SetInitialSceneTextureSize(SCENE_1.size());
-    _common->AddScene(SCENE_1);
-}
 
 MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     _SetTextureLocations();
@@ -213,6 +230,22 @@ MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
 void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
     scene_t* current_scene = _common->GetCurrentScene();
     LOG_INFO("Mouse X: %i, Mouse Y: %i", mouse_x, mouse_y);
+    if (mouse_x < SCREEN_WIDTH * 0.8) {
+        std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
+            return a.y < b.y || (a.y == b.y && a.x < b.x);
+        });
+        int placement_idx = 0;
+        for (const auto& placement : _placements) {
+            int px = placement.x;
+            int py = placement.y;
+            if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
+                _placements.erase(_placements.begin() + placement_idx);
+                break;
+            }
+            placement_idx++;
+        }
+        return;
+    };
     for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
         uint8_t tag = current_scene->tags[i];
         const uint16_t x_offset = SCREEN_WIDTH - 160;
@@ -238,11 +271,18 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     LOG_INFO("MapEditor::HandleMenuBarSelection(mouse_x=%i, mouse_y=%i)", mouse_x, mouse_y);
     float menu_y_factor = 0.05f;
     int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
-    if (mouse_x < 245 || mouse_y > menu_y || mouse_x > 350) return;
-    // DEL selection
-    if (mouse_x < 300) {
+
+    // {   .text_or_uri = "ADD",
+    //     .src_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
+    //     .dst_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
+    if (mouse_x > menu_item_offset && mouse_x < menu_item_offset + menu_item_width*1) {
+        _messages.push_back("ADD mode active!");
+        _editor_mode = editor_mode::ADD;
+    } else if (mouse_x > menu_item_offset + menu_item_width*1 && mouse_x < menu_item_offset + menu_item_width*2) {
         LOG_INFO("DEL menu item selected");
-    } else {
+        _editor_mode = editor_mode::DEL;
+        _messages.push_back("DEL mode active!");
+    } else if (mouse_x > menu_item_offset + menu_item_width*2 && mouse_x < menu_item_offset + menu_item_width*3) {
         LOG_INFO("SAVE menu item selected");
         if (_placements.size() == 0) return;
         // We could probably write a file to be Map1.h where by we create 4x4 map tiles.
@@ -255,6 +295,10 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
         std::vector<Placement> tile = {};
         uint16_t begin_tile_y = _placements[0].y;  // Represents the first "y" within a given 4x4 tile.
         uint8_t map_idx = 0;
+
+        // .--------.
+        //.---.------
+        //----.
 
         for (const auto& placement : _placements) {
             if (placement.y >= (begin_tile_y + 128)) {
@@ -305,6 +349,7 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
         uint8_t norm_prev_x = (prev_x / 32);
         uint8_t x_norm_jump = 0;
         if (norm_cur_x > norm_prev_x) x_norm_jump = norm_cur_x - norm_prev_x;
+        else x_norm_jump = norm_cur_x - leftmost_x + 1; // Special case for first sprite.
 
         uint8_t x_offset = norm_cur_x - leftmost_x;
 
@@ -399,6 +444,8 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
     out_file << "}" << endl;
 
     out_file.close();
+
+    if (_messages.size() < 3) _messages.push_back("Save successful!");
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
@@ -581,5 +628,6 @@ int main() {
     }
     return 0;
 }
-// TODO: Bring back the previous map from include/Map.h
-// TODO: Placements need to be removable (Deletion mode).
+// TODO: Introduce grouping functionality that allows picking top-left/bottom-right of a given group.
+// TODO: Introduce "player" sprite that can designate player start location.
+// TODO: Introduce letf/up/right/down keys to move the snapping grid.

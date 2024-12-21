@@ -28,6 +28,14 @@ struct prev_map_t {
     std::vector<std::vector<int>> tiles;
 };
 
+enum editor_mode {
+    ADD,
+    DEL
+};
+
+const int menu_item_width = 55; //px
+const int menu_item_offset = 25; //px
+
 class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
@@ -46,6 +54,9 @@ private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
     std::vector<Placement> _placements;
+    std::vector<std::string> _messages;
+    editor_mode _editor_mode = editor_mode::ADD;
+    int _messages_flushed = 0;
     prev_map_t _prev_map;
     float _prev_tick;
     int _mouse_x;
