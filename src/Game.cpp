@@ -324,6 +324,10 @@ void Game::ResetAttackAnimation() {
     _attack_animation.runtime = 0;
 }
 
+void Game::ResetMoveAnimation() {
+    _move_animation.remaining_ticks = 0;
+}
+
 void Game::DrawPlayerBoundingBox() {
    SDL_Renderer* _renderer = _common->GetRenderer();
    SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
@@ -389,7 +393,6 @@ void Game::RenderCurrentScene() {
     SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
     SDL_RenderClear(_renderer);
 
-
     // Reset the draw color.
     SDL_SetRenderDrawColor(_renderer, 0x00, 0x00, 0x00, 0xFF);
 
@@ -404,6 +407,14 @@ void Game::RenderCurrentScene() {
         SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
         uint8_t tag = current_scene->tags[i];
         if (_common->isTextTexture(tag)) {
+            // FIXME: This is a hack, we want to first draw the quad and then the text.
+            // Menu quad. (optional)
+            if (_game_state == game_state_t::PAUSE) {
+                SDL_Rect fillRect = { SCREEN_WIDTH * 0.35, SCREEN_HEIGHT * 0.25, SCREEN_WIDTH * 0.3, SCREEN_HEIGHT * 0.4 };
+                SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
+                SDL_RenderFillRect( _renderer, &fillRect );
+            }
+
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
         }  else if (_common->isBackgroundSpriteTexture(tag)) {
             // Render the spritesheet.
@@ -621,10 +632,11 @@ void Game::RenderCurrentScene() {
                 LOG_INFO("Attack animation x: %i", _attack_animation.x);
                 _attack_animation.runtime -= 1;
                 src_rect.y = PLAYER_HEIGHT;
-                src_rect.x = _attack_animation.runtime >= 8 ? PLAYER_WIDTH : PLAYER_WIDTH * 2;
+                if (_attack_animation.runtime >= ATTACK_ANIMATION_FRAMES/2) src_rect.x = PLAYER_WIDTH;
+                else src_rect.x = PLAYER_WIDTH*2;
 
                 float dt = ATTACK_ANIMATION_FRAMES+1 - _attack_animation.runtime / ATTACK_ANIMATION_FRAMES;
-                _attack_animation.x += 0.2 * dt;
+                _attack_animation.x += 0.125 * dt;
 
                 dst_rect.x = _attack_animation.x;
             } else {
@@ -632,12 +644,20 @@ void Game::RenderCurrentScene() {
                 dst_rect.y = PLAYER_BEGIN_Y;
                 if (_attack_animation.active) ResetAttackAnimation();
                 if (_player_state == player_state_t::MOVING) {
-                    src_rect.y = 0;
-                    if (_player_direction == player_direction_t::UP) {
-                        src_rect.x = current_ticks % 2 == 0 ? PLAYER_WIDTH * 3 : PLAYER_WIDTH * 4;
+                    if (_move_animation.remaining_ticks == 0 || _move_animation.direction != _player_direction) {
+                        _move_animation.remaining_ticks = MOVE_ANIM_TICKS;
+                        _move_animation.direction = _player_direction;
                     } else {
-                        src_rect.x = src_rect.x == 0 ? PLAYER_WIDTH * 2 : 0;
+                        TickPlayerMove();
                     }
+                    if (_move_animation.direction == player_direction_t::UP) {
+                        if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_rect.x = PLAYER_WIDTH*3;
+                        else src_rect.x = PLAYER_WIDTH*4;
+                    } else {
+                        if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_rect.x = 0;
+                        else src_rect.x = PLAYER_WIDTH * 2;
+                    }
+                    src_rect.y = 0;
                     current_scene->texture_src_rects[i] = src_rect;
                 } else if (_player_state == player_state_t::STOPPED) {
                     src_rect.x = PLAYER_WIDTH;
@@ -650,7 +670,7 @@ void Game::RenderCurrentScene() {
    }
 
    // Temporarily draw the bounding box.
-   DrawPlayerBoundingBox();
+   // DrawPlayerBoundingBox();
 
    // Draw the minimap.
    int minimap_begin_x = SCREEN_WIDTH * 0.85;
@@ -688,15 +708,20 @@ void Game::RenderCurrentScene() {
 
    // Reset the color
    SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
+
    SDL_RenderPresent(_renderer);
 
    if (_scene_stack_idx == 0) return;
    if (_scene_stack_idx == 1) {
-       if (current_scene->textures.size() >= _common->GetInitialSceneTextureSize() + 1) {
-           // Remove the FPS texture.
-           SDL_DestroyTexture(current_scene->textures[_common->GetInitialSceneTextureSize()]);
+       // Cleanup temporary textures.
+       while(current_scene->textures.size() > _common->GetInitialSceneTextureSize()) {
+           SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
            current_scene->textures.pop_back();
+           current_scene->texture_src_rects.pop_back();
+           current_scene->texture_dst_rects.pop_back();
+           current_scene->tags.pop_back();
        }
+
        gametexture_t fps_texture = {
            .text_or_uri = "FPS: " + std::to_string(_fps),
            .src_rect = {0, 0, 0, 0},
@@ -707,73 +732,82 @@ void Game::RenderCurrentScene() {
        };
 
        _common->LoadTexture(_scene_stack_idx, fps_texture);
+
+       if (_game_state == game_state_t::PAUSE) {
+           //Render main menu (optionally)
+           gametexture_t menu_text_texture = {
+               .text_or_uri = "SAVE",
+               .src_rect = {0, 0, 0, 0},
+               .dst_rect = {SCREEN_WIDTH*0.375 + (SCREEN_WIDTH*0.1), SCREEN_HEIGHT*0.25 + (SCREEN_HEIGHT*0.1), 0, 0},
+               .color = {255,255,255,255},
+               .font_size = Common::FONT_SIZE::MEDIUM,
+               .tag = TEXT_TAG
+           };
+           _common->LoadTexture(_scene_stack_idx, menu_text_texture);
+       }
+
    }
 }
 
-void handleSpaceKey(std::shared_ptr<Common>& common, std::unique_ptr<Game>& game) {
-    if (game->AttackAnimationActive()) return;
-    if (!game->AfterMainMenu()) common->AllocateScene(true);
+void Game::HandleSpaceKey() {
+    if (_game_state == game_state_t::PAUSE) return;
+    if (AttackAnimationActive()) return;
+    if (!AfterMainMenu()) _common->AllocateScene(true);
     else {
-        game->SetPlayerState(player_state_t::ATTACK);
-        game->SetAttackAnimation(ATTACK_ANIMATION_FRAMES, true);
+        SetPlayerState(player_state_t::ATTACK);
+        SetAttackAnimation(ATTACK_ANIMATION_FRAMES, true);
     }
 }
 
-void handleUpKey(std::unique_ptr<Game>& game) {
-    if (game->AttackAnimationActive()) return;
-    if (
-        game->IsColliding(
-        game->GetPlayerX(),
-        game->GetPlayerY() - STEP_SIZE)
-    ) {
+void Game::HandleUpKey() {
+    if (_game_state == game_state_t::PAUSE) return;
+    if (AttackAnimationActive()) return;
+    if (IsColliding(GetPlayerX(), GetPlayerY() - STEP_SIZE)) {
         return;
     }
-    game->SetPlayerY(game->GetPlayerY() - STEP_SIZE);
-    game->SetPlayerState(player_state_t::MOVING);
-    game->SetPlayerDirection(player_direction_t::UP);
-    game->UpdateMap();
+    SetPlayerY(GetPlayerY() - STEP_SIZE);
+    SetPlayerState(player_state_t::MOVING);
+    SetPlayerDirection(player_direction_t::UP);
+    UpdateMap();
 }
 
-void handleDownKey(std::unique_ptr<Game>& game) {
-    if (game->AttackAnimationActive()) return;
-    if (
-        game->IsColliding(
-        game->GetPlayerX(),
-        game->GetPlayerY() + STEP_SIZE)
-    ) {
+void Game::HandleDownKey() {
+    if (_game_state == game_state_t::PAUSE) return;
+    if (AttackAnimationActive()) return;
+    if (IsColliding(GetPlayerX(), GetPlayerY() + STEP_SIZE)) {
         return;
     }
-    game->SetPlayerY(game->GetPlayerY() + STEP_SIZE);
-    game->SetPlayerState(player_state_t::MOVING);
-    game->SetPlayerDirection(player_direction_t::DOWN);
-    game->UpdateMap();
+    SetPlayerY(GetPlayerY() + STEP_SIZE);
+    SetPlayerState(player_state_t::MOVING);
+    SetPlayerDirection(player_direction_t::DOWN);
+    UpdateMap();
 }
 
-void handleLeftKey(std::unique_ptr<Game>& game) {
-    if (game->AttackAnimationActive()) return;
-    if (game->IsColliding(
-        game->GetPlayerX() - STEP_SIZE,
-        game->GetPlayerY()
-    )) return;
-    game->SetPlayerX(game->GetPlayerX() - STEP_SIZE);
-    game->SetPlayerState(player_state_t::MOVING);
-    game->SetPlayerDirection(player_direction_t::LEFT);
-    game->UpdateMap();
+void Game::HandleLeftKey() {
+    if (_game_state == game_state_t::PAUSE) return;
+    if (AttackAnimationActive()) return;
+    if (IsColliding(GetPlayerX() - STEP_SIZE, GetPlayerY())) return;
+    SetPlayerX(GetPlayerX() - STEP_SIZE);
+    SetPlayerState(player_state_t::MOVING);
+    SetPlayerDirection(player_direction_t::LEFT);
+    UpdateMap();
 }
 
-void handleRightKey(std::unique_ptr<Game>& game) {
-    if (game->AttackAnimationActive()) return;
-    if (game->IsColliding(
-        game->GetPlayerX() + STEP_SIZE,
-        game->GetPlayerY())
-    ) return;
-    game->SetPlayerX(game->GetPlayerX() + STEP_SIZE);
-    game->SetPlayerState(player_state_t::MOVING);
-    game->SetPlayerDirection(player_direction_t::RIGHT);
-    game->UpdateMap();
+void Game::HandleRightKey() {
+    if (_game_state == game_state_t::PAUSE) return;
+    if (AttackAnimationActive()) return;
+    if (IsColliding(GetPlayerX() + STEP_SIZE, GetPlayerY())) return;
+    SetPlayerX(GetPlayerX() + STEP_SIZE);
+    SetPlayerState(player_state_t::MOVING);
+    SetPlayerDirection(player_direction_t::RIGHT);
+    UpdateMap();
 }
 
-
+void Game::HandleEscKey() {
+    LOG_INFO("Escape key pressed");
+    if (_game_state == game_state_t::PAUSE) _game_state = game_state_t::PLAY;
+    else _game_state = game_state_t::PAUSE;
+}
 
 int main() {
     std::shared_ptr<Common> common_ptr = std::make_shared<Common>(std::move(std::string("Forged Memories")));
@@ -790,18 +824,21 @@ int main() {
                 SDL_KeyboardEvent key = EventHandler.key;
                 SDL_Keysym keysym = key.keysym;
                 if (keysym.sym == SDLK_SPACE) {
-                    handleSpaceKey(common_ptr, game);
+                    game->HandleSpaceKey();
                 } else if (keysym.sym == SDLK_UP) {
-                    handleUpKey(game);
+                    game->HandleUpKey();
                     break;
                 } else if (keysym.sym == SDLK_DOWN) {
-                    handleDownKey(game);
+                    game->HandleDownKey();
                     break;
                 } else if (keysym.sym == SDLK_LEFT) {
-                    handleLeftKey(game);
+                    game->HandleLeftKey();
                     break;
                 } else if (keysym.sym == SDLK_RIGHT) {
-                    handleRightKey(game);
+                    game->HandleRightKey();
+                    break;
+                } else if (keysym.sym == SDLK_ESCAPE) {
+                    game->HandleEscKey();
                     break;
                 }
             }
@@ -826,6 +863,6 @@ int main() {
 }
 
 // TODO: Draw minimap.
-// TODO: First use player sprite as NPC to test out dialog.
-// TODO: Save game.
 // TODO: Menu on ESC.
+// TODO: Save game.
+// TODO: First use player sprite as NPC to test out dialog.

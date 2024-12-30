@@ -15,6 +15,11 @@ enum player_state_t {
     ATTACK
 };
 
+enum game_state_t {
+    PLAY,
+    PAUSE
+};
+
 enum player_direction_t {
     UP,
     DOWN,
@@ -23,6 +28,7 @@ enum player_direction_t {
 };
 
 #define STEP_SIZE 5
+const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 const float SPRITE_SCALE_FACTOR = 3.125;
 
@@ -30,6 +36,11 @@ struct attack_animation_t {
     uint8_t runtime;
     bool active;
     uint16_t x;
+};
+
+struct move_animation_t {
+    uint8_t remaining_ticks = 0;
+    player_direction_t direction = player_direction_t::DOWN;
 };
 
 class Game {
@@ -74,6 +85,14 @@ public:
     void DrawCircle(int, int, int);
     void DrawSquare(const int, const int, const int, const int, const int, const int);
     void DrawPlayerBoundingBox();
+    void ResetMoveAnimation();
+    void TickPlayerMove() { _move_animation.remaining_ticks--; };
+    void HandleEscKey();
+    void HandleSpaceKey();
+    void HandleUpKey();
+    void HandleLeftKey();
+    void HandleRightKey();
+    void HandleDownKey();
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     player_direction_t _player_direction = player_direction_t::DOWN;
@@ -85,7 +104,9 @@ private:
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
     attack_animation_t _attack_animation = {0, false, PLAYER_BEGIN_X};
+    move_animation_t _move_animation = {0};
     std::shared_ptr<Common> _common;
+    game_state_t _game_state = game_state_t::PLAY;
     uint8_t _fps = 0;
 };
 
