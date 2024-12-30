@@ -3,7 +3,7 @@ project(forgedmemories)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -Wextra -O2")
 
 set(CMAKE_BUILD_TYPE Debug)
 

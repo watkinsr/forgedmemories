@@ -283,6 +283,10 @@ void Game::UpdateMap() {
     }
 }
 
+bool IsNotDefaultSprite(const uint8_t map_idx, const uint8_t segment_x, const uint8_t segment_y) {
+    return MAPS[map_idx-1][segment_y][segment_x] != -1;
+}
+
 void AdjustBackgroundSprite(SDL_Rect* src_rect, uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
     int v = MAPS[map_idx-1][segment_y][segment_x];
     if (v == -1)  {
@@ -320,11 +324,66 @@ void Game::ResetAttackAnimation() {
     _attack_animation.runtime = 0;
 }
 
+void Game::DrawPlayerBoundingBox() {
+   SDL_Renderer* _renderer = _common->GetRenderer();
+   SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+}
+
+// Function to draw a circle using the Midpoint Circle Algorithm
+void Game::DrawCircle(int center_x, int center_y, int radius) {
+    int x = radius;
+    int y = 0;
+    int err = 0;
+    auto _renderer = _common->GetRenderer();
+
+    while (x >= y) {
+        // Draw the eight octants
+        SDL_RenderDrawPoint(_renderer, center_x + x, center_y + y);
+        SDL_RenderDrawPoint(_renderer, center_x + y, center_y + x);
+        SDL_RenderDrawPoint(_renderer, center_x - y, center_y + x);
+        SDL_RenderDrawPoint(_renderer, center_x - x, center_y + y);
+        SDL_RenderDrawPoint(_renderer, center_x - x, center_y - y);
+        SDL_RenderDrawPoint(_renderer, center_x - y, center_y - x);
+        SDL_RenderDrawPoint(_renderer, center_x + y, center_y - x);
+        SDL_RenderDrawPoint(_renderer, center_x + x, center_y - y);
+
+        y += 1;
+        err += 1 + 2*y;
+        if (2*(err - x) + 1 > 0) {
+            x -= 1;
+            err += 1 - 2*x;
+        }
+    }
+}
+
+void Game::DrawSquare(const int begin_x, const int begin_y, const int w, const int h, const int bound_end_x, const int bound_end_y) {
+   SDL_Renderer* _renderer = _common->GetRenderer();
+
+   const int end_x = begin_x + w > bound_end_x ? bound_end_x : begin_x + w;
+   const int end_y = begin_y + h > bound_end_y ? bound_end_y : begin_y + h;
+
+   // Top line
+   SDL_RenderDrawLine( _renderer, begin_x, begin_y, end_x, begin_y);
+
+   // Left line
+   SDL_RenderDrawLine( _renderer, begin_x, begin_y, begin_x, end_y);
+
+   // Right line
+   SDL_RenderDrawLine( _renderer, end_x, begin_y, end_x, end_y);
+
+   // Bottom line
+   SDL_RenderDrawLine( _renderer, begin_x, end_y, end_x, end_y);
+}
+
 void Game::RenderCurrentScene() {
     SDL_Renderer* _renderer = _common->GetRenderer();
     uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
-    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0x00, 0x00, 0x00, 0XFF);
     else SDL_SetRenderDrawColor(_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
     SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
@@ -332,7 +391,12 @@ void Game::RenderCurrentScene() {
 
 
     // Reset the draw color.
-    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(_renderer, 0x00, 0x00, 0x00, 0xFF);
+
+    // Camera X grows negatively when moving left in a given map.
+    const int32_t camera_x = _player_x - PLAYER_BEGIN_X;
+    // Camera Y grows positively when moving down in a given map.
+    const int32_t camera_y = _player_y - PLAYER_BEGIN_Y;
 
     for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
         SDL_Texture* texture = current_scene->textures[i];
@@ -345,11 +409,8 @@ void Game::RenderCurrentScene() {
             // Render the spritesheet.
 
             // Scale the sprites by 3.125x
-            dst_rect.w = 50;
-            dst_rect.h = 50;
-
-            int32_t camera_x = _player_x - PLAYER_BEGIN_X;
-            int32_t camera_y = _player_y - PLAYER_BEGIN_Y;
+            dst_rect.w = 16 * SPRITE_SCALE_FACTOR;
+            dst_rect.h = 16 * SPRITE_SCALE_FACTOR;
 
             uint32_t begin_x = 0;
             if (camera_x >= dst_rect.w) begin_x = camera_x - (camera_x % dst_rect.w);
@@ -589,11 +650,41 @@ void Game::RenderCurrentScene() {
    }
 
    // Temporarily draw the bounding box.
-   SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
-   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y);
-   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
-   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X, PLAYER_BEGIN_Y, PLAYER_BEGIN_X, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
-   SDL_RenderDrawLine( _renderer, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y, PLAYER_BEGIN_X + PLAYER_WIDTH, PLAYER_BEGIN_Y + PLAYER_HEIGHT);
+   DrawPlayerBoundingBox();
+
+   // Draw the minimap.
+   int minimap_begin_x = SCREEN_WIDTH * 0.85;
+   int minimap_end_x = SCREEN_WIDTH * 0.95;
+   int minimap_begin_y = SCREEN_HEIGHT * 0.05 * (4/3);
+   int minimap_end_y = SCREEN_HEIGHT * 0.15 * (4/3);
+   SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xAA );
+   SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_end_x, minimap_begin_y);
+   SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_begin_x, minimap_end_y);
+   SDL_RenderDrawLine( _renderer, minimap_end_x, minimap_begin_y, minimap_end_x, minimap_end_y);
+   SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_end_y, minimap_end_x, minimap_end_y);
+
+   // Represents the player in the minimap.
+   DrawCircle((minimap_begin_x + minimap_end_x) / 2, (minimap_begin_y + minimap_end_y) / 2, 2);
+
+   // Draw non-default sprites as squares inside minimap.
+   const uint8_t SPRITE_SIZE = (16 * SPRITE_SCALE_FACTOR);
+   for (uint16_t i = 0; i < SCREEN_WIDTH; i+=SCREEN_WIDTH/4) {
+       const uint16_t dx = i - camera_x;
+       uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+       for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=SCREEN_HEIGHT/4) {
+           uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+           const uint16_t dy = j - camera_y;
+           if (IsNotDefaultSprite(map_idx, map_segment_x, map_segment_y)) {
+               const int minimap_offset_x = (dx * 0.1);
+               const int minimap_offset_y = (dy * 0.1);
+               const int begin_x = minimap_begin_x + minimap_offset_x;
+               const int begin_y = minimap_begin_y + minimap_offset_y;
+               if (begin_x > minimap_end_x > 0.1) continue;
+               if (begin_y > minimap_end_y) continue;
+               DrawSquare(begin_x, begin_y, SCREEN_WIDTH*0.1 / 4, SCREEN_HEIGHT*0.1 / 4 *(4/3), minimap_end_x, minimap_end_y);
+           }
+       }
+   }
 
    // Reset the color
    SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
@@ -733,3 +824,8 @@ int main() {
     }
     return 0;
 }
+
+// TODO: Draw minimap.
+// TODO: First use player sprite as NPC to test out dialog.
+// TODO: Save game.
+// TODO: Menu on ESC.

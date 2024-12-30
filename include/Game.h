@@ -23,7 +23,8 @@ enum player_direction_t {
 };
 
 #define STEP_SIZE 5
-uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
+const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
+const float SPRITE_SCALE_FACTOR = 3.125;
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -36,9 +37,15 @@ public:
     Game(std::shared_ptr<Common> common_ptr);
     ~Game();
     void RenderCurrentScene();
-    void SetPlayerY(const int32_t y) { _player_y = y; };
+    void SetPlayerY(const int32_t y) {
+        // LOG_INFO("Y: %i", y);
+        _player_y = y;
+    };
     const int32_t GetPlayerY() { return _player_y; };
-    void SetPlayerX(const int32_t x) { _player_x = x; };
+    void SetPlayerX(const int32_t x) {
+        // LOG_INFO("X: %i", x);
+        _player_x = x;
+    };
     void SetPlayerState(const player_state_t state) { _player_state = state; };
     void SetAttackAnimation(const uint8_t runtime, const bool active) {
         if (_attack_animation.runtime > 0) return;
@@ -64,6 +71,9 @@ public:
     void RenderSprite(SDL_Rect&, SDL_Rect&, const uint8_t, const uint8_t, const uint8_t, SDL_Texture&);
     void ResetAttackAnimation();
     const bool AttackAnimationActive() { return _attack_animation.active; }
+    void DrawCircle(int, int, int);
+    void DrawSquare(const int, const int, const int, const int, const int, const int);
+    void DrawPlayerBoundingBox();
 private:
     player_state_t _player_state = player_state_t::STOPPED;
     player_direction_t _player_direction = player_direction_t::DOWN;
