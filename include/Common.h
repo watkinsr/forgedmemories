@@ -9,9 +9,17 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <memory>
+
 #include "Log.h"
 
 using namespace std;
+
+enum FONT_SIZE {
+    SMALL,
+    MEDIUM,
+    LARGE
+};
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 const uint32_t SCREEN_WIDTH = 800;
@@ -39,7 +47,7 @@ struct gametexture_t {
     SDL_Rect src_rect;
     SDL_Rect dst_rect;
     SDL_Color color;
-    uint8_t font_size;
+    uint8_t font_size = FONT_SIZE::SMALL;
     uint8_t tag;
 };
 
@@ -48,16 +56,12 @@ constexpr uint8_t PLAYER_HEIGHT = 48;
 
 class Common {
 public:
-    Common(std::string app_name);
+    Common(std::string app_name, const uint32_t, const uint32_t);
     ~Common();
     void SetupSDL();
-    enum FONT_SIZE {
-        SMALL,
-        MEDIUM,
-        LARGE
-    };
+
     constexpr static std::array<std::string_view, 2> DEFAULT_FONTS = {
-        "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+        "/usr/share/fonts/gnu-free/FreeMono.ttf",
         "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
     };
     void AddScene(std::vector<gametexture_t>);
@@ -72,21 +76,24 @@ public:
     bool isSpriteTexture(uint8_t);
     bool isRectTexture(uint8_t);
     std::pair<int, int> GetTextureDimensions(SDL_Texture*);
-    void RenderCurrentScene();
     SDL_Renderer* GetRenderer();
+    SDL_Texture* GetBackBuffer() { return _back_buffer; };
     SDL_Window* GetWindow();
     uint8_t GetSceneStackIdx();
     scene_t* GetCurrentScene();
     void SetInitialSceneTextureSize(const uint8_t);
-    const uint8_t GetInitialSceneTextureSize();
+    uint8_t GetInitialSceneTextureSize();
     void DestroyFonts();
 private:
+    uint32_t _BACKBUFFER_WIDTH;
+    uint32_t _BACKBUFFER_HEIGHT;
     std::function<void(TTF_Font*)> fontDeleter;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
     void _SetTextureLocations();
     const char* _app_name;
     uint32_t _tick;
     uint32_t _deltaTick;
+    SDL_Texture*                                                      _back_buffer;
     SDL_Window*                                                       _window;
     SDL_Renderer*                                                     _renderer;
     vector<std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>> _fonts;

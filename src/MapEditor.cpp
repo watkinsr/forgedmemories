@@ -23,7 +23,7 @@ void MapEditor::_SetTextureLocations() {
             .src_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
             .dst_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
             .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
+            .font_size = FONT_SIZE::MEDIUM,
             .tag = TEXT_TAG
         },
         // Menu item "DEL"
@@ -31,7 +31,7 @@ void MapEditor::_SetTextureLocations() {
             .src_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
             .dst_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
             .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
+            .font_size = FONT_SIZE::MEDIUM,
             .tag = TEXT_TAG
         },
         // Menu item "SAVE"
@@ -39,7 +39,7 @@ void MapEditor::_SetTextureLocations() {
             .src_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
             .dst_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
             .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::MEDIUM,
+            .font_size = FONT_SIZE::MEDIUM,
             .tag = TEXT_TAG
         },
         // Placement bar rectangle.
@@ -54,7 +54,7 @@ void MapEditor::_SetTextureLocations() {
             .src_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
             .dst_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
             .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::SMALL,
+            .font_size = FONT_SIZE::SMALL,
             .tag = TEXT_TAG
         },
         // Placement rectangle.
@@ -191,12 +191,13 @@ void MapEditor::RenderCurrentScene() {
             }
             _messages_flushed = 0;
         }
+        int message_offset_x = SCREEN_WIDTH * 0.8f;
         gametexture_t message = {
             .text_or_uri = std::move(_messages[_messages.size() - 1]),
             .src_rect = {0, 0, 0, 0},
-            .dst_rect = {SCREEN_WIDTH * 0.8, y_offset, 0, 0},
+            .dst_rect = {message_offset_x, y_offset, 0, 0},
             .color = {255,255,255,255},
-            .font_size = Common::FONT_SIZE::SMALL,
+            .font_size = FONT_SIZE::SMALL,
             .tag = TEXT_TAG
         };
         _common->LoadTexture(_scene_stack_idx, std::move(message));
@@ -212,7 +213,7 @@ void MapEditor::RenderCurrentScene() {
         .src_rect = {0, 0, 0, 0},
         .dst_rect = {SCREEN_WIDTH - 190, 5, 0, 0},
         .color = {255,255,255,255},
-        .font_size = Common::FONT_SIZE::SMALL,
+        .font_size = FONT_SIZE::SMALL,
         .tag = TEXT_TAG
     };
     _common->LoadTexture(_scene_stack_idx, std::move(fps_texture));
@@ -578,7 +579,7 @@ void MapEditor::TryLoadPreviousMap() {
         y_idx++;
         x_idx = 0;
     }
-    LOG_INFO("Placements after loading previous map: %i", _placements.size());
+    LOG_INFO("Placements after loading previous map: %zu", _placements.size());
 }
 
 int main() {

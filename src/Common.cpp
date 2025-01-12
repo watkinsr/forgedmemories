@@ -27,7 +27,8 @@ void Common::SetupSDL() {
         exit(EXIT_FAILURE);
     }
 
-    //Initialize renderer color
+    LOG_INFO("Allocated back buffer of size %zu*%zu\n", _BACKBUFFER_WIDTH, _BACKBUFFER_HEIGHT);
+    _back_buffer = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, _BACKBUFFER_WIDTH, _BACKBUFFER_HEIGHT);
 	SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xFF );
 
     //Initialize PNG loading
@@ -52,15 +53,13 @@ void Common::SetupSDL() {
     };
 
     TTF_Font* rawFont;
-
-    // Allocate 3 sizes for each given font.
     for (uint8_t i = 0; i < DEFAULT_FONT_ARRAY_LEN; ++i) {
         for (uint8_t j = 0; j < 3; ++j) {
             switch (j) {
             case FONT_SIZE::SMALL:
                 rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 12);
                 if (!rawFont) {
-                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
                 _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
@@ -68,15 +67,15 @@ void Common::SetupSDL() {
             case FONT_SIZE::MEDIUM:
                 rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 18);
                 if (!rawFont) {
-                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
                 _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
                 break;
             case FONT_SIZE::LARGE:
-                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+                TTF_Font* rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
                 if (!rawFont) {
-                    LOG_INFO("TTF_OpenFont error with: %s", TTF_GetError());
+                    LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
                 _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
@@ -91,7 +90,7 @@ void Common::SetupSDL() {
         exit(EXIT_FAILURE);
     }
 
-    LOG_INFO("Fonts allocated: %i", _fonts.size());
+    LOG_INFO("Fonts allocated: %zu\n", _fonts.size());
 }
 
 void Common::AddScene(std::vector<gametexture_t> scene) {
@@ -100,9 +99,11 @@ void Common::AddScene(std::vector<gametexture_t> scene) {
 
 Common::~Common() {}
 
-Common::Common(std::string app_name) {
-    LOG_INFO("Common::Common cstror");
+Common::Common(std::string app_name, const uint32_t BACKBUFFER_WIDTH, const uint32_t BACKBUFFER_HEIGHT) {
+    LOG_INFO("Common::Common cstror\n");
     _app_name = app_name.c_str();
+    _BACKBUFFER_WIDTH = BACKBUFFER_WIDTH;
+    _BACKBUFFER_HEIGHT = BACKBUFFER_HEIGHT;
     SetupSDL();
 }
 
@@ -124,10 +125,10 @@ void Common::AllocateScene(bool incrementStackIdx) {
         }
         scene_t scene;
         _scenes.push_back(scene);
-        LOG_INFO("Common::AllocateScene() => Stack size: %li.", _scenes.size());
-        LOG_INFO("Common::AllocateScene() => Stack index: %i.",
+        LOG_INFO("Common::AllocateScene() => Scene Stack size: %zu.\n", _scenes.size());
+        LOG_INFO("Common::AllocateScene() => Stack index: %u.\n",
                   _scene_stack_idx);
-        LOG_INFO("Common::AllocateScene() => Allocate %li textures for Scene: %i",
+        LOG_INFO("Common::AllocateScene() => Allocate %zu textures for Scene: %u\n",
         _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
 
         _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
@@ -141,7 +142,7 @@ void Common::AllocateScene(bool incrementStackIdx) {
         _scene_texture_locations[_scene_stack_idx].shrink_to_fit();
     }
     SetInitialSceneTextureSize(_scenes[_scene_stack_idx].textures.size());
-    LOG_INFO("Initial scene texture size: %i", GetInitialSceneTextureSize());
+    LOG_INFO("Initial scene texture size: %i\n", GetInitialSceneTextureSize());
 }
 
 void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
@@ -150,11 +151,10 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
         _scenes[scene_idx].colors.push_back(game_texture.color);
-        LOG_INFO("Allocated rect");
+        LOG_INFO("Allocated rect\n");
     } else if (isTextTexture(game_texture.tag)) {
-        TTF_Font* rawFont = _fonts[game_texture.font_size].get(); // Access the raw pointer
         SDL_Surface* surface = TTF_RenderText_Solid(
-            rawFont,
+            _fonts[game_texture.font_size].get(),
             game_texture.text_or_uri.c_str(),
             game_texture.color
         );
@@ -181,7 +181,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
     } else if (isImageTexture(game_texture.tag)) {
-        LOG_INFO("Game::LoadTexture(...) => Received image texture");
+        LOG_INFO("Game::LoadTexture(...) => Received image texture\n");
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Surface* surface = IMG_Load(path);
         SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
@@ -200,7 +200,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
             _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
-        LOG_INFO("Loaded image texture at %s", path);
+        LOG_INFO("Loaded image texture at %s\n", path);
     } else if (isSpriteTexture(game_texture.tag)) {
         const char* path = game_texture.text_or_uri.c_str();
 
@@ -220,9 +220,9 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
             _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
             _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
-        LOG_INFO("Loaded sprite texture at %s", path);
+        LOG_INFO("Loaded sprite texture at %s\n", path);
     } else {
-        LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture. Abort !");
+        LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture. Abort !\n");
         SDL_Quit();
         exit(EXIT_FAILURE);
     }
@@ -288,4 +288,4 @@ scene_t* Common::GetCurrentScene() { return &_scenes[_scene_stack_idx]; }
 void Common::SetInitialSceneTextureSize(const uint8_t initial_scene_size) {
     _initial_scene_size = initial_scene_size;
 }
-const uint8_t Common::GetInitialSceneTextureSize() { return _initial_scene_size; }
+uint8_t Common::GetInitialSceneTextureSize() { return _initial_scene_size; }

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-enum player_state_t {
+enum PLAYER_ACTION {
     STOPPED,
     MOVING,
     ATTACK
@@ -20,7 +20,8 @@ enum game_state_t {
     PAUSE
 };
 
-enum player_direction_t {
+
+enum PLAYER_DIRECTION {
     UP,
     DOWN,
     LEFT,
@@ -31,6 +32,8 @@ enum player_direction_t {
 const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 const float SPRITE_SCALE_FACTOR = 3.125;
+#define BG_SPRITE_WIDTH 50
+#define BG_SPRITE_HEIGHT 50
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -47,27 +50,23 @@ class Game {
 public:
     Game(std::shared_ptr<Common> common_ptr);
     ~Game();
-    void RenderCurrentScene();
-    void SetPlayerY(const int32_t y) {
-        // LOG_INFO("Y: %i", y);
-        _player_y = y;
-    };
-    const int32_t GetPlayerY() { return _player_y; };
-    void SetPlayerX(const int32_t x) {
-        // LOG_INFO("X: %i", x);
-        _player_x = x;
-    };
     void SetPlayerState(const player_state_t state) { _player_state = state; };
+    void FillBackBufferInitial();
+    void UpdateBackBuffer();
+    void SetPlayerY(const int32_t y) { _player_y = y; };
+    const int32_t GetPlayerY() { return _player_y; };
+    void SetPlayerX(const int32_t x) { _player_x = x; };
+    void SetPlayerAction(const PLAYER_ACTION action) { _player_action = action; };
     void SetAttackAnimation(const uint8_t runtime, const bool active) {
         if (_attack_animation.runtime > 0) return;
         _attack_animation.runtime = runtime;
         _attack_animation.active = active;
         _attack_animation.x = PLAYER_BEGIN_X;
     };
-    void SetPlayerDirection(const player_direction_t direction) { _player_direction = direction; };
+    void SetPlayerDirection(const PLAYER_DIRECTION direction) { _player_direction = direction; };
     const int32_t GetPlayerX() { return _player_x; };
-    const bool AfterMainMenu();
-    const bool IsColliding(const int, const int);
+    bool AfterMainMenu();
+    bool IsColliding(const int, const int);
     void UpdateMap();
     uint8_t GetCenterIdx(uint8_t);
     uint8_t GetEastIdx(uint8_t);
@@ -94,8 +93,8 @@ public:
     void HandleRightKey();
     void HandleDownKey();
 private:
-    player_state_t _player_state = player_state_t::STOPPED;
-    player_direction_t _player_direction = player_direction_t::DOWN;
+    PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
+    PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DOWN;
     void _SetTextureLocations();
     uint64_t _tick;
     uint32_t _deltaTick;
@@ -103,6 +102,9 @@ private:
     const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
+    uint64_t _scroll_x = SCREEN_WIDTH;  // Should be sufficient.
+    uint64_t _scroll_y = SCREEN_HEIGHT; // Should be sufficient.
+    int cached_scroll_y = SCREEN_HEIGHT;
     attack_animation_t _attack_animation = {0, false, PLAYER_BEGIN_X};
     move_animation_t _move_animation = {0};
     std::shared_ptr<Common> _common;

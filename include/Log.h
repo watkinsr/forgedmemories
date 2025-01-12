@@ -1,11 +1,12 @@
 #ifndef LOG_H
 #define LOG_H
-
 #include <iostream>
 #include <iomanip>
 #include <chrono>
 #include <cstdio>
+#include <cstdarg>
 
+using namespace std;
 #define CURRENT_DATETIME() \
     ([]() { \
         auto now = chrono::system_clock::now(); \
@@ -16,10 +17,12 @@
         ss << put_time(&tm, "%Y-%m-%d %H:%M:%S"); \
         return ss.str(); \
     }())
-
-#define LOG_INFO(fmt, ...) \
-    do { \
-        std::printf("[%s] [INFO] " fmt "\n", CURRENT_DATETIME().c_str(), ##__VA_ARGS__); \
-    } while (0)
-
+#ifdef __GNUC__
+#define LOG_INFO_FORMAT __attribute__ ((format(printf, 2, 3)))
+#define LOG_FORMAT __attribute__ ((format(printf, 3, 4)))
+#else
+#define LOG_INFO3_FORMAT
+#endif
+int LOG(int prio, const char *tag, const char *fmt, ...) LOG_FORMAT;
+#define LOG_INFO(fmt, ...) LOG(1, "INFO", fmt, ##__VA_ARGS__)
 #endif

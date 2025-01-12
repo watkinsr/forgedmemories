@@ -20,7 +20,7 @@ struct Placement {
     uint16_t sprite_y_idx;
 };
 
-std::string MAP_FILE = "/home/ryan/workplace/forgedmemories/include/Map.h";
+std::string MAP_FILE = "/home/ryanwatkins/workplace/rom/include/Map.h";
 
 struct prev_map_t {
     int first_tile_x;
