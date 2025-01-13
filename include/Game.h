@@ -32,8 +32,14 @@ enum PLAYER_DIRECTION {
 const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 const float SPRITE_SCALE_FACTOR = 3.125;
+
 #define BG_SPRITE_WIDTH 50
 #define BG_SPRITE_HEIGHT 50
+
+const int SPRITE_WIDTH = 50;
+const int SPRITE_HEIGHT = 50;
+const int BACKBUFFER_WIDTH = 800;
+const int BACKBUFFER_HEIGHT = 600;
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -92,6 +98,7 @@ public:
     void HandleLeftKey();
     void HandleRightKey();
     void HandleDownKey();
+    void BlitTop();
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
     PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DOWN;
@@ -102,9 +109,14 @@ private:
     const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
-    uint64_t _scroll_x = SCREEN_WIDTH;  // Should be sufficient.
-    uint64_t _scroll_y = SCREEN_HEIGHT; // Should be sufficient.
-    int cached_scroll_y = SCREEN_HEIGHT;
+
+    int32_t _scroll_x = 0;    // Should be sufficient.
+    int32_t _scroll_y = 0;   // Should be sufficient.
+    int cached_scroll_y = _scroll_y;
+    int cached_scroll_x = _scroll_x;
+
+    SDL_Rect grass_rect = {SPRITE_WIDTH, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, BG_SPRITE_HEIGHT};
+
     attack_animation_t _attack_animation = {0, false, PLAYER_BEGIN_X};
     move_animation_t _move_animation = {0};
     std::shared_ptr<Common> _common;

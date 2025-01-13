@@ -42,6 +42,11 @@ struct scene_t {
     vector<SDL_Color> colors;
 };
 
+struct upscale_t {
+    int w = 0;
+    int h = 0;
+};
+
 struct gametexture_t {
     string text_or_uri;
     SDL_Rect src_rect;
@@ -49,6 +54,7 @@ struct gametexture_t {
     SDL_Color color;
     uint8_t font_size = FONT_SIZE::SMALL;
     uint8_t tag;
+    upscale_t upscale;
 };
 
 constexpr uint8_t PLAYER_WIDTH = 48;
@@ -60,8 +66,9 @@ public:
     ~Common();
     void SetupSDL();
 
-    constexpr static std::array<std::string_view, 2> DEFAULT_FONTS = {
+    constexpr static std::array<std::string_view, 3> DEFAULT_FONTS = {
         "/usr/share/fonts/gnu-free/FreeMono.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
         "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
     };
     void AddScene(std::vector<gametexture_t>);
@@ -78,6 +85,7 @@ public:
     std::pair<int, int> GetTextureDimensions(SDL_Texture*);
     SDL_Renderer* GetRenderer();
     SDL_Texture* GetBackBuffer() { return _back_buffer; };
+    void SetBackBuffer(SDL_Texture* t) { _back_buffer = t; };
     SDL_Window* GetWindow();
     uint8_t GetSceneStackIdx();
     scene_t* GetCurrentScene();

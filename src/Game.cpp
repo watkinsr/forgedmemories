@@ -67,6 +67,54 @@ constexpr int MAPS[MAP_SIZE][4][4] = {
 uint64_t frame_count = 0;
 uint64_t current_ticks = 0;
 
+Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
+    _SetTextureLocations();
+    common_ptr->AllocateScene(false);
+    FillBackBufferInitial();
+}
+
+Game::~Game() {}
+
+void Game::_SetTextureLocations() {
+    const float SCREEN_CENTER = SCREEN_WIDTH/2.5 - 20.0f;
+    const int SPRITESHEET_WIDTH = 128*3.125;
+    const int SPRITESHEET_HEIGHT = 128*3.125;
+    const vector<gametexture_t> SCENE_1 = {
+        { .text_or_uri = "Forged Memories",
+          .src_rect = {0, 0, 0, 0},
+          .dst_rect = {(uint32_t)SCREEN_CENTER, 50, 0, 0},
+          .color = {255,255,255,255},
+          .font_size = FONT_SIZE::MEDIUM,
+          .tag = TEXT_TAG
+        },
+        { .text_or_uri = "<SPC> to play",
+          .src_rect = {0, 0, 0, 0},
+          .dst_rect = {(uint32_t)SCREEN_CENTER, SCREEN_HEIGHT/2 - 1, 0, 0},
+          .color = {255,255,255,255},
+          .font_size = FONT_SIZE::MEDIUM,
+          .tag = TEXT_TAG
+        }
+    };
+    const vector<gametexture_t> SCENE_2 = {
+        { .text_or_uri = "assets/bg/Berry Garden.png",
+          .src_rect = {0, 0, SPRITE_WIDTH, SPRITE_HEIGHT},
+          .dst_rect = {0, 0, 64, 128},
+          .color = {0,0,0,0},
+          .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG,
+          .upscale = { SPRITESHEET_WIDTH, SPRITESHEET_HEIGHT }
+        },
+        { .text_or_uri = "assets/player2.png",
+          .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
+          .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
+          .color = {0,0,0,0},
+          .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
+        }
+    };
+    _common->AddScene(SCENE_1);
+    _common->AddScene(SCENE_2);
+    _common->SetInitialSceneTextureSize(SCENE_2.size());
+}
+
 bool Game::IsColliding(const int x, const int y) {
     uint8_t _map_idx = map_idx;
 
@@ -139,54 +187,11 @@ bool Game::IsColliding(const int x, const int y) {
     );
 }
 
-Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
-    _SetTextureLocations();
-    common_ptr->AllocateScene(false);
-    FillBackBufferInitial();
-}
-
-void Game::_SetTextureLocations() {
-    const float SCREEN_CENTER = SCREEN_WIDTH/2.5 - 20.0f;
-    const vector<gametexture_t> SCENE_1 = {
-        { .text_or_uri = "Forged Memories",
-          .src_rect = {0, 0, 0, 0},
-          .dst_rect = {(uint32_t)SCREEN_CENTER, 50, 0, 0},
-          .color = {255,255,255,255},
-          .font_size = FONT_SIZE::MEDIUM,
-          .tag = TEXT_TAG
-        },
-        { .text_or_uri = "<SPC> to play",
-          .src_rect = {0, 0, 0, 0},
-          .dst_rect = {(uint32_t)SCREEN_CENTER, SCREEN_HEIGHT/2 - 1, 0, 0},
-          .color = {255,255,255,255},
-          .font_size = FONT_SIZE::MEDIUM,
-          .tag = TEXT_TAG
-        }
-    };
-    const vector<gametexture_t> SCENE_2 = {
-        { .text_or_uri = "assets/bg/Berry Garden.png",
-          .src_rect = {0, 0, 16, 16},
-          .dst_rect = {0, 0, 64, 128},
-          .color = {0,0,0,0},
-          .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG
-        },
-        { .text_or_uri = "assets/player2.png",
-          .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
-          .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
-          .color = {0,0,0,0},
-          .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
-        }
-    };
-    _common->AddScene(SCENE_1);
-    _common->AddScene(SCENE_2);
-    _common->SetInitialSceneTextureSize(SCENE_2.size());
-}
-
 bool Game::AfterMainMenu() {
     return _common->GetSceneStackIdx() + 1 >= 2;
 }
 
-Game::~Game() {}
+
 
 uint8_t Game::GetCenterIdx(uint8_t idx) {
     uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 2;
@@ -282,23 +287,29 @@ bool IsNotDefaultSprite(const uint8_t map_idx, const uint8_t segment_x, const ui
     return MAPS[map_idx-1][segment_y][segment_x] != -1;
 }
 
-void AdjustBackgroundSprite(SDL_Rect* src_rect, uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
+
+SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
+    SDL_Rect sprite_rect = {0, 0, SPRITE_WIDTH, SPRITE_HEIGHT};
     int v = MAPS[map_idx-1][segment_y][segment_x];
+
     if (v == -1)  {
         // Consider the default to be the grass texture.
-        src_rect->x = 17;
-        src_rect->y = 64;
+        sprite_rect.x = SPRITE_WIDTH+1;
+        sprite_rect.y = SPRITE_HEIGHT*4;
     } else {
+        // Decode the Map encoding.
         uint8_t spritesheet_x = v / 16;
         uint8_t spritesheet_y = v % 16;
-        src_rect->x = spritesheet_x * 16;
-        src_rect->y = spritesheet_y * 16;
+
+        sprite_rect.x = spritesheet_x * SPRITE_WIDTH;
+        sprite_rect.y = spritesheet_y * SPRITE_HEIGHT;
     }
+    return sprite_rect;
 }
 
 void Game::RenderSprite(SDL_Rect& src_rect, SDL_Rect& dst_rect, const uint8_t map_idx, const uint8_t map_segment_y, const uint8_t map_segment_x, SDL_Texture& texture) {
     SDL_Renderer* _renderer = _common->GetRenderer();
-    AdjustBackgroundSprite(&src_rect, map_idx, map_segment_y, map_segment_x);
+    // AdjustBackgroundSprite(&src_rect, map_idx, map_segment_y, map_segment_x);
 
     int v = MAPS[map_idx-1][map_segment_y][map_segment_x];
     if (v == -1) {
@@ -555,6 +566,41 @@ void Game::DrawSquare(const int begin_x, const int begin_y, const int w, const i
 //     }
 // }
 
+// // TOP-MOST MAPS
+// if (y < SCREEN_HEIGHT) {
+//     if (x >= SCREEN_WIDTH*2) {
+//         _map_idx = GetNorthIdx(GetNorthEastIdx(map_idx));
+//     } else if (x < SCREEN_WIDTH) {
+//         _map_idx = GetNorthIdx(GetNorthWestIdx(map_idx));
+//     } else {
+//         _map_idx = GetNorthIdx(GetNorthIdx(map_idx));
+//     }
+// }
+
+// // MIDDLE-MOST MAPS
+// if (y >= SCREEN_HEIGHT && y < SCREEN_HEIGHT*2) {
+//     if (x > SCREEN_WIDTH*2) {
+//         _map_idx = GetNorthIdx(GetEastIdx(map_idx));
+//     }
+//     else if (x < SCREEN_WIDTH) {
+//         _map_idx = GetNorthIdx(GetWestIdx(map_idx));
+//     } else {
+//         _map_idx = GetNorthIdx(map_idx);
+//     }
+// }
+
+// BOTTOM-MOST MAPS
+// if (y < SCREEN_HEIGHT) {
+//     if (x > SCREEN_WIDTH*2) {
+//         _map_idx = GetEastIdx(map_idx);
+//     }
+//     else if (x < SCREEN_WIDTH) {
+//         _map_idx = GetWestIdx(map_idx);
+//     } else {
+//         _map_idx = map_idx;
+//     }
+// }
+
 void Game::FillBackBufferInitial() {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
@@ -564,82 +610,117 @@ void Game::FillBackBufferInitial() {
     uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
 
-    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0x00, 0x00, 0x00, 0xFF);
     else SDL_SetRenderDrawColor(_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
-        SDL_Texture* texture = current_scene->textures[i];
-        SDL_Rect src_rect = current_scene->texture_src_rects[i];
-        SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
-        uint8_t tag = current_scene->tags[i];
-        if (_common->isTextTexture(tag)) {
-            // FIXME: This is a hack, we want to first draw the quad and then the text.
-            // Menu quad. (optional)
-            if (_game_state == game_state_t::PAUSE) {
-                SDL_Rect fillRect = { SCREEN_WIDTH * 0.35, SCREEN_HEIGHT * 0.25, SCREEN_WIDTH * 0.3, SCREEN_HEIGHT * 0.4 };
-                SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
-                SDL_RenderFillRect( _renderer, &fillRect );
-            }
+    SDL_RenderClear(_renderer);
 
-            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
-        }  else if (_common->isBackgroundSpriteTexture(tag)) {
-            // Render the spritesheet.
-            dst_rect.w = BG_SPRITE_WIDTH;
-            dst_rect.h = BG_SPRITE_HEIGHT;
-            for (uint16_t x = 0; x < SCREEN_WIDTH*3; x+=BG_SPRITE_WIDTH) {
+    // Pre-render the map
+    for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
+        uint8_t tag = current_scene->tags[i];
+        if (_common->isBackgroundSpriteTexture(tag)) {
+            SDL_Texture* texture = current_scene->textures[i]; // Spritesheet texture
+            SDL_Rect dst = { 0, 0, BG_SPRITE_WIDTH, BG_SPRITE_HEIGHT };
+            for (int x = 0; x < BACKBUFFER_WIDTH; x+=BG_SPRITE_WIDTH) {
                 const uint16_t map_x = x % SCREEN_WIDTH;
                 uint8_t map_segment_x = (uint8_t)(map_x/(SCREEN_WIDTH/4));
-                dst_rect.x = x;
+                dst.x = x;
                 uint8_t _map_idx = map_idx;
-                if (x < SCREEN_WIDTH) {
-                    _map_idx = GetWestIdx(map_idx);
-                } else if (x > SCREEN_WIDTH*2) {
-                    _map_idx = GetEastIdx(map_idx);
-                }
-                for (uint16_t y = 0; y < SCREEN_HEIGHT*2; y+=dst_rect.h) {
+                for (int y = 0; y < BACKBUFFER_HEIGHT; y+=dst.h) {
                     const uint16_t map_y = y % SCREEN_HEIGHT;
                     uint8_t map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
-                    dst_rect.y = y;
-                    if (y < SCREEN_HEIGHT && x < SCREEN_WIDTH) {
-                        _map_idx = GetNorthWestIdx(map_idx);
-                    } else if (y < SCREEN_HEIGHT && x > SCREEN_WIDTH*2) {
-                        _map_idx = GetNorthEastIdx(map_idx);
-                    } else if (y > SCREEN_HEIGHT && x < SCREEN_WIDTH) {
-                        _map_idx = GetWestIdx(map_idx);
-                    } else if (y > SCREEN_HEIGHT && x > SCREEN_WIDTH*2) {
-                        _map_idx = GetEastIdx(map_idx);
-                    } else if (y < SCREEN_HEIGHT) {
-                        _map_idx = GetNorthIdx(map_idx);
-                    } else if (y > SCREEN_HEIGHT) _map_idx = map_idx;
-                    RenderSprite(src_rect, dst_rect, _map_idx, map_segment_y, map_segment_x, *texture);
+                    dst.y = y;
+
+                    // SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x);
+                    SDL_Rect src = GetSpriteRect(_map_idx, map_segment_y, map_segment_x);
+
+                    // LOG_INFO("<Source rectangle x=%i, y=%i, w=%i, h=%i>\n", src.x, src.y, src.w, src.h);
+                    // LOG_INFO("<Dest rectangle x=%i, y=%i, w=%i, h=%i>\n", dst.x, dst.y, dst.w, dst.h);
+
+                    int v = MAPS[_map_idx-1][map_segment_y][map_segment_x];
+                    if (v == -1) {
+                        SDL_RenderCopy(_renderer, texture, &src, &dst);
+                    } else {
+                        // Render the grass first
+                        SDL_RenderCopy(_renderer, texture, &grass_rect, &dst);
+
+                        // Render the actual sprite
+                        SDL_RenderCopy(_renderer, texture, &src, &dst);
+                    }
+                    // return;  // Temporary.
                 }
             }
         }
    }
 }
 
-void Game::UpdateBackBuffer() {
+void Game::BlitTop() {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
-    // FIXME: Actually manipulate the back buffer accordingly.
+    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
+    scene_t* current_scene = _common->GetCurrentScene();
 
-    // Set the renderer to target the screen buffer now.
-    SDL_SetRenderTarget(_renderer, NULL);
+    const int32_t camera_x = _player_x - PLAYER_BEGIN_X; // X grows negatively when moving left in a given map.
+    const int32_t camera_y = _player_y - PLAYER_BEGIN_Y; // Y grows positively when moving down in a given map.
 
-    SDL_Rect viewport = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    SDL_Rect screen = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    if (_common->GetSceneStackIdx() > 0) {
-        int __scroll_y = _scroll_y;
-        if (__scroll_y != cached_scroll_y) LOG_INFO("Scroll Y: %i\n", __scroll_y);
-        // Y-axis is top of screen growing downwards.
-        viewport = {_scroll_x, __scroll_y, SCREEN_WIDTH, SCREEN_HEIGHT};
-        cached_scroll_y = __scroll_y;
+    SDL_Texture* t = SDL_CreateTexture(
+        _renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        BACKBUFFER_WIDTH,
+        BACKBUFFER_HEIGHT
+    );
+
+    // Copy the shifted back buffer into our new texture.
+    SDL_SetRenderTarget(_renderer, t);
+    SDL_Rect src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+    SDL_Rect dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);
+
+    int map_y = abs(camera_y);
+    uint8_t _map_idx = GetNorthIdx(map_idx);
+
+    for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
+        uint8_t tag = current_scene->tags[i];
+        if (_common->isBackgroundSpriteTexture(tag)) {
+            SDL_Texture* texture = current_scene->textures[i];
+            for (int x = 0; x < SCREEN_WIDTH; x+=BG_SPRITE_WIDTH) {
+                SDL_Rect _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
+                SDL_Rect dst_strip = {x, 0, BG_SPRITE_WIDTH, STEP_SIZE};
+                uint8_t map_segment_x = (uint8_t)(x/(SCREEN_WIDTH/4));
+                uint8_t map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
+
+                SDL_Rect src = GetSpriteRect(_map_idx, map_segment_y, map_segment_x);
+                SDL_Rect src_strip = {src.x, src.y, BG_SPRITE_WIDTH, STEP_SIZE};
+
+                int v = MAPS[_map_idx-1][map_segment_y][map_segment_x];
+
+                int tile_offset_y = (BG_SPRITE_HEIGHT - (map_y % BG_SPRITE_HEIGHT));
+                if (map_y % BG_SPRITE_HEIGHT != 0) src_strip.y += tile_offset_y;
+                if (v == -1) SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);
+                else {
+                    if (map_y % BG_SPRITE_HEIGHT != 0) _grass_strip.y += tile_offset_y;
+                    SDL_RenderCopy(_renderer, texture, &_grass_strip, &dst_strip); // Render the grass first
+                    SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);  // Overlay the actual sprite
+                }
+                // LOG_INFO("<Strip x=%i, y=%i>\n", src_strip.x, src_strip.y);
+                // LOG_INFO("<Sprite x=%i, y=%i>\n", src.x, src.y);
+                // break;  // Temporary.
+            }
+            break;
+        }
     }
+    SDL_DestroyTexture(_back_buffer);
+    _common->SetBackBuffer(t);
+}
 
-    // Swap the back buffer.
-    // int SDL_RenderCopy(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *srcrect, const SDL_Rect *dstrect)
-    SDL_RenderCopy(_renderer, _back_buffer, &viewport, &screen);
+void Game::UpdateBackBuffer() {
+    SDL_Renderer* _renderer = _common->GetRenderer();
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+    SDL_SetRenderTarget(_renderer, NULL);                // Set the renderer to target the screen buffer now.
+    SDL_RenderClear(_renderer);                          // Un-apply the front-buffer.
+    SDL_RenderCopy(_renderer, _back_buffer, NULL, NULL); // Apply the back buffer
 
     // FIXME: For now we just render the player sprite as-is
     //        but in theory this can be it's own separate buffer.
@@ -776,8 +857,7 @@ void Game::UpdateBackBuffer() {
        }
 
    }
-    // Present the front buffer.
-    SDL_RenderPresent(_renderer);
+    SDL_RenderPresent(_renderer);                        // Present the front buffer.
 }
 
 void Game::HandleSpaceKey() {
@@ -801,6 +881,7 @@ void Game::HandleUpKey() {
     _scroll_y -= STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::UP;
+    BlitTop();
     UpdateMap();
 }
 
@@ -851,8 +932,6 @@ void Game::HandleEscKey() {
 
 int main() {
     std::string app_name = std::string("Game");
-    const int32_t BACKBUFFER_WIDTH = SCREEN_WIDTH*3;
-    const int32_t BACKBUFFER_HEIGHT = SCREEN_HEIGHT*2;
     std::shared_ptr<Common> common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
     std::unique_ptr<Game> game = std::make_unique<Game>(common_ptr);
 
@@ -867,9 +946,12 @@ int main() {
     game->FillBackBufferInitial();
     LOG_INFO("Fill back buffer initial took: %zums\n", SDL_GetTicks64()-before);
 
+    int DEFAULT_WAIT = 13;
+    int timeout = 0;
+
     while (!quit_app) {
-        int timeout = 0;
-        if (dt_frame == 0) timeout = 13; // Allow 3ms to draw or handle interaction.
+        if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
+        // LOG_INFO("Block for: %ims\n", timeout);
         while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
             if (eh.type == SDL_QUIT) { quit_app = 1; break; }
             if (eh.type == SDL_KEYDOWN) {
@@ -898,17 +980,23 @@ int main() {
         tick = SDL_GetTicks64();
         dt_frame = tick - last_frame_tick;
         // LOG_INFO("tick: %zu, dt_frame: %zu\n", tick, dt_frame);
-        if (dt_frame > 14) { // Allow 2ms draw time.
+        if (dt_frame > DEFAULT_WAIT) { // Allow 2ms draw time.
             Uint64 before = SDL_GetTicks64();
             game->UpdateBackBuffer();
+            Uint64 after = SDL_GetTicks64();
             // LOG_INFO("[DRAW]\n");
             // LOG_INFO("Update back buffer took: %zums\n", SDL_GetTicks64()-before);
             frame_per_second++;
-            if (tick > 1000*seconds) { game->set_fps(frame_per_second); seconds++; frame_per_second=0; }
+            if (tick > 1000*seconds) {
+                game->set_fps(frame_per_second);
+                seconds++;
+                frame_per_second=0;
+                timeout = 13;
+            }
             frame_count++;
             last_frame_tick = tick;
             // LOG_INFO("last_frame_tick: %zu\n", last_frame_tick);
-            dt_frame = 0;
+            dt_frame = SDL_GetTicks64() - after;
         }
     }
     return 0;

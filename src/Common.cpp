@@ -181,7 +181,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
         _scenes[scene_idx].tags.push_back(game_texture.tag);
     } else if (isImageTexture(game_texture.tag)) {
-        LOG_INFO("Game::LoadTexture(...) => Received image texture\n");
+        LOG_INFO("Received image texture\n");
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Surface* surface = IMG_Load(path);
         SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
@@ -203,23 +203,53 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         LOG_INFO("Loaded image texture at %s\n", path);
     } else if (isSpriteTexture(game_texture.tag)) {
         const char* path = game_texture.text_or_uri.c_str();
-
         SDL_Surface* surface = IMG_Load(path);
-        SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
-        SDL_SetTextureBlendMode( texture, SDL_BLENDMODE_BLEND );
 
-        SDL_FreeSurface(surface);
+        SDL_Texture* texture;
+
+        if (game_texture.upscale.w != 0) {
+            LOG_INFO("Upscale %s from {%i,%i} -> {%i, %i}\n", game_texture.text_or_uri.c_str(), surface->w, surface->h, game_texture.upscale.w, game_texture.upscale.h);
+            SDL_Surface* upscaled = SDL_CreateRGBSurfaceWithFormat(
+                0,
+                game_texture.upscale.w,
+                game_texture.upscale.h,
+                32,
+                SDL_PIXELFORMAT_RGBA8888
+            );
+            if (!upscaled) {
+                LOG(1, "ERROR", "Failed to create upscaled surface: %s\n", SDL_GetError());
+                SDL_FreeSurface(surface);
+                SDL_Quit();
+                exit(EXIT_FAILURE);
+            }
+
+            // SDL_UpperBlitScaled (SDL_Surface* src, const SDL_Rect* srcrect, SDL_Surface* dst, SDL_Rect * dstrect);
+            if (SDL_BlitScaled(surface, NULL, upscaled, NULL) < 0) {
+                LOG(1, "ERROR", "SDL_BlitScaled failed: %s\n", SDL_GetError());
+                SDL_FreeSurface(surface);
+                SDL_FreeSurface(upscaled);
+                SDL_Quit();
+                exit(EXIT_FAILURE);
+            }
+            SDL_FreeSurface(surface);
+            texture = SDL_CreateTextureFromSurface(_renderer, upscaled);
+            SDL_FreeSurface(upscaled);
+        } else {
+            texture = SDL_CreateTextureFromSurface(_renderer, surface);
+            SDL_FreeSurface(surface);
+        }
+
         if (texture == NULL) {
-            fprintf(stderr, "Panic: Failed to load sprite texture at %s.\n", path);
+            LOG(1, "ERROR", "SDL_CreateTextureFromSurface failed for sprite: %s - %s\n", path, SDL_GetError());
             SDL_Quit();
             exit(EXIT_FAILURE);
-        } else {
-            _scenes[scene_idx].textures.push_back(texture);
-            _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
-            _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
-            _scenes[scene_idx].tags.push_back(game_texture.tag);
         }
+
+        _scenes[scene_idx].textures.push_back(texture);
+        _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
+        _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
+        _scenes[scene_idx].tags.push_back(game_texture.tag);
+
         LOG_INFO("Loaded sprite texture at %s\n", path);
     } else {
         LOG_INFO("Game::LoadTexture(...) => Incorrect tag applied to Game Texture. Abort !\n");
