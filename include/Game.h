@@ -51,19 +51,16 @@ struct attack_animation_t {
 
 struct move_animation_t {
     uint8_t remaining_ticks = 0;
-    player_direction_t direction = player_direction_t::DOWN;
+    PLAYER_DIRECTION direction = PLAYER_DIRECTION::DOWN;
 };
 
 class Game {
 public:
     Game(std::shared_ptr<Common> common_ptr);
     ~Game();
-    void SetPlayerState(const player_state_t state) { _player_state = state; };
     void FillBackBufferInitial();
     void UpdateBackBuffer();
-    void SetPlayerY(const int32_t y) { _player_y = y; };
     const int32_t GetPlayerY() { return _player_y; };
-    void SetPlayerX(const int32_t x) { _player_x = x; };
     void SetPlayerAction(const PLAYER_ACTION action) { _player_action = action; };
     void SetAttackAnimation(const uint8_t runtime, const bool active) {
         if (_attack_animation.runtime > 0) return;
