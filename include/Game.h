@@ -28,16 +28,18 @@ enum PLAYER_DIRECTION {
     RIGHT
 };
 
-#define STEP_SIZE 5
-const uint8_t MOVE_ANIM_TICKS = 16;
-const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
-const float SPRITE_SCALE_FACTOR = 3.125;
+#define STEP_SIZE 10
 
+#define SPRITE_SCALE_FACTOR 3.125
 #define BG_SPRITE_WIDTH 50
 #define BG_SPRITE_HEIGHT 50
 
 const int SPRITE_WIDTH = 50;
 const int SPRITE_HEIGHT = 50;
+
+const uint8_t MOVE_ANIM_TICKS = 16;
+const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
+
 const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
 
@@ -98,7 +100,7 @@ public:
     void HandleLeftKey();
     void HandleRightKey();
     void HandleDownKey();
-    void BlitTop();
+    void BlitNext();
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
     PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DOWN;

@@ -15,6 +15,8 @@ void Common::SetupSDL() {
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
+    LOG(1, "INFO", "Create window with dimensions: %i x %i\n", SCREEN_WIDTH, SCREEN_HEIGHT);
+
     _window = SDL_CreateWindow(_app_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (_window == NULL) {
         fprintf(stderr, "panic: Window creation failed, abort.\n");

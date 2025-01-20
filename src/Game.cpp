@@ -77,8 +77,8 @@ Game::~Game() {}
 
 void Game::_SetTextureLocations() {
     const float SCREEN_CENTER = SCREEN_WIDTH/2.5 - 20.0f;
-    const int SPRITESHEET_WIDTH = 128*3.125;
-    const int SPRITESHEET_HEIGHT = 128*3.125;
+    const int SPRITESHEET_WIDTH = 128*SPRITE_SCALE_FACTOR;
+    const int SPRITESHEET_HEIGHT = 128*SPRITE_SCALE_FACTOR;
     const vector<gametexture_t> SCENE_1 = {
         { .text_or_uri = "Forged Memories",
           .src_rect = {0, 0, 0, 0},
@@ -115,6 +115,8 @@ void Game::_SetTextureLocations() {
     _common->SetInitialSceneTextureSize(SCENE_2.size());
 }
 
+std::string btos(bool b) { return b ? "yes" : "no"; }
+
 bool Game::IsColliding(const int x, const int y) {
     uint8_t _map_idx = map_idx;
 
@@ -123,6 +125,13 @@ bool Game::IsColliding(const int x, const int y) {
     int left_bounding_box = x;
     int right_bounding_box = x + PLAYER_WIDTH;
 
+    LOG(1, "TRACE", "IsColliding(y=%i)\n", y);
+
+    // FIXME: In practice this can be multiple spritesheet values.
+    //        Which means we need a way of encoding whether the target
+    //        can be moved through or not. For now, we just say, ok if it's not grass, collision.
+    int TRANSPARENT_TARGET = -1;
+
     if (top_bounding_box < 0) {
         top_bounding_box += SCREEN_HEIGHT;
         _map_idx = GetNorthIdx(map_idx);
@@ -130,8 +139,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
         return !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]  == -1 &&
-            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == -1
+            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]  == TRANSPARENT_TARGET &&
+            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
     }
 
@@ -144,8 +153,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
 
         return !(
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
     }
 
@@ -156,8 +165,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         return !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]    == -1 &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1
+            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
     }
 
@@ -168,8 +177,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
         return !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]    == -1 &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
+            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
     }
 
@@ -179,11 +188,23 @@ bool Game::IsColliding(const int x, const int y) {
     uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
 
     // We check the current map.
+    bool tl = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
+    bool tr = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
+    bool bl = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
+    bool br = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
+    int tlv = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
+    bool collision = !(
+        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
+    );
+    LOG(1, "TRACE", "IsColliding(y=%i) [tlv=%i, tl=%s, tr=%s, bl=%s, br=%s] = %s\n", y, tlv, btos(tl).c_str(), btos(tr).c_str(), btos(bl).c_str(), btos(br).c_str(), btos(collision).c_str());
     return !(
-        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == -1 &&
-        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == -1 &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == -1
+        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
+        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
     );
 }
 
@@ -290,7 +311,13 @@ bool IsNotDefaultSprite(const uint8_t map_idx, const uint8_t segment_x, const ui
 
 SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
     SDL_Rect sprite_rect = {0, 0, SPRITE_WIDTH, SPRITE_HEIGHT};
-    int v = MAPS[map_idx-1][segment_y][segment_x];
+    int v;
+
+    // We can get into a situation where we have no further maps to render.
+    // In that case, just render the default which for now is just rows of trees.
+    if (map_idx == 0) v = 1;
+    // Otherwise if it's a valid map index, get that quadrant's value.
+    else v = MAPS[map_idx-1][segment_y][segment_x];
 
     if (v == -1)  {
         // Consider the default to be the grass texture.
@@ -654,7 +681,8 @@ void Game::FillBackBufferInitial() {
    }
 }
 
-void Game::BlitTop() {
+void Game::BlitNext() {
+    LOG(1, "TRACE", "BlitNext(%i)\n", _player_direction);
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
@@ -674,39 +702,123 @@ void Game::BlitTop() {
 
     // Copy the shifted back buffer into our new texture.
     SDL_SetRenderTarget(_renderer, t);
-    SDL_Rect src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-    SDL_Rect dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+
+    SDL_Rect src;
+    SDL_Rect dst;
+    SDL_Rect _grass_strip;
+
+    switch(_player_direction) {
+    case PLAYER_DIRECTION::UP:
+        src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
+        break;
+    case PLAYER_DIRECTION::RIGHT:
+        src = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        dst = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
+        break;
+    case PLAYER_DIRECTION::DOWN:
+        src = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
+        break;
+    case PLAYER_DIRECTION::LEFT:
+        src = {STEP_SIZE, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        dst = {STEP_SIZE, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
+        break;
+    }
+
     SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);
 
-    int map_y = abs(camera_y);
-    uint8_t _map_idx = GetNorthIdx(map_idx);
+    int map_y = 0;
+
+    if (camera_y < 0) {        // Camera shows the map above.
+        map_y = SCREEN_HEIGHT - abs(camera_y);
+    } else if (camera_y > 0) { // Camera shows the map below.
+        map_y = camera_y;
+    }
+
+    uint8_t _map_idx = 0;
+
+    if (camera_y != 0) {
+        switch(_player_direction) {
+        case PLAYER_DIRECTION::UP:
+            if (camera_y < 0) {
+                _map_idx = GetNorthIdx(map_idx);
+            } else {
+                _map_idx = map_idx; // Still the map the player is in.
+            }
+            break;
+        case PLAYER_DIRECTION::DOWN:
+            if (camera_y < 0) {
+                _map_idx = map_idx; // Still the map the player is in.
+            } else {
+                _map_idx = GetSouthIdx(map_idx);
+            }
+            break;
+        case PLAYER_DIRECTION::RIGHT:
+            _map_idx = GetEastIdx(map_idx);
+            break;
+        case PLAYER_DIRECTION::LEFT:
+            _map_idx = GetWestIdx(map_idx);
+            break;
+        }
+    } else _map_idx = map_idx;
+
+    int blit_placement_y;
+    if (_player_direction == PLAYER_DIRECTION::DOWN) blit_placement_y = SCREEN_HEIGHT - STEP_SIZE;
+    else if (_player_direction == PLAYER_DIRECTION::UP) blit_placement_y = 0;
+    LOG(1, "INFO", "<MapStrip offset_y=%i, map_idx=%zu>\n", map_y, _map_idx);
+    LOG(1, "INFO", "<StripPlacement y=%i, map_idx=%zu>\n", blit_placement_y, _map_idx);
+    LOG(1, "INFO", "<Player x=%i, y=%i, map_idx=%zu/>\n", _player_x, _player_y, map_idx);
 
     for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
         uint8_t tag = current_scene->tags[i];
         if (_common->isBackgroundSpriteTexture(tag)) {
             SDL_Texture* texture = current_scene->textures[i];
-            for (int x = 0; x < SCREEN_WIDTH; x+=BG_SPRITE_WIDTH) {
-                SDL_Rect _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
-                SDL_Rect dst_strip = {x, 0, BG_SPRITE_WIDTH, STEP_SIZE};
+
+            int tile_offset_y;
+
+            if (_player_direction == PLAYER_DIRECTION::UP) {
+                tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+            } else if (_player_direction == PLAYER_DIRECTION::DOWN) {
+                tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
+            }
+            LOG(1, "INFO", "Tile offset y - %i\n", tile_offset_y);
+
+            for (int x = 0; x < SCREEN_WIDTH; x+=BG_SPRITE_WIDTH) { // all the sprites in X-Axis for map.
                 uint8_t map_segment_x = (uint8_t)(x/(SCREEN_WIDTH/4));
-                uint8_t map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
+                uint8_t map_segment_y;
+                if (_player_direction == PLAYER_DIRECTION::DOWN) {
+                    map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
+                } else if (_player_direction == PLAYER_DIRECTION::UP) {
+                    map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
+                }
 
-                SDL_Rect src = GetSpriteRect(_map_idx, map_segment_y, map_segment_x);
-                SDL_Rect src_strip = {src.x, src.y, BG_SPRITE_WIDTH, STEP_SIZE};
+                SDL_Rect dst_strip = {x, blit_placement_y, _grass_strip.w, _grass_strip.h};
+                SDL_Rect sprite_rect = GetSpriteRect(_map_idx, map_segment_y, map_segment_x);
+                int sprite_x = sprite_rect.x;
+                int sprite_y = sprite_rect.y;
+                sprite_y += tile_offset_y;
+                SDL_Rect src_strip = {sprite_x, sprite_y, _grass_strip.w, _grass_strip.h};
 
+                _grass_strip.y += tile_offset_y;
+
+                // LOG(1, "INFO", "(initial) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
+                // LOG(1, "INFO", "(after offset) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
                 int v = MAPS[_map_idx-1][map_segment_y][map_segment_x];
 
-                int tile_offset_y = (BG_SPRITE_HEIGHT - (map_y % BG_SPRITE_HEIGHT));
-                if (map_y % BG_SPRITE_HEIGHT != 0) src_strip.y += tile_offset_y;
                 if (v == -1) SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);
                 else {
-                    if (map_y % BG_SPRITE_HEIGHT != 0) _grass_strip.y += tile_offset_y;
+                    LOG(1, "INFO", "(initial)      v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu>\n", v, sprite_y, map_segment_x, map_segment_y);
+                    LOG(1, "INFO", "(after offset) v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu> <Map y=%i>\n", v, sprite_y, map_segment_x, map_segment_y, map_y);
+
                     SDL_RenderCopy(_renderer, texture, &_grass_strip, &dst_strip); // Render the grass first
-                    SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);  // Overlay the actual sprite
+                    SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);    // Overlay the actual sprite
                 }
-                // LOG_INFO("<Strip x=%i, y=%i>\n", src_strip.x, src_strip.y);
-                // LOG_INFO("<Sprite x=%i, y=%i>\n", src.x, src.y);
-                // break;  // Temporary.
+                _grass_strip.y -= tile_offset_y; // Have to reset since we re-use the one on the stack.
             }
             break;
         }
@@ -881,7 +993,7 @@ void Game::HandleUpKey() {
     _scroll_y -= STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::UP;
-    BlitTop();
+    BlitNext();
     UpdateMap();
 }
 
@@ -893,6 +1005,7 @@ void Game::HandleDownKey() {
     _scroll_y += STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::DOWN;
+    BlitNext();
     UpdateMap();
 }
 
@@ -907,6 +1020,7 @@ void Game::HandleLeftKey() {
     _scroll_x -= STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::LEFT;
+    BlitNext();
     UpdateMap();
 }
 
@@ -921,6 +1035,7 @@ void Game::HandleRightKey() {
     _scroll_x += STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::RIGHT;
+    BlitNext();
     UpdateMap();
 }
 
@@ -968,10 +1083,10 @@ int main() {
                     game->HandleDownKey();
                     break;
                 case SDLK_LEFT:
-                    game->HandleLeftKey();
+                    // game->HandleLeftKey();
                     break;
                 case SDLK_RIGHT:
-                    game->HandleRightKey();
+                    // game->HandleRightKey();
                     break;
                 }
             }
