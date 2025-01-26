@@ -69,6 +69,9 @@ uint64_t frame_count = 0;
 uint64_t current_ticks = 0;
 
 Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
+    assert(PLAYER_BEGIN_X % STEP_SIZE == 0);
+    assert(PLAYER_BEGIN_Y % STEP_SIZE == 0);
+    LOG_nodt(1, "INFO", "<Player begin_x=%zu, begin_y=%zu>\n", PLAYER_BEGIN_X, PLAYER_BEGIN_Y);
     _SetTextureLocations();
     common_ptr->AllocateScene(false);
     FillBackBufferInitial();
@@ -80,6 +83,8 @@ void Game::_SetTextureLocations() {
     const float SCREEN_CENTER = SCREEN_WIDTH/2.5 - 20.0f;
     const int SPRITESHEET_WIDTH = 128*SPRITE_SCALE_FACTOR;
     const int SPRITESHEET_HEIGHT = 128*SPRITE_SCALE_FACTOR;
+    const int PLAYER_UPSCALE_WIDTH = 244*PLAYER_SCALE_FACTOR;
+    const int PLAYER_UPSCALE_HEIGHT = 144*PLAYER_SCALE_FACTOR;
     const vector<gametexture_t> SCENE_1 = {
         { .text_or_uri = "Forged Memories",
           .src_rect = {0, 0, 0, 0},
@@ -108,7 +113,8 @@ void Game::_SetTextureLocations() {
           .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
           .dst_rect = {_player_x, _player_y, PLAYER_WIDTH, PLAYER_HEIGHT},
           .color = {0,0,0,0},
-          .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG
+          .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG,
+          .upscale = { PLAYER_UPSCALE_WIDTH, PLAYER_UPSCALE_HEIGHT }
         }
     };
     _common->AddScene(SCENE_1);
@@ -128,6 +134,8 @@ bool Game::IsColliding(const int x, const int y) {
 
     LOG(1, "TRACE", "IsColliding(y=%i)\n", y);
 
+    bool didCollide = false;
+
     // FIXME: In practice this can be multiple spritesheet values.
     //        Which means we need a way of encoding whether the target
     //        can be moved through or not. For now, we just say, ok if it's not grass, collision.
@@ -139,13 +147,15 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
-        return !(
+        didCollide = !(
             MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]  == TRANSPARENT_TARGET &&
             MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
+        if (didCollide) {
+            LOG(1, "INFO", "Collision detected !\n");
+        }
     }
-
-    if (bottom_bounding_box > SCREEN_HEIGHT) {
+    else if (bottom_bounding_box > SCREEN_HEIGHT) {
         bottom_bounding_box -= SCREEN_HEIGHT;
         _map_idx = GetSouthIdx(map_idx);
 
@@ -153,60 +163,65 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
 
-        return !(
+        didCollide = !(
             MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
             MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
+        if (didCollide) {
+            LOG(1, "INFO", "Collision detected !\n");
+        }
     }
-
-    if (right_bounding_box > SCREEN_WIDTH) {
+    else if (right_bounding_box > SCREEN_WIDTH) {
         right_bounding_box -= SCREEN_WIDTH;
         _map_idx = GetEastIdx(map_idx);
         uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
-        return !(
+        didCollide = !(
             MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
             MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
+        if (didCollide) {
+            LOG(1, "INFO", "Collision detected !\n");
+        }
     }
-
-    if (left_bounding_box < 0) {
+    else if (left_bounding_box < 0) {
         left_bounding_box += SCREEN_WIDTH;
         _map_idx = GetWestIdx(map_idx);
         uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
-        return !(
+        didCollide = !(
             MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
             MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
         );
+        if (didCollide) {
+            LOG(1, "INFO", "Collision detected !\n");
+        }
+    } else {
+        uint8_t tq = (top_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t bq = (bottom_bounding_box/(SCREEN_HEIGHT/4));
+        uint8_t rq = (right_bounding_box/(SCREEN_WIDTH/4));
+        uint8_t lq = (left_bounding_box/(SCREEN_WIDTH/4));
+
+        if (bq == 4) bq--;
+        if (rq == 4) rq--;
+        if (lq == 4) lq--;
+
+        // We check the current map.
+        bool tl = MAPS[_map_idx-1][tq][lq] == TRANSPARENT_TARGET;
+        bool tr = MAPS[_map_idx-1][tq][rq] == TRANSPARENT_TARGET;
+        bool bl = MAPS[_map_idx-1][bq][lq] == TRANSPARENT_TARGET;
+        bool br = MAPS[_map_idx-1][bq][rq] == TRANSPARENT_TARGET;
+        didCollide = !(tl && tr && bl && br);
+        if (didCollide) {
+            LOG(1, "INFO", "Collision detected !\n");
+        }
     }
 
-    uint8_t top_bounding_box_quadrant = (top_bounding_box/(SCREEN_HEIGHT/4));
-    uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
-    uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
-    uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
+    prev_action_info.collision = didCollide;
 
-    // We check the current map.
-    bool tl = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
-    bool tr = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
-    bool bl = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
-    bool br = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
-    int tlv = MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant];
-    bool collision = !(
-        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
-    );
-    LOG(1, "TRACE", "IsColliding(y=%i) [tlv=%i, tl=%s, tr=%s, bl=%s, br=%s] = %s\n", y, tlv, btos(tl).c_str(), btos(tr).c_str(), btos(bl).c_str(), btos(br).c_str(), btos(collision).c_str());
-    return !(
-        MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-        MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
-    );
+    return didCollide;
 }
 
 bool Game::AfterMainMenu() {
@@ -282,24 +297,19 @@ void Game::UpdateMap() {
     if (_player_y <= 0) {                    // Move north a map
         map_idx = GetNorthIdx(map_idx);
         _player_y = SCREEN_HEIGHT + _player_y;
-        if (_player_y == SCREEN_HEIGHT) _player_y = SCREEN_HEIGHT - 1;
         LOG_INFO("Map index moved to: %i\n", map_idx);
     } else if (_player_y >= SCREEN_HEIGHT) { // Move south a map
-
         map_idx = GetSouthIdx(map_idx);
         _player_y = SCREEN_HEIGHT - _player_y;
-        if (_player_y == 0) _player_y = 1;
         LOG_INFO("Map index moved to: %i\n", map_idx);
     } else if (_player_x <= 0) {             // Move west a map
         map_idx = GetWestIdx(map_idx);
         LOG_INFO("Map index moved to: %i\n", map_idx);
         _player_x = SCREEN_WIDTH - abs(_player_x);
-        if (_player_x == SCREEN_WIDTH) _player_x = SCREEN_WIDTH - 1;
     } else if (_player_x >= SCREEN_WIDTH) {  // Move east a map
         map_idx = GetEastIdx(map_idx);
         LOG_INFO("Map index moved to: %i\n", map_idx);
         _player_x -= SCREEN_WIDTH;
-        if (_player_x == 0) _player_x = 1;
     }
 }
 
@@ -866,7 +876,9 @@ void Game::BlitNext() {
             tile_offset_x = (map_x % BG_SPRITE_WIDTH);
         }
         else if (_player_direction == PLAYER_DIRECTION::DOWN)  {
-            tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
+            if (map_y > 0) {
+                tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
+            }
             tile_offset_x = (map_x % BG_SPRITE_WIDTH);
         }
         else if (_player_direction == PLAYER_DIRECTION::LEFT)  {
@@ -874,13 +886,17 @@ void Game::BlitNext() {
             tile_offset_x = (map_x % BG_SPRITE_WIDTH);
         }
         else if (_player_direction == PLAYER_DIRECTION::RIGHT) {
+            if (map_x > 0) {
+                tile_offset_x = (map_x-STEP_SIZE) % BG_SPRITE_WIDTH;
+            }
             tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
-            tile_offset_x = (map_x-STEP_SIZE) % BG_SPRITE_WIDTH;
         }
     }
 
     assert(tile_offset_x % STEP_SIZE == 0);
+    assert(tile_offset_x >= 0);
     assert(tile_offset_y % STEP_SIZE == 0);
+    assert(tile_offset_y >= 0);
 
     LOG_nodt(1, "INFO", "Tile offset y - %i\n", tile_offset_y);
     LOG_nodt(1, "INFO", "Tile offset x - %i\n", tile_offset_x);
@@ -1060,7 +1076,7 @@ void Game::UpdateBackBuffer() {
     }
 
    // Temporarily draw the bounding box.
-   // DrawPlayerBoundingBox();
+   DrawPlayerBoundingBox();
 
    // Draw the minimap.
    // int minimap_begin_x = SCREEN_WIDTH * 0.85;
@@ -1156,6 +1172,7 @@ void Game::HandleSpaceKey() {
 void Game::HandleUpKey() {
     if (_game_state == game_state_t::PAUSE) return;
     if (AttackAnimationActive()) return;
+    if (prev_action_info.key == SDLK_UP && prev_action_info.collision) return;
     if (IsColliding(_player_x, _player_y - STEP_SIZE)) return;
     _player_y -= STEP_SIZE;
     _scroll_y -= STEP_SIZE;
@@ -1168,6 +1185,7 @@ void Game::HandleUpKey() {
 void Game::HandleDownKey() {
     if (_game_state == game_state_t::PAUSE) return;
     if (AttackAnimationActive()) return;
+    if (prev_action_info.key == SDLK_DOWN && prev_action_info.collision) return;
     if (IsColliding(_player_x, _player_y + STEP_SIZE)) return;
     _player_y += STEP_SIZE;
     _scroll_y += STEP_SIZE;
@@ -1180,6 +1198,7 @@ void Game::HandleDownKey() {
 void Game::HandleLeftKey() {
     if (_game_state == game_state_t::PAUSE) return;
     if (AttackAnimationActive()) return;
+    if (prev_action_info.key == SDLK_LEFT && prev_action_info.collision) return;
     if (IsColliding(_player_x - STEP_SIZE, _player_y)) return;
     _player_x -= STEP_SIZE;
     _scroll_x -= STEP_SIZE;
@@ -1192,6 +1211,7 @@ void Game::HandleLeftKey() {
 void Game::HandleRightKey() {
     if (_game_state == game_state_t::PAUSE) return;
     if (AttackAnimationActive()) return;
+    if (prev_action_info.key == SDLK_RIGHT && prev_action_info.collision) return;
     if (IsColliding(_player_x + STEP_SIZE, _player_y)) return;
     _player_x += STEP_SIZE;
     _scroll_x += STEP_SIZE;
@@ -1226,14 +1246,18 @@ int main() {
     int DEFAULT_WAIT = 13;
     int timeout = 0;
 
+    PreviousActionInfo prev_action_info = game->GetPrevActionInfo();
+
     while (!quit_app) {
         if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
         // LOG_INFO("Block for: %ims\n", timeout);
+
         while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
             if (eh.type == SDL_QUIT) { quit_app = 1; break; }
             if (eh.type == SDL_KEYDOWN) {
                 SDL_KeyboardEvent key = eh.key;
                 SDL_Keysym keysym = key.keysym;
+                prev_action_info.key = keysym.sym;
                 switch(keysym.sym) {
                 case SDLK_SPACE:
                     game->HandleSpaceKey();

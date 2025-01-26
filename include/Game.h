@@ -30,21 +30,22 @@ enum PLAYER_DIRECTION {
 
 #define STEP_SIZE 10
 
-#define SPRITE_SCALE_FACTOR 3.125
 #define BG_SPRITE_WIDTH 50
 #define BG_SPRITE_HEIGHT 50
 
+#define SPRITE_SCALE_FACTOR 3.125
 const int SPRITE_WIDTH = 50;
 const int SPRITE_HEIGHT = 50;
+
+#define PLAYER_SCALE_FACTOR 1.25
+constexpr uint8_t PLAYER_WIDTH = 60;
+constexpr uint8_t PLAYER_HEIGHT = 60;
 
 const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 
 const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
-
-constexpr uint8_t PLAYER_WIDTH = 50;
-constexpr uint8_t PLAYER_HEIGHT = 50;
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -55,6 +56,11 @@ struct attack_animation_t {
 struct move_animation_t {
     uint8_t remaining_ticks = 0;
     PLAYER_DIRECTION direction = PLAYER_DIRECTION::DOWN;
+};
+
+struct PreviousActionInfo {
+    SDL_Keycode key;
+    bool collision = false;
 };
 
 class Game {
@@ -101,6 +107,7 @@ public:
     void HandleRightKey();
     void HandleDownKey();
     void BlitNext();
+    PreviousActionInfo GetPrevActionInfo() { return prev_action_info; };
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
     PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DOWN;
@@ -124,6 +131,7 @@ private:
     std::shared_ptr<Common> _common;
     game_state_t _game_state = game_state_t::PLAY;
     uint8_t _fps = 0;
+    PreviousActionInfo prev_action_info = {};
 };
 
 #endif
