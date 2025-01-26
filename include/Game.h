@@ -43,6 +43,9 @@ const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
 const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
 
+constexpr uint8_t PLAYER_WIDTH = 50;
+constexpr uint8_t PLAYER_HEIGHT = 50;
+
 struct attack_animation_t {
     uint8_t runtime;
     bool active;

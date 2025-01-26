@@ -1,6 +1,7 @@
 #include "Game.h"
 #include <string>
 #include <cstdlib>
+#include <cassert>
 #include "Map.h"
 
 // Center
@@ -212,8 +213,6 @@ bool Game::AfterMainMenu() {
     return _common->GetSceneStackIdx() + 1 >= 2;
 }
 
-
-
 uint8_t Game::GetCenterIdx(uint8_t idx) {
     uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 2;
     // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetCenterIdx(idx=%i) => %i", idx, next_idx);
@@ -321,7 +320,7 @@ SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
 
     if (v == -1)  {
         // Consider the default to be the grass texture.
-        sprite_rect.x = SPRITE_WIDTH+1;
+        sprite_rect.x = SPRITE_WIDTH;
         sprite_rect.y = SPRITE_HEIGHT*4;
     } else {
         // Decode the Map encoding.
@@ -682,7 +681,6 @@ void Game::FillBackBufferInitial() {
 }
 
 void Game::BlitNext() {
-    LOG(1, "TRACE", "BlitNext(%i)\n", _player_direction);
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
@@ -711,26 +709,26 @@ void Game::BlitNext() {
     case PLAYER_DIRECTION::UP:
         src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
         dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
+        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
         break;
     case PLAYER_DIRECTION::DOWN:
         src = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
         dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
+        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
         break;
     case PLAYER_DIRECTION::LEFT:
         src = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
         dst = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
+        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
         break;
     case PLAYER_DIRECTION::RIGHT:
         src = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
         dst = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        _grass_strip = {SPRITE_WIDTH+1, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
+        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
         break;
     }
 
-    LOG(1, "INFO", "Move <FrontBuffer x=%i, y=%i, w=%i, h=%i> to <BackBuffer x=%i, y=%i, w=%i, h=%i>\n", src.x, src.y, src.w, src.h, dst.x, dst.y, dst.w, dst.h);
+    LOG_nodt(1, "INFO", "Move <FrontBuffer x=%i, y=%i, w=%i, h=%i> to <BackBuffer x=%i, y=%i, w=%i, h=%i>\n", src.x, src.y, src.w, src.h, dst.x, dst.y, dst.w, dst.h);
 
     SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);
 
@@ -748,129 +746,246 @@ void Game::BlitNext() {
         map_x = camera_x;
     }
 
-    LOG(1, "INFO", "<Camera x=%i, y=%i>\n", camera_x, camera_y);
+    LOG_nodt(1, "INFO", "<Camera x=%i, y=%i>\n", camera_x, camera_y);
 
-    uint8_t _map_idx = 0;  // Represents the map associated to the blit strip.
+    uint8_t map_idx_buffer[2] = {0, 0};
+    int buf_idx = 0;
 
     if (!(camera_y == 0 && camera_x == 0)) {
         switch(_player_direction) {
         case PLAYER_DIRECTION::UP:
             if (camera_y < 0) {
-                _map_idx = GetNorthIdx(map_idx);
+                if (camera_x < 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                if (camera_x > 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
+                }
             } else {
-                _map_idx = map_idx; // Still the map the player is in.
+                if (camera_x < 0) {
+                    map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
+                if (camera_x > 0) {
+                    map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
+                }
             }
             break;
         case PLAYER_DIRECTION::DOWN:
-            if (camera_y < 0) {
-                _map_idx = map_idx; // Still the map the player is in.
+            if (camera_y > 0) {
+                if (camera_x < 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
+                if (camera_x > 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
+                }
             } else {
-                _map_idx = GetSouthIdx(map_idx);
+                if (camera_x < 0) {
+                    map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
+                if (camera_x > 0) {
+                    map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
+                }
             }
             break;
         case PLAYER_DIRECTION::RIGHT:
             if (camera_x < 0) {
-                _map_idx = map_idx; // Still the map the player is in.
+                if (camera_y < 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
+                if (camera_y > 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
+                }
             } else {
-                _map_idx = GetEastIdx(map_idx);
+                if (camera_y < 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
+                if (camera_y > 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
+                }
             }
             break;
         case PLAYER_DIRECTION::LEFT:
             if (camera_x > 0) {
-                _map_idx = map_idx; // Still the map the player is in.
+                if (camera_y < 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
+                if (camera_y > 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
+                }
             } else {
-                _map_idx = GetWestIdx(map_idx);
+                if (camera_y < 0) {
+                    map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
+                }
+                map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                if (camera_y > 0) {
+                    map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
+                }
             }
             break;
         }
-    } else _map_idx = map_idx;
+    } else map_idx_buffer[buf_idx++] = map_idx;
 
+    buf_idx = 0;
+
+    // Where the strip will be.
     int blit_placement_y = 0;
     int blit_placement_x = 0;
+
     if (_player_direction      == PLAYER_DIRECTION::DOWN)  blit_placement_y = SCREEN_HEIGHT - STEP_SIZE;
     else if (_player_direction == PLAYER_DIRECTION::UP)    blit_placement_y = 0;
     else if (_player_direction == PLAYER_DIRECTION::RIGHT) blit_placement_x = SCREEN_WIDTH - STEP_SIZE;
     else if (_player_direction == PLAYER_DIRECTION::LEFT)  blit_placement_x = 0;
 
-    LOG(1, "INFO", "<MapStrip offset_y=%i, offset_x=%i, map_idx=%zu>\n", map_y, map_x, _map_idx);
-    LOG(1, "INFO", "<ViewportStrip y=%i, x=%i, w=%i, h=%i>\n", blit_placement_y, blit_placement_x, _grass_strip.w, _grass_strip.h);
-    LOG(1, "INFO", "<Player y=%i, x=%i, map_idx=%zu>\n", _player_x, _player_y, map_idx);
+    // LOG_nodt(1, "INFO", "<ViewportStrip y=%i, x=%i, w=%i, h=%i>\n", blit_placement_y, blit_placement_x, _grass_strip.w, _grass_strip.h);
+    LOG_nodt(1, "INFO", "<MapStrip offset_y=%i, offset_x=%i, map_idxs=[%zu, %zu]>\n", map_y, map_x, map_idx_buffer[0], map_idx_buffer[1]);
+    LOG_nodt(1, "INFO", "<Player y=%i, x=%i, map_idx=%zu>\n", _player_x, _player_y, map_idx);
+
+    SDL_Texture* spritesheet;
 
     for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
         uint8_t tag = current_scene->tags[i];
         if (_common->isBackgroundSpriteTexture(tag)) {
-            SDL_Texture* texture = current_scene->textures[i];
-
-            int tile_offset_y = 0;
-            int tile_offset_x = 0;
-
-            if (!(camera_x == 0 && camera_y == 0)) {
-                if (_player_direction      == PLAYER_DIRECTION::UP)    tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
-                else if (_player_direction == PLAYER_DIRECTION::DOWN)  tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
-                else if (_player_direction == PLAYER_DIRECTION::LEFT)  tile_offset_x = (map_x % BG_SPRITE_WIDTH);
-                else if (_player_direction == PLAYER_DIRECTION::RIGHT) tile_offset_x = (map_x-STEP_SIZE) % BG_SPRITE_WIDTH;
-            }
-            LOG(1, "INFO", "Tile offset y - %i\n", tile_offset_y);
-            LOG(1, "INFO", "Tile offset x - %i\n", tile_offset_x);
-
-            int end_x = (_player_direction == PLAYER_DIRECTION::UP   || _player_direction == PLAYER_DIRECTION::DOWN) ? SCREEN_WIDTH : STEP_SIZE;
-            int end_y = (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) ? SCREEN_HEIGHT : STEP_SIZE;
-
-            bool logged_once = false;
-
-            for (int x = 0; x < end_x; x+=BG_SPRITE_WIDTH) {          // all the sprites in X-Axis for map.
-                for (int y = 0; y < end_y; y+=BG_SPRITE_HEIGHT) {     // all the sprites in Y-Axis for map.
-                    uint8_t map_segment_y, map_segment_x;
-
-                    if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
-                        map_segment_x = (uint8_t)(x/(SCREEN_WIDTH/4));
-                        map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
-                    } else if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
-                        map_segment_x = (uint8_t)(map_x/(SCREEN_WIDTH/4));
-                        map_segment_y = (uint8_t)(y/(SCREEN_HEIGHT/4));
-                    }
-
-                    SDL_Rect dst_strip;
-
-                    if (_player_direction == PLAYER_DIRECTION::UP          || _player_direction == PLAYER_DIRECTION::DOWN) {
-                        dst_strip = {x, blit_placement_y, _grass_strip.w, _grass_strip.h};
-                    } else if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
-                        dst_strip = {blit_placement_x, y, _grass_strip.w, _grass_strip.h};
-                    }
-
-                    SDL_Rect sprite_rect = GetSpriteRect(_map_idx, map_segment_y, map_segment_x);
-
-                    int sprite_x = sprite_rect.x;
-                    sprite_x += tile_offset_x;
-
-                    int sprite_y = sprite_rect.y;
-                    sprite_y += tile_offset_y;
-
-                    SDL_Rect src_strip = {sprite_x, sprite_y, _grass_strip.w, _grass_strip.h};
-
-                    _grass_strip.y += tile_offset_y;
-                    _grass_strip.x += tile_offset_x;
-
-                    int v = MAPS[_map_idx-1][map_segment_y][map_segment_x];
-
-                    if (v == -1) SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);
-                    else {
-                        if (!logged_once) {
-                            LOG(1, "INFO", "(initial)      v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu>\n", v, sprite_y, map_segment_x, map_segment_y);
-                            LOG(1, "INFO", "(after offset) v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu> <Map y=%i>\n", v, sprite_y, map_segment_x, map_segment_y, map_y);
-                            // LOG(1, "INFO", "(initial) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
-                            // LOG(1, "INFO", "(after offset) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
-                            logged_once = true;
-                        }
-
-                        SDL_RenderCopy(_renderer, texture, &_grass_strip, &dst_strip); // Render the grass first
-                        SDL_RenderCopy(_renderer, texture, &src_strip, &dst_strip);    // Overlay the actual sprite
-                    }
-                    _grass_strip.y -= tile_offset_y; // Have to reset since we re-use the one on the stack.
-                    _grass_strip.x -= tile_offset_x; // Have to reset since we re-use the one on the stack.
-                }
-            }
+            spritesheet = current_scene->textures[i];
             break;
+        }
+    }
+
+    int tile_offset_y = 0;
+    int tile_offset_x = 0;
+
+    if (!(camera_x == 0 && camera_y == 0)) {
+        if (_player_direction      == PLAYER_DIRECTION::UP)    {
+            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
+        }
+        else if (_player_direction == PLAYER_DIRECTION::DOWN)  {
+            tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
+            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
+        }
+        else if (_player_direction == PLAYER_DIRECTION::LEFT)  {
+            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
+        }
+        else if (_player_direction == PLAYER_DIRECTION::RIGHT) {
+            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+            tile_offset_x = (map_x-STEP_SIZE) % BG_SPRITE_WIDTH;
+        }
+    }
+
+    assert(tile_offset_x % STEP_SIZE == 0);
+    assert(tile_offset_y % STEP_SIZE == 0);
+
+    LOG_nodt(1, "INFO", "Tile offset y - %i\n", tile_offset_y);
+    LOG_nodt(1, "INFO", "Tile offset x - %i\n", tile_offset_x);
+
+    int end_x = (_player_direction == PLAYER_DIRECTION::UP   || _player_direction == PLAYER_DIRECTION::DOWN) ? SCREEN_WIDTH : STEP_SIZE;
+    int end_y = (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) ? SCREEN_HEIGHT : STEP_SIZE;
+
+    bool logged_once = false;
+    bool actioned_first_offset = false;
+
+    for (int x = 0; x < end_x; x+=BG_SPRITE_WIDTH) {          // all the sprites in X-Axis for map.
+        // Do a quick check to see if we need to alter _map_idx.
+        if (map_x + x > SCREEN_WIDTH && buf_idx == 0) {
+            buf_idx++;
+            tile_offset_x = 0;
+        }
+        for (int y = 0; y < end_y; y+=BG_SPRITE_HEIGHT) {     // all the sprites in Y-Axis for map.
+            if (map_y + y > SCREEN_HEIGHT && buf_idx == 0) {
+                buf_idx++;
+                tile_offset_y = 0;
+            }
+            uint8_t map_segment_y, map_segment_x;
+
+            if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
+                // You might ask yourself, what's going on here?
+                // Well - We wish to keep the iterated y state in-tact but we might've moved
+                //        into grabbing pixels from the next map.
+                int __map_x = (map_x+x) - (SCREEN_WIDTH * buf_idx);
+                map_segment_x = (uint8_t)(__map_x/(SCREEN_WIDTH/4));
+                map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4));
+            } else if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+                // You might ask yourself, what's going on here?
+                // Well - We wish to keep the iterated y state in-tact but we might've moved
+                //        into grabbing pixels from the next map.
+                int __map_y = (map_y+y) - (SCREEN_HEIGHT * buf_idx);
+                map_segment_x = (uint8_t)(map_x/(SCREEN_WIDTH/4));
+                map_segment_y = (uint8_t)(__map_y/(SCREEN_HEIGHT/4));
+            }
+
+            SDL_Rect dst_strip;
+
+            if (_player_direction == PLAYER_DIRECTION::UP          || _player_direction == PLAYER_DIRECTION::DOWN) {
+                // If we originally had an offset tile, undo it now we're on the next tile.
+                if (actioned_first_offset) {
+                    x -= (x % BG_SPRITE_WIDTH);
+                    actioned_first_offset = false;
+                }
+                assert(x % BG_SPRITE_WIDTH == 0);
+                dst_strip = {x, blit_placement_y, _grass_strip.w, _grass_strip.h};
+            } else if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+                // If we originally had an offset tile, undo it now we're on the next tile.
+                if (actioned_first_offset) {
+                    y -= (y % BG_SPRITE_HEIGHT);
+                    actioned_first_offset = false;
+                }
+                assert(y % BG_SPRITE_HEIGHT == 0);
+                dst_strip = {blit_placement_x, y, _grass_strip.w, _grass_strip.h};
+            }
+
+            SDL_Rect sprite_rect = GetSpriteRect(map_idx_buffer[buf_idx], map_segment_y, map_segment_x);
+
+            int sprite_x = sprite_rect.x;
+            int sprite_y = sprite_rect.y;
+
+            sprite_x += tile_offset_x;
+            sprite_y += tile_offset_y;
+
+            SDL_Rect src_strip = {sprite_x, sprite_y, _grass_strip.w, _grass_strip.h};
+
+            int prev_grass_strip_y = _grass_strip.y;
+            int prev_grass_strip_x = _grass_strip.x;
+
+            _grass_strip.y += tile_offset_y;
+            _grass_strip.x += tile_offset_x;
+
+            assert(sprite_x % BG_SPRITE_WIDTH == _grass_strip.x % BG_SPRITE_WIDTH);
+            assert(sprite_y % BG_SPRITE_HEIGHT == _grass_strip.y % BG_SPRITE_HEIGHT);
+
+            if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
+                tile_offset_x = 0; // We only action the first tile offset.
+                actioned_first_offset = true;
+            }
+
+            if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+                tile_offset_y = 0; // We only action the first tile offset.
+                actioned_first_offset = true;
+            }
+
+            int v = MAPS[map_idx_buffer[buf_idx]-1][map_segment_y][map_segment_x];
+
+            if (v == -1) SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);
+            else {
+                if (!logged_once) {
+                    // LOG_nodt(1, "INFO", "(initial)      v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu>\n", v, sprite_y, map_segment_x, map_segment_y);
+                    // LOG_nodt(1, "INFO", "(after offset) v=%i, <Sprite y=%i> <Segment x=%zu, y=%zu> <Map y=%i>\n", v, sprite_y, map_segment_x, map_segment_y, map_y);
+                    // LOG(1, "INFO", "(initial) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
+                    // LOG(1, "INFO", "(after offset) <Grass x=%i, y=%i, w=%i, h=%i>\n", _grass_strip.x, _grass_strip.y, _grass_strip.w, _grass_strip.h);
+                    logged_once = true;
+                }
+
+                SDL_RenderCopy(_renderer, spritesheet, &_grass_strip, &dst_strip); // Render the grass first
+                SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);    // Overlay the actual sprite
+            }
+            _grass_strip.y = prev_grass_strip_y; // Have to reset since we re-use the one on the stack.
+            _grass_strip.x = prev_grass_strip_x; // Have to reset since we re-use the one on the stack.
         }
     }
     SDL_DestroyTexture(_back_buffer);

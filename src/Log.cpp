@@ -6,6 +6,18 @@
 /*
  * Send a formatted string to the log, used like printf(fmt,...)
  */
+int LOG_nodt(int prio, const char *tag, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::printf("[%s] ", tag);
+    std::vprintf(fmt, args);
+    va_end(args);
+    return 0;
+}
+
+/*
+ * Send a formatted string to the log, used like printf(fmt,...)
+ */
 int LOG(int prio, const char *tag, const char *fmt, ...) {
     // Get current date and time
     std::time_t now = std::time(0);

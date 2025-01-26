@@ -57,9 +57,6 @@ struct gametexture_t {
     upscale_t upscale;
 };
 
-constexpr uint8_t PLAYER_WIDTH = 48;
-constexpr uint8_t PLAYER_HEIGHT = 48;
-
 class Common {
 public:
     Common(std::string app_name, const uint32_t, const uint32_t);

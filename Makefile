@@ -18,4 +18,5 @@ $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 game: $(OBJS)
-	g++ -o Game $(OBJS) $(LDLIBS) $(LDFLAGS)
+	mkdir -p build
+	g++ $(CPPFLAGS) -o build/game $(OBJS) $(LDLIBS) $(LDFLAGS)

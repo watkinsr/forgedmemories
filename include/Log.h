@@ -24,5 +24,6 @@ using namespace std;
 #define LOG_INFO3_FORMAT
 #endif
 int LOG(int prio, const char *tag, const char *fmt, ...) LOG_FORMAT;
+int LOG_nodt(int prio, const char *tag, const char *fmt, ...) LOG_FORMAT;
 #define LOG_INFO(fmt, ...) LOG(1, "INFO", fmt, ##__VA_ARGS__)
 #endif
