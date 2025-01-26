@@ -1,19 +1,19 @@
 # Description
-Unfinished 2D Side-scrolling game in SDL2.
+(Unfinished) 2D Side-scrolling game in SDL2.
 
 # Dependencies
 SDL2
 
 # Build
 ```sh
-make build
+make
 ```
 
 # Run
 ```sh
-./build/mapeditor
-```
-```sh
-./build/forgedmemories
+./build/game
 ```
 
+```sh
+./build/mapeditor
+```
