@@ -132,8 +132,6 @@ bool Game::IsColliding(const int x, const int y) {
     int left_bounding_box = x;
     int right_bounding_box = x + PLAYER_WIDTH;
 
-    LOG(1, "TRACE", "IsColliding(y=%i)\n", y);
-
     bool didCollide = false;
 
     // FIXME: In practice this can be multiple spritesheet values.
@@ -294,15 +292,15 @@ uint8_t Game::GetSouthWestIdx(uint8_t idx) {
 }
 
 void Game::UpdateMap() {
-    if (_player_y <= 0) {                    // Move north a map
+    if (_player_y < 0) {                    // Move north a map
         map_idx = GetNorthIdx(map_idx);
         _player_y = SCREEN_HEIGHT + _player_y;
         LOG_INFO("Map index moved to: %i\n", map_idx);
     } else if (_player_y >= SCREEN_HEIGHT) { // Move south a map
         map_idx = GetSouthIdx(map_idx);
-        _player_y = SCREEN_HEIGHT - _player_y;
+        _player_y -= SCREEN_HEIGHT;
         LOG_INFO("Map index moved to: %i\n", map_idx);
-    } else if (_player_x <= 0) {             // Move west a map
+    } else if (_player_x < 0) {             // Move west a map
         map_idx = GetWestIdx(map_idx);
         LOG_INFO("Map index moved to: %i\n", map_idx);
         _player_x = SCREEN_WIDTH - abs(_player_x);
@@ -690,15 +688,18 @@ void Game::FillBackBufferInitial() {
    }
 }
 
+void Game::UpdateCamera() {
+    _camera_x = _player_x - PLAYER_BEGIN_X; // X grows negatively when moving left in a given map.
+    _camera_y = _player_y - PLAYER_BEGIN_Y; // Y grows positively when moving down in a given map.
+    LOG_nodt(1, "INFO", "<Camera x=%i, y=%i>\n", _camera_x, _camera_y);
+}
+
 void Game::BlitNext() {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
     uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
-
-    const int32_t camera_x = _player_x - PLAYER_BEGIN_X; // X grows negatively when moving left in a given map.
-    const int32_t camera_y = _player_y - PLAYER_BEGIN_Y; // Y grows positively when moving down in a given map.
 
     SDL_Texture* t = SDL_CreateTexture(
         _renderer,
@@ -744,97 +745,95 @@ void Game::BlitNext() {
 
     int map_y, map_x = 0;
 
-    if (camera_y < 0) {        // Camera shows the map above.
-        map_y = SCREEN_HEIGHT - abs(camera_y);
-    } else if (camera_y > 0) { // Camera shows the map below.
-        map_y = camera_y;
+    if (_camera_y < 0) {        // Camera shows the map above.
+        map_y = SCREEN_HEIGHT - abs(_camera_y);
+    } else if (_camera_y > 0) { // Camera shows the map below.
+        map_y = _camera_y;
     }
 
-    if (camera_x < 0) {        // Camera shows the map to the left.
-        map_x = SCREEN_WIDTH - abs(camera_x);
-    } else if (camera_x > 0) { // Camera shows the map to the right.
-        map_x = camera_x;
+    if (_camera_x < 0) {        // Camera shows the map to the left.
+        map_x = SCREEN_WIDTH - abs(_camera_x);
+    } else if (_camera_x > 0) { // Camera shows the map to the right.
+        map_x = _camera_x;
     }
-
-    LOG_nodt(1, "INFO", "<Camera x=%i, y=%i>\n", camera_x, camera_y);
 
     uint8_t map_idx_buffer[2] = {0, 0};
     int buf_idx = 0;
 
-    if (!(camera_y == 0 && camera_x == 0)) {
+    if (!(_camera_y == 0 && _camera_x == 0)) {
         switch(_player_direction) {
         case PLAYER_DIRECTION::UP:
-            if (camera_y < 0) {
-                if (camera_x < 0) {
+            if (_camera_y < 0) {
+                if (_camera_x < 0) {
                     map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
-                if (camera_x > 0) {
+                if (_camera_x > 0) {
                     map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
                 }
             } else {
-                if (camera_x < 0) {
+                if (_camera_x < 0) {
                     map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (camera_x > 0) {
+                if (_camera_x > 0) {
                     map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
                 }
             }
             break;
         case PLAYER_DIRECTION::DOWN:
-            if (camera_y > 0) {
-                if (camera_x < 0) {
+            if (_camera_y > 0) {
+                if (_camera_x < 0) {
                     map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
-                if (camera_x > 0) {
+                if (_camera_x > 0) {
                     map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
                 }
             } else {
-                if (camera_x < 0) {
+                if (_camera_x < 0) {
                     map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (camera_x > 0) {
+                if (_camera_x > 0) {
                     map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
                 }
             }
             break;
         case PLAYER_DIRECTION::RIGHT:
-            if (camera_x < 0) {
-                if (camera_y < 0) {
+            if (_camera_x < 0) {
+                if (_camera_y < 0) {
                     map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (camera_y > 0) {
+                if (_camera_y > 0) {
                     map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
                 }
             } else {
-                if (camera_y < 0) {
+                if (_camera_y < 0) {
                     map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
-                if (camera_y > 0) {
+                if (_camera_y > 0) {
                     map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
                 }
             }
             break;
         case PLAYER_DIRECTION::LEFT:
-            if (camera_x > 0) {
-                if (camera_y < 0) {
+            if (_camera_x > 0) {
+                if (_camera_y < 0) {
                     map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (camera_y > 0) {
+                if (_camera_y > 0) {
                     map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
                 }
             } else {
-                if (camera_y < 0) {
+                if (_camera_y < 0) {
                     map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
                 }
                 map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
-                if (camera_y > 0) {
+                if (_camera_y > 0) {
                     map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
                 }
             }
@@ -855,7 +854,7 @@ void Game::BlitNext() {
 
     // LOG_nodt(1, "INFO", "<ViewportStrip y=%i, x=%i, w=%i, h=%i>\n", blit_placement_y, blit_placement_x, _grass_strip.w, _grass_strip.h);
     LOG_nodt(1, "INFO", "<MapStrip offset_y=%i, offset_x=%i, map_idxs=[%zu, %zu]>\n", map_y, map_x, map_idx_buffer[0], map_idx_buffer[1]);
-    LOG_nodt(1, "INFO", "<Player y=%i, x=%i, map_idx=%zu>\n", _player_x, _player_y, map_idx);
+    LOG_nodt(1, "INFO", "<Player y=%i, x=%i, map_idx=%zu>\n", _player_y, _player_x, map_idx);
 
     SDL_Texture* spritesheet;
 
@@ -870,26 +869,12 @@ void Game::BlitNext() {
     int tile_offset_y = 0;
     int tile_offset_x = 0;
 
-    if (!(camera_x == 0 && camera_y == 0)) {
-        if (_player_direction      == PLAYER_DIRECTION::UP)    {
-            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
-            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
-        }
-        else if (_player_direction == PLAYER_DIRECTION::DOWN)  {
-            if (map_y > 0) {
-                tile_offset_y = (map_y-STEP_SIZE) % BG_SPRITE_HEIGHT;
-            }
-            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
-        }
-        else if (_player_direction == PLAYER_DIRECTION::LEFT)  {
-            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
-            tile_offset_x = (map_x % BG_SPRITE_WIDTH);
-        }
-        else if (_player_direction == PLAYER_DIRECTION::RIGHT) {
-            if (map_x > 0) {
-                tile_offset_x = (map_x-STEP_SIZE) % BG_SPRITE_WIDTH;
-            }
-            tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+    if (!(_camera_x == 0 && _camera_y == 0)) {
+        tile_offset_y = (map_y % BG_SPRITE_HEIGHT);
+        tile_offset_x = (map_x % BG_SPRITE_WIDTH);
+        if (_player_direction == PLAYER_DIRECTION::LEFT) {
+            // FIXME
+            // tile_offset_x = BG_SPRITE_WIDTH - tile_offset_x;
         }
     }
 
@@ -966,6 +951,9 @@ void Game::BlitNext() {
 
             SDL_Rect src_strip = {sprite_x, sprite_y, _grass_strip.w, _grass_strip.h};
 
+            assert(_grass_strip.w > 0);
+            assert(_grass_strip.h > 0);
+
             int prev_grass_strip_y = _grass_strip.y;
             int prev_grass_strip_x = _grass_strip.x;
 
@@ -974,6 +962,8 @@ void Game::BlitNext() {
 
             assert(sprite_x % BG_SPRITE_WIDTH == _grass_strip.x % BG_SPRITE_WIDTH);
             assert(sprite_y % BG_SPRITE_HEIGHT == _grass_strip.y % BG_SPRITE_HEIGHT);
+            assert(sprite_x >= 0);
+            assert(sprite_y >= 0);
 
             if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
                 tile_offset_x = 0; // We only action the first tile offset.
@@ -1178,8 +1168,9 @@ void Game::HandleUpKey() {
     _scroll_y -= STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::UP;
-    BlitNext();
     UpdateMap();
+    UpdateCamera();
+    BlitNext();
 }
 
 void Game::HandleDownKey() {
@@ -1191,8 +1182,9 @@ void Game::HandleDownKey() {
     _scroll_y += STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::DOWN;
-    BlitNext();
     UpdateMap();
+    UpdateCamera();
+    BlitNext();
 }
 
 void Game::HandleLeftKey() {
@@ -1204,8 +1196,9 @@ void Game::HandleLeftKey() {
     _scroll_x -= STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::LEFT;
-    BlitNext();
     UpdateMap();
+    UpdateCamera();
+    BlitNext();
 }
 
 void Game::HandleRightKey() {
@@ -1217,8 +1210,9 @@ void Game::HandleRightKey() {
     _scroll_x += STEP_SIZE;
     _player_action = PLAYER_ACTION::MOVING;
     _player_direction = PLAYER_DIRECTION::RIGHT;
-    BlitNext();
     UpdateMap();
+    UpdateCamera();
+    BlitNext();
 }
 
 void Game::HandleEscKey() {
@@ -1246,8 +1240,6 @@ int main() {
     int DEFAULT_WAIT = 13;
     int timeout = 0;
 
-    PreviousActionInfo prev_action_info = game->GetPrevActionInfo();
-
     while (!quit_app) {
         if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
         // LOG_INFO("Block for: %ims\n", timeout);
@@ -1257,22 +1249,26 @@ int main() {
             if (eh.type == SDL_KEYDOWN) {
                 SDL_KeyboardEvent key = eh.key;
                 SDL_Keysym keysym = key.keysym;
-                prev_action_info.key = keysym.sym;
+
                 switch(keysym.sym) {
                 case SDLK_SPACE:
                     game->HandleSpaceKey();
                     break;
                 case SDLK_UP:
                     game->HandleUpKey();
+                    game->SetPrevActionInfoKey(SDLK_UP);
                     break;
                 case SDLK_DOWN:
                     game->HandleDownKey();
+                    game->SetPrevActionInfoKey(SDLK_DOWN);
                     break;
                 case SDLK_LEFT:
                     game->HandleLeftKey();
+                    game->SetPrevActionInfoKey(SDLK_LEFT);
                     break;
                 case SDLK_RIGHT:
                     game->HandleRightKey();
+                    game->SetPrevActionInfoKey(SDLK_RIGHT);
                     break;
                 case SDLK_ESCAPE:
                     game->HandleEscKey();
@@ -1305,6 +1301,12 @@ int main() {
     }
     return 0;
 }
+
+// TODO: Going south has an off by STEP_SIZE issue.
+// TODO: Mixing up/down with left/right leads to incorrect offsets somehow.
+
+
+
 
 // TODO: Draw minimap.
 // TODO: Menu on ESC.

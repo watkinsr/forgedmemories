@@ -107,7 +107,8 @@ public:
     void HandleRightKey();
     void HandleDownKey();
     void BlitNext();
-    PreviousActionInfo GetPrevActionInfo() { return prev_action_info; };
+    void UpdateCamera();
+    void SetPrevActionInfoKey(SDL_KeyCode kc) { prev_action_info.key = kc; };
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
     PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DOWN;
@@ -118,6 +119,8 @@ private:
     const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
+    int _camera_x = 0;
+    int _camera_y = 0;
 
     int32_t _scroll_x = 0;    // Should be sufficient.
     int32_t _scroll_y = 0;   // Should be sufficient.
