@@ -115,15 +115,19 @@ private:
     void _SetTextureLocations();
     uint64_t _tick;
     uint32_t _deltaTick;
-    const uint32_t PLAYER_BEGIN_X = SCREEN_WIDTH/2 - PLAYER_WIDTH/2;
-    const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
+    const uint32_t PLAYER_BEGIN_X = SCREEN_WIDTH/2;
+    const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
     int _camera_x = 0;
     int _camera_y = 0;
 
     int32_t _scroll_x = 0;    // Should be sufficient.
-    int32_t _scroll_y = 0;   // Should be sufficient.
+    int32_t _scroll_y = 0;    // Should be sufficient.
+
+    uint8_t _tile_offset_x = 0; // Cycles 0,10,20,30,40,0,..
+    uint8_t _tile_offset_y = 0; // Cycles 0,10,20,30,40,0,..
+
     int cached_scroll_y = _scroll_y;
     int cached_scroll_x = _scroll_x;
 
