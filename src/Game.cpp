@@ -983,144 +983,165 @@ void Game::UpdateBackBuffer() {
     SDL_RenderClear(_renderer);                          // Un-apply the front-buffer.
     SDL_RenderCopy(_renderer, _back_buffer, NULL, NULL); // Apply the back buffer
 
-    // FIXME: For now we just render the player sprite as-is
-    //        but in theory this can be it's own separate buffer.
     uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
     scene_t* current_scene = _common->GetCurrentScene();
 
-    // const int32_t camera_x = _player_x - PLAYER_BEGIN_X; // X grows negatively when moving left in a given map.
-    // const int32_t camera_y = _player_y - PLAYER_BEGIN_Y; // Y grows positively when moving down in a given map.
+    // FIXME: For now we just render the player sprite as-is
+    //        but in theory this can be it's own separate buffer.
+    SDL_Rect src_player_rect;
+    SDL_Rect dst_player_rect;
+    SDL_Texture* player_texture;
+    uint8_t i = 0;
+    for (; i < current_scene->textures.size(); ++i) {
+        if (_common->isPlayerSpriteTexture(current_scene->tags[i])) {
+            player_texture = current_scene->textures[i];
+            src_player_rect = current_scene->texture_src_rects[i];
+            dst_player_rect = current_scene->texture_dst_rects[i];
+            break;
+        }
+    }
 
-    for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
+    int __scene_stack_idx = (int)_scene_stack_idx;
+
+    if (__scene_stack_idx > 0) {
+        if (_attack_animation.active && _attack_animation.runtime > 0) {
+            LOG_INFO("Attack animation x: %i\n", _attack_animation.x);
+            _attack_animation.runtime -= 1;
+            src_player_rect.y = PLAYER_HEIGHT;
+            if (_attack_animation.runtime >= ATTACK_ANIMATION_FRAMES/2) src_player_rect.x = PLAYER_WIDTH;
+            else                                                        src_player_rect.x = PLAYER_WIDTH*2;
+
+            float dt = ATTACK_ANIMATION_FRAMES+1 - _attack_animation.runtime / ATTACK_ANIMATION_FRAMES;
+            _attack_animation.x += 0.125 * dt;
+            dst_player_rect.x = _attack_animation.x;
+        } else {
+            dst_player_rect.x = PLAYER_BEGIN_X;
+            dst_player_rect.y = PLAYER_BEGIN_Y;
+            if (_attack_animation.active) ResetAttackAnimation();
+            if (_player_action == PLAYER_ACTION::MOVING) {
+                if (_move_animation.remaining_ticks == 0 || _move_animation.direction != _player_direction) {
+                    _move_animation.remaining_ticks = MOVE_ANIM_TICKS;
+                    _move_animation.direction = _player_direction;
+                } else {
+                    TickPlayerMove();
+                }
+                if (_move_animation.direction == PLAYER_DIRECTION::UP) {
+                    if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_player_rect.x = PLAYER_WIDTH*3;
+                    else                                                      src_player_rect.x = PLAYER_WIDTH*4;
+                } else {
+                    if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_player_rect.x = 0;
+                    else                                                      src_player_rect.x = PLAYER_WIDTH * 2;
+                }
+                src_player_rect.y = 0;
+            } else if (_player_action == PLAYER_ACTION::STOPPED) {
+                src_player_rect.x = PLAYER_WIDTH;
+                src_player_rect.y = 0;
+            }
+        }
+
+        dst_player_rect.x = PLAYER_BEGIN_X;
+        dst_player_rect.y = PLAYER_BEGIN_Y;
+        current_scene->texture_src_rects[i] = src_player_rect;
+        SDL_RenderCopy(_renderer, player_texture, &src_player_rect, &dst_player_rect);
+
+        DrawPlayerBoundingBox(); // Temporarily draw the bounding box.
+    }
+
+    for (; i < current_scene->textures.size(); ++i) {
         SDL_Texture* texture = current_scene->textures[i];
         SDL_Rect src_rect = current_scene->texture_src_rects[i];
         SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
         uint8_t tag = current_scene->tags[i];
-        if (_common->isPlayerSpriteTexture(tag)) {
-            // if (_attack_animation.active && _attack_animation.runtime > 0) {
-            //     LOG_INFO("Attack animation x: %i", _attack_animation.x);
-            //     _attack_animation.runtime -= 1;
-            //     src_rect.y = PLAYER_HEIGHT;
-            //     if (_attack_animation.runtime >= ATTACK_ANIMATION_FRAMES/2) src_rect.x = PLAYER_WIDTH;
-            //     else src_rect.x = PLAYER_WIDTH*2;
-
-            //     float dt = ATTACK_ANIMATION_FRAMES+1 - _attack_animation.runtime / ATTACK_ANIMATION_FRAMES;
-            //     _attack_animation.x += 0.125 * dt;
-
-            //     dst_rect.x = _attack_animation.x;
-            // } else {
-            //     dst_rect.x = PLAYER_BEGIN_X;
-            //     dst_rect.y = PLAYER_BEGIN_Y;
-            //     if (_attack_animation.active) ResetAttackAnimation();
-            //     if (_player_action == PLAYER_ACTION::MOVING) {
-            //         if (_move_animation.remaining_ticks == 0 || _move_animation.direction != _player_direction) {
-            //             _move_animation.remaining_ticks = MOVE_ANIM_TICKS;
-            //             _move_animation.direction = _player_direction;
-            //         } else {
-            //             TickPlayerMove();
-            //         }
-            //         if (_move_animation.direction == PLAYER_DIRECTION::UP) {
-            //             if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_rect.x = PLAYER_WIDTH*3;
-            //             else src_rect.x = PLAYER_WIDTH*4;
-            //         } else {
-            //             if (_move_animation.remaining_ticks <= MOVE_ANIM_TICKS/2) src_rect.x = 0;
-            //             else src_rect.x = PLAYER_WIDTH * 2;
-            //         }
-            //         src_rect.y = 0;
-            //         current_scene->texture_src_rects[i] = src_rect;
-            //     } else if (_player_action == PLAYER_ACTION::STOPPED) {
-            //         src_rect.x = PLAYER_WIDTH;
-            //         src_rect.y = 0;
-            //     }
-            // }
-
-            dst_rect.x = PLAYER_BEGIN_X;
-            dst_rect.y = PLAYER_BEGIN_Y;
-            src_rect.x = PLAYER_WIDTH * 2;
-            src_rect.y = 0;
-            current_scene->texture_src_rects[i] = src_rect;
-            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+        if (_common->isTextTexture(tag)) {
+            // FIXME: This is a hack, we want to first draw the quad and then the text.
+            // Menu quad. (optional)
+            if (_game_state == game_state_t::PAUSE) {
+                float pause_x = SCREEN_WIDTH * 0.35;
+                float pause_y = SCREEN_HEIGHT * 0.25;
+                float pause_w = SCREEN_WIDTH * 0.3;
+                float pause_h = SCREEN_HEIGHT * 0.4;
+                SDL_Rect fillRect = { pause_x, pause_y, pause_w, pause_h };
+                SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
+                SDL_RenderFillRect( _renderer, &fillRect );
+            }
+            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
         }
     }
 
-   // Temporarily draw the bounding box.
-   DrawPlayerBoundingBox();
+    // Draw the minimap.
+    int minimap_begin_x = SCREEN_WIDTH * 0.85;
+    int minimap_end_x = SCREEN_WIDTH * 0.95;
+    int minimap_begin_y = SCREEN_HEIGHT * 0.05 * (4/3);
+    int minimap_end_y = SCREEN_HEIGHT * 0.15 * (4/3);
+    SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xAA );
+    SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_end_x, minimap_begin_y);
+    SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_begin_x, minimap_end_y);
+    SDL_RenderDrawLine( _renderer, minimap_end_x, minimap_begin_y, minimap_end_x, minimap_end_y);
+    SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_end_y, minimap_end_x, minimap_end_y);
 
-   // Draw the minimap.
-   // int minimap_begin_x = SCREEN_WIDTH * 0.85;
-   // int minimap_end_x = SCREEN_WIDTH * 0.95;
-   // int minimap_begin_y = SCREEN_HEIGHT * 0.05 * (4/3);
-   // int minimap_end_y = SCREEN_HEIGHT * 0.15 * (4/3);
-   // SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xAA );
-   // SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_end_x, minimap_begin_y);
-   // SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_begin_y, minimap_begin_x, minimap_end_y);
-   // SDL_RenderDrawLine( _renderer, minimap_end_x, minimap_begin_y, minimap_end_x, minimap_end_y);
-   // SDL_RenderDrawLine( _renderer, minimap_begin_x, minimap_end_y, minimap_end_x, minimap_end_y);
+    // Represents the player in the minimap.
+    DrawCircle((minimap_begin_x + minimap_end_x) / 2, (minimap_begin_y + minimap_end_y) / 2, 2);
 
-   // // Represents the player in the minimap.
-   // DrawCircle((minimap_begin_x + minimap_end_x) / 2, (minimap_begin_y + minimap_end_y) / 2, 2);
+    // Draw non-default sprites as squares inside minimap.
+    const uint8_t SPRITE_SIZE = (16 * SPRITE_SCALE_FACTOR);
+    for (uint16_t i = 0; i < SCREEN_WIDTH; i+=SCREEN_WIDTH/4) {
+        const uint16_t dx = i - _camera_x;
+        uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
+        for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=SCREEN_HEIGHT/4) {
+            uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
+            const uint16_t dy = j - _camera_y;
+            if (IsNotDefaultSprite(map_idx, map_segment_x, map_segment_y)) {
+                const int minimap_offset_x = (dx * 0.1);
+                const int minimap_offset_y = (dy * 0.1);
+                const int begin_x = minimap_begin_x + minimap_offset_x;
+                const int begin_y = minimap_begin_y + minimap_offset_y;
+                if (begin_x > minimap_end_x > 0.1) continue;
+                if (begin_y > minimap_end_y) continue;
+                DrawSquare(begin_x, begin_y, SCREEN_WIDTH*0.1 / 4, SCREEN_HEIGHT*0.1 / 4 *(4/3), minimap_end_x, minimap_end_y);
+            }
+        }
+    }
 
-   // // Draw non-default sprites as squares inside minimap.
-   // const uint8_t SPRITE_SIZE = (16 * SPRITE_SCALE_FACTOR);
-   // for (uint16_t i = 0; i < SCREEN_WIDTH; i+=SCREEN_WIDTH/4) {
-   //     const uint16_t dx = i - camera_x;
-   //     uint8_t map_segment_x = (uint8_t)(i/(SCREEN_WIDTH/4));
-   //     for (uint16_t j = 0; j < SCREEN_HEIGHT; j+=SCREEN_HEIGHT/4) {
-   //         uint8_t map_segment_y = (uint8_t)(j/(SCREEN_HEIGHT/4));
-   //         const uint16_t dy = j - camera_y;
-   //         if (IsNotDefaultSprite(map_idx, map_segment_x, map_segment_y)) {
-   //             const int minimap_offset_x = (dx * 0.1);
-   //             const int minimap_offset_y = (dy * 0.1);
-   //             const int begin_x = minimap_begin_x + minimap_offset_x;
-   //             const int begin_y = minimap_begin_y + minimap_offset_y;
-   //             if (begin_x > minimap_end_x > 0.1) continue;
-   //             if (begin_y > minimap_end_y) continue;
-   //             DrawSquare(begin_x, begin_y, SCREEN_WIDTH*0.1 / 4, SCREEN_HEIGHT*0.1 / 4 *(4/3), minimap_end_x, minimap_end_y);
-   //         }
-   //     }
-   // }
+    // Reset the color
+    SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
 
-   // Reset the color
-   // SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
+    // if (_scene_stack_idx == 0) return;
+    if (_scene_stack_idx == 1) {
+       // Cleanup temporary textures.
+       while(current_scene->textures.size() > _common->GetInitialSceneTextureSize()) {
+           SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
+           current_scene->textures.pop_back();
+           current_scene->texture_src_rects.pop_back();
+           current_scene->texture_dst_rects.pop_back();
+           current_scene->tags.pop_back();
+       }
 
-   // if (_scene_stack_idx == 0) return;
-   // if (_scene_stack_idx == 1) {
-   //     // Cleanup temporary textures.
-   //     while(current_scene->textures.size() > _common->GetInitialSceneTextureSize()) {
-   //         SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
-   //         current_scene->textures.pop_back();
-   //         current_scene->texture_src_rects.pop_back();
-   //         current_scene->texture_dst_rects.pop_back();
-   //         current_scene->tags.pop_back();
-   //     }
+       gametexture_t fps_texture = {
+           .text_or_uri = "FPS: " + std::to_string(_fps),
+           .src_rect = {0, 0, 0, 0},
+           .dst_rect = {20, 20, 0, 0},
+           .color = {255,255,255,255},
+           .font_size = FONT_SIZE::LARGE,
+           .tag = TEXT_TAG
+       };
 
-   //     gametexture_t fps_texture = {
-   //         .text_or_uri = "FPS: " + std::to_string(_fps),
-   //         .src_rect = {0, 0, 0, 0},
-   //         .dst_rect = {20, 20, 0, 0},
-   //         .color = {255,255,255,255},
-   //         .font_size = FONT_SIZE::LARGE,
-   //         .tag = TEXT_TAG
-   //     };
+       _common->LoadTexture(_scene_stack_idx, fps_texture);
 
-   //     _common->LoadTexture(_scene_stack_idx, fps_texture);
-
-   //     if (_game_state == game_state_t::PAUSE) {
-   //         //Render main menu (optionally)
-   //         int save_x = SCREEN_WIDTH*0.375 + (SCREEN_WIDTH*0.1);
-   //         int save_y = SCREEN_HEIGHT*0.25 + (SCREEN_HEIGHT*0.1);
-   //         gametexture_t menu_text_texture = {
-   //             .text_or_uri = "SAVE",
-   //             .src_rect = {0, 0, 0, 0},
-   //             .dst_rect = {save_x, save_y, 0, 0},
-   //             .color = {255,255,255,255},
-   //             .font_size = FONT_SIZE::MEDIUM,
-   //             .tag = TEXT_TAG
-   //         };
-   //         _common->LoadTexture(_scene_stack_idx, menu_text_texture);
-   //     }
-
-   // }
+       if (_game_state == game_state_t::PAUSE) {
+           //Render main menu (optionally)
+           int save_x = SCREEN_WIDTH*0.375 + (SCREEN_WIDTH*0.1);
+           int save_y = SCREEN_HEIGHT*0.25 + (SCREEN_HEIGHT*0.1);
+           gametexture_t menu_text_texture = {
+               .text_or_uri = "SAVE",
+               .src_rect = {0, 0, 0, 0},
+               .dst_rect = {save_x, save_y, 0, 0},
+               .color = {255,255,255,255},
+               .font_size = FONT_SIZE::MEDIUM,
+               .tag = TEXT_TAG
+           };
+           _common->LoadTexture(_scene_stack_idx, menu_text_texture);
+       }
+    }
     SDL_RenderPresent(_renderer);                        // Present the front buffer.
 }
 
