@@ -7,9 +7,9 @@ void Common::SetupSDL() {
     }
 
     // //Set texture filtering to linear
-	if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
-		fprintf(stderr, "Warning: Linear texture filtering not enabled!");
-	}
+    if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
+        fprintf(stderr, "Warning: Linear texture filtering not enabled!");
+    }
 
     // This for drag&drop in MapEditor
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
@@ -31,22 +31,24 @@ void Common::SetupSDL() {
 
     LOG_INFO("Allocated back buffer of size %zu*%zu\n", _BACKBUFFER_WIDTH, _BACKBUFFER_HEIGHT);
     _back_buffer = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, _BACKBUFFER_WIDTH, _BACKBUFFER_HEIGHT);
-	SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xFF );
+    SDL_SetRenderDrawColor( _renderer, 0xFF, 0xFF, 0xFF, 0xFF );
 
-    //Initialize PNG loading
-	int imgFlags = IMG_INIT_PNG;
-	if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
-        fprintf(stderr, "Error: IMG_INIT_PNG failed !\n");
+    #ifdef __EMSCRIPTEN__
+    // No-op
+    #else
+    int imgFlags = IMG_INIT_PNG;
+    if(!(IMG_Init(imgFlags) & imgFlags)) {
+        LOG(1, "ERROR", "IMG_INIT_PNG failed !\n");
         exit(EXIT_FAILURE);
     }
-
-    // _screen_surface = SDL_GetWindowSurface(_window);
-    // SDL_UpdateWindowSurface(_window);
+    #endif
 
     if (TTF_Init() < 0) {
-        fprintf(stderr, "Panic: Failed to initialize SDL_ttf, abort.\n");
+        LOG(1, "PANIC", "Failed to initialize SDL_ttf, abort.\n");
         exit(EXIT_FAILURE);
     }
+
+    LOG(1, "INFO", "Initialized required modules (TTF, IMG etc.)\n");
 
     std::function<void(TTF_Font*)> fontDeleter = [](TTF_Font* font) {
         if (font) {
@@ -59,7 +61,11 @@ void Common::SetupSDL() {
         for (uint8_t j = 0; j < 3; ++j) {
             switch (j) {
             case FONT_SIZE::SMALL:
+                #ifdef __EMSCRIPTEN__
+                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 12);
+                #else
                 rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 12);
+                #endif
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
@@ -67,7 +73,11 @@ void Common::SetupSDL() {
                 _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
                 break;
             case FONT_SIZE::MEDIUM:
+                #ifdef __EMSCRIPTEN__
+                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 18);
+                #else
                 rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 18);
+                #endif
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
@@ -75,7 +85,11 @@ void Common::SetupSDL() {
                 _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
                 break;
             case FONT_SIZE::LARGE:
-                TTF_Font* rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+                #ifdef __EMSCRIPTEN__
+                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 24);
+                #else
+                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
+                #endif
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;

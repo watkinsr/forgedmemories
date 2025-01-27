@@ -1,6 +1,10 @@
 #ifndef GAME_H
 #define GAME_H
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include <vector>
 #include <string>
 #include <memory>
@@ -115,8 +119,8 @@ private:
     void _SetTextureLocations();
     uint64_t _tick;
     uint32_t _deltaTick;
-    const uint32_t PLAYER_BEGIN_X = SCREEN_WIDTH/2;
-    const uint32_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2;
+    const uint16_t PLAYER_BEGIN_X = SCREEN_WIDTH/2;
+    const uint16_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
     int _camera_x = 0;

@@ -85,17 +85,18 @@ void Game::_SetTextureLocations() {
     const int SPRITESHEET_HEIGHT = 128*SPRITE_SCALE_FACTOR;
     const int PLAYER_UPSCALE_WIDTH = 244*PLAYER_SCALE_FACTOR;
     const int PLAYER_UPSCALE_HEIGHT = 144*PLAYER_SCALE_FACTOR;
+    int _screen_center = SCREEN_CENTER;
     const vector<gametexture_t> SCENE_1 = {
         { .text_or_uri = "Forged Memories",
           .src_rect = {0, 0, 0, 0},
-          .dst_rect = {(uint32_t)SCREEN_CENTER, 50, 0, 0},
+          .dst_rect = {_screen_center, 50, 0, 0},
           .color = {255,255,255,255},
           .font_size = FONT_SIZE::MEDIUM,
           .tag = TEXT_TAG
         },
         { .text_or_uri = "<SPC> to play",
           .src_rect = {0, 0, 0, 0},
-          .dst_rect = {(uint32_t)SCREEN_CENTER, SCREEN_HEIGHT/2 - 1, 0, 0},
+          .dst_rect = {_screen_center, SCREEN_HEIGHT/2 - 1, 0, 0},
           .color = {255,255,255,255},
           .font_size = FONT_SIZE::MEDIUM,
           .tag = TEXT_TAG
@@ -1044,8 +1045,8 @@ void Game::UpdateBackBuffer() {
         current_scene->texture_src_rects[i] = src_player_rect;
         SDL_RenderCopy(_renderer, player_texture, &src_player_rect, &dst_player_rect);
 
-        DrawPlayerBoundingBox(); // Temporarily draw the bounding box.
     }
+    DrawPlayerBoundingBox(); // Temporarily draw the bounding box.
 
     for (; i < current_scene->textures.size(); ++i) {
         SDL_Texture* texture = current_scene->textures[i];
@@ -1056,10 +1057,10 @@ void Game::UpdateBackBuffer() {
             // FIXME: This is a hack, we want to first draw the quad and then the text.
             // Menu quad. (optional)
             if (_game_state == game_state_t::PAUSE) {
-                float pause_x = SCREEN_WIDTH * 0.35;
-                float pause_y = SCREEN_HEIGHT * 0.25;
-                float pause_w = SCREEN_WIDTH * 0.3;
-                float pause_h = SCREEN_HEIGHT * 0.4;
+                int pause_x = SCREEN_WIDTH * 0.35;
+                int pause_y = SCREEN_HEIGHT * 0.25;
+                int pause_w = SCREEN_WIDTH * 0.3;
+                int pause_h = SCREEN_HEIGHT * 0.4;
                 SDL_Rect fillRect = { pause_x, pause_y, pause_w, pause_h };
                 SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
                 SDL_RenderFillRect( _renderer, &fillRect );
@@ -1095,7 +1096,7 @@ void Game::UpdateBackBuffer() {
                 const int minimap_offset_y = (dy * 0.1);
                 const int begin_x = minimap_begin_x + minimap_offset_x;
                 const int begin_y = minimap_begin_y + minimap_offset_y;
-                if (begin_x > minimap_end_x > 0.1) continue;
+                if (begin_x > minimap_end_x) continue;
                 if (begin_y > minimap_end_y) continue;
                 DrawSquare(begin_x, begin_y, SCREEN_WIDTH*0.1 / 4, SCREEN_HEIGHT*0.1 / 4 *(4/3), minimap_end_x, minimap_end_y);
             }
@@ -1220,11 +1221,22 @@ void Game::HandleEscKey() {
     else _game_state = game_state_t::PAUSE;
 }
 
-int main() {
-    std::string app_name = std::string("Game");
-    std::shared_ptr<Common> common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
-    std::unique_ptr<Game> game = std::make_unique<Game>(common_ptr);
+static std::shared_ptr<Common> common_ptr;
+static std::unique_ptr<Game> game;
 
+void initialize_the_game() {
+    LOG(1, "TRACE", "initialize_the_game()\n");
+    std::string app_name = std::string("Game");
+    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
+    LOG_INFO("Able to construct Common\n");
+    game = std::make_unique<Game>(common_ptr);
+    LOG_INFO("Able to construct Game\n");
+    Uint64 before = SDL_GetTicks64();
+    game->FillBackBufferInitial();
+    LOG_INFO("Fill back buffer initial took: %zums\n", SDL_GetTicks64()-before);
+}
+
+static void mainloop(void) {
     int quit_app = 0;
     Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
     Uint64 last_frame_tick = tick - 17; // Ensures we always render the first frame straight-away.
@@ -1232,72 +1244,77 @@ int main() {
     Uint64 frame_per_second = 0;        // Counter that gets reset after 1s.
     Uint64 seconds = 1;                 // Seconds rendered.
     SDL_Event eh;
-    Uint64 before = SDL_GetTicks64();
-    game->FillBackBufferInitial();
-    LOG_INFO("Fill back buffer initial took: %zums\n", SDL_GetTicks64()-before);
 
     int DEFAULT_WAIT = 13;
     int timeout = 0;
 
-    while (!quit_app) {
-        if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
-        // LOG_INFO("Block for: %ims\n", timeout);
+    if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
+    // LOG_INFO("Block for: %ims\n", timeout);
 
-        while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
-            if (eh.type == SDL_QUIT) { quit_app = 1; break; }
-            if (eh.type == SDL_KEYDOWN) {
-                SDL_KeyboardEvent key = eh.key;
-                SDL_Keysym keysym = key.keysym;
+    while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
+        if (eh.type == SDL_QUIT) { SDL_Quit(); exit(1); }
+        if (eh.type == SDL_KEYDOWN) {
+            SDL_KeyboardEvent key = eh.key;
+            SDL_Keysym keysym = key.keysym;
 
-                switch(keysym.sym) {
-                case SDLK_SPACE:
-                    game->HandleSpaceKey();
-                    break;
-                case SDLK_UP:
-                    game->HandleUpKey();
-                    game->SetPrevActionInfoKey(SDLK_UP);
-                    break;
-                case SDLK_DOWN:
-                    game->HandleDownKey();
-                    game->SetPrevActionInfoKey(SDLK_DOWN);
-                    break;
-                case SDLK_LEFT:
-                    game->HandleLeftKey();
-                    game->SetPrevActionInfoKey(SDLK_LEFT);
-                    break;
-                case SDLK_RIGHT:
-                    game->HandleRightKey();
-                    game->SetPrevActionInfoKey(SDLK_RIGHT);
-                    break;
-                case SDLK_ESCAPE:
-                    game->HandleEscKey();
-                    break;
-                }
+            switch(keysym.sym) {
+            case SDLK_SPACE:
+                game->HandleSpaceKey();
+                break;
+            case SDLK_UP:
+                game->HandleUpKey();
+                game->SetPrevActionInfoKey(SDLK_UP);
+                break;
+            case SDLK_DOWN:
+                game->HandleDownKey();
+                game->SetPrevActionInfoKey(SDLK_DOWN);
+                break;
+            case SDLK_LEFT:
+                game->HandleLeftKey();
+                game->SetPrevActionInfoKey(SDLK_LEFT);
+                break;
+            case SDLK_RIGHT:
+                game->HandleRightKey();
+                game->SetPrevActionInfoKey(SDLK_RIGHT);
+                break;
+            case SDLK_ESCAPE:
+                game->HandleEscKey();
+                break;
             }
-            if (eh.type == SDL_KEYUP) { game->SetPlayerAction(PLAYER_ACTION::STOPPED); }
         }
-        tick = SDL_GetTicks64();
-        dt_frame = tick - last_frame_tick;
-        // LOG_INFO("tick: %zu, dt_frame: %zu\n", tick, dt_frame);
-        if (dt_frame > DEFAULT_WAIT) { // Allow 2ms draw time.
-            Uint64 before = SDL_GetTicks64();
-            game->UpdateBackBuffer();
-            Uint64 after = SDL_GetTicks64();
-            // LOG_INFO("[DRAW]\n");
-            // LOG_INFO("Update back buffer took: %zums\n", SDL_GetTicks64()-before);
-            frame_per_second++;
-            if (tick > 1000*seconds) {
-                game->set_fps(frame_per_second);
-                seconds++;
-                frame_per_second=0;
-                timeout = 13;
-            }
-            frame_count++;
-            last_frame_tick = tick;
-            // LOG_INFO("last_frame_tick: %zu\n", last_frame_tick);
-            dt_frame = SDL_GetTicks64() - after;
-        }
+        if (eh.type == SDL_KEYUP) { game->SetPlayerAction(PLAYER_ACTION::STOPPED); }
     }
+
+    #ifdef __EMSCRIPTEN__
+    game->UpdateBackBuffer();
+    #else
+    tick = SDL_GetTicks64();
+    dt_frame = tick - last_frame_tick;
+    if (dt_frame > DEFAULT_WAIT) { // Allow 2ms draw time.
+        Uint64 before = SDL_GetTicks64();
+        game->UpdateBackBuffer();
+        Uint64 after = SDL_GetTicks64();
+        frame_per_second++;
+        if (tick > 1000*seconds) {
+            game->set_fps(frame_per_second);
+            seconds++;
+            frame_per_second=0;
+            timeout = 13;
+        }
+        frame_count++;
+        last_frame_tick = tick;
+        dt_frame = SDL_GetTicks64() - after;
+    }
+    #endif
+}
+
+int main() {
+    initialize_the_game();
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(mainloop, 60, 1);
+    #else
+    while (1) { mainloop(); }
+    #endif
     return 0;
 }
 

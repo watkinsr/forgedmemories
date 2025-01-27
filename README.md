@@ -10,10 +10,15 @@ make
 ```
 
 # Run
+## Native
 ```sh
 ./build/game
 ```
 
 ```sh
 ./build/mapeditor
+```
+## Webassembly
+```sh
+make && ./bozohttpd/bozohttpd-20240126/bozohttpd ~/workplace/<GAME_DIR> -f -I 8000 -X  -p ~/workplace/<GAME_DIR>
 ```

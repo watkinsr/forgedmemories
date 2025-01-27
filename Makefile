@@ -10,7 +10,7 @@ SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 $(OBJDIR)/%.o : src/%.cpp include/%.h include/Map.h
 	$(CC) -c $(INCL_CC) $(CPPFLAGS) $< -o $@
 
-all: game
+all: game game_wa
 
 $(OBJS): | $(OBJDIR)
 
@@ -20,3 +20,6 @@ $(OBJDIR):
 game: $(OBJS)
 	mkdir -p build
 	g++ $(CPPFLAGS) -o build/game $(OBJS) $(LDLIBS) $(LDFLAGS)
+
+game_wa:
+	emcc -I./include src/Game.cpp src/Log.cpp src/Common.cpp  --emrun --embed-file assets@/assets -sUSE_SDL=2 -sUSE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -o index.html 
