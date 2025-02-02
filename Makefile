@@ -8,7 +8,7 @@ INCL_CC := -I./include -I/usr/include/SDL2
 SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
 $(OBJDIR)/%.o : src/%.cpp include/%.h include/Map.h
-	$(CC) -c $(INCL_CC) $(CPPFLAGS) $< -o $@
+	$(CC) $(CPPFLAGS) -c $(INCL_CC) $< -o $@
 
 all: game game_wa
 

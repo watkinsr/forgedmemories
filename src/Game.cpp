@@ -120,7 +120,6 @@ void Game::_SetTextureLocations() {
     };
     _common->AddScene(SCENE_1);
     _common->AddScene(SCENE_2);
-    _common->SetInitialSceneTextureSize(SCENE_2.size());
 }
 
 std::string btos(bool b) { return b ? "yes" : "no"; }
@@ -227,69 +226,48 @@ bool Game::AfterMainMenu() {
     return _common->GetSceneStackIdx() + 1 >= 2;
 }
 
-uint8_t Game::GetCenterIdx(uint8_t idx) {
-    uint8_t next_idx = (uint8_t)(idx / 4) * 4 + 2;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetCenterIdx(idx=%i) => %i", idx, next_idx);
-    return next_idx;
-}
-
 uint8_t Game::GetNorthIdx(uint8_t idx) {
-    // If no next north, return default
     uint8_t next_idx = idx + 3;
     if (next_idx > MAP_SIZE) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetNorthIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetSouthIdx(uint8_t idx) {
-    uint8_t next_idx = idx - 3;
-    if ((idx - 3) < 1) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetSouthIdx(idx=%i) => %i", idx, next_idx);
-    return next_idx;
+    if (idx < 3) return 0;
+    return idx - 3;
 }
 
 uint8_t Game::GetWestIdx(uint8_t idx) {
-    uint8_t next_idx = idx - 1;
-    if (next_idx < 1) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetWestIdx(idx=%i) => %i", idx, next_idx);
-    return next_idx;
+    if (idx == 0) return 0;
+    return idx - 1;
 }
 
 uint8_t Game::GetEastIdx(uint8_t idx) {
-    // For now, consider a row as size 3.
     uint8_t next_idx = idx + 1;
     if (next_idx > MAP_SIZE) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetEastIdx(idx=%i) => %i", idx, next_idx);
-
     return next_idx;
 }
 
 uint8_t Game::GetNorthEastIdx(uint8_t idx) {
     uint8_t next_idx = idx + 4;
     if (idx + 4 > MAP_SIZE) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetNorthEastIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetNorthWestIdx(uint8_t idx) {
     uint8_t next_idx = idx + 2;
     if (idx + 2 > MAP_SIZE) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetNorthWestIdx(idx=%i) => %i", idx, next_idx);
     return next_idx;
 }
 
 uint8_t Game::GetSouthEastIdx(uint8_t idx) {
-    uint8_t next_idx = idx - 2;
-    if (idx - 2 < 1) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetSouthEastIdx(idx=%i) => %i", idx, next_idx);
-    return next_idx;
+    if (idx < 2) return 0;
+    return idx - 2;
 }
 
 uint8_t Game::GetSouthWestIdx(uint8_t idx) {
-    uint8_t next_idx = idx - 4;
-    if (idx - 4 < 1) next_idx = 0;
-    // if (_player_action == PLAYER_ACTION::MOVING) LOG_INFO("GetSouthWestIdx(idx=%i) => %i", idx, next_idx);
-    return next_idx;
+    if (idx < 4) return 0;
+    return idx - 4;
 }
 
 void Game::UpdateMap() {
@@ -477,13 +455,38 @@ void Game::UpdateCamera() {
     LOG_nodt(1, "INFO", "<Scroll x=%i, y=%i>\n", _scroll_x, _scroll_y);
 }
 
-void Game::BlitNext() {
+void Game::GetNextBackBuffer(SDL_Texture* t) {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
-    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
-    scene_t* current_scene = _common->GetCurrentScene();
+    SDL_Rect src;
+    SDL_Rect dst;
 
+    switch(_player_direction) {
+    case PLAYER_DIRECTION::UP:
+        src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        break;
+    case PLAYER_DIRECTION::DOWN:
+        src = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
+        break;
+    case PLAYER_DIRECTION::LEFT:
+        src = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        dst = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        break;
+    case PLAYER_DIRECTION::RIGHT:
+        src = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        dst = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
+        break;
+    }
+
+    SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);
+}
+
+void Game::BlitNext() {
+    SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* t = SDL_CreateTexture(
         _renderer,
         SDL_PIXELFORMAT_RGBA8888,
@@ -491,134 +494,137 @@ void Game::BlitNext() {
         BACKBUFFER_WIDTH,
         BACKBUFFER_HEIGHT
     );
+    GetNextBackBuffer(t);
 
-    // Copy the shifted back buffer into our new texture.
-    SDL_SetRenderTarget(_renderer, t);
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
 
-    SDL_Rect src;
-    SDL_Rect dst;
-    SDL_Rect _grass_strip;
-
-    switch(_player_direction) {
-    case PLAYER_DIRECTION::UP:
-        src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        dst = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
-        break;
-    case PLAYER_DIRECTION::DOWN:
-        src = {0, STEP_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-STEP_SIZE};
-        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, BG_SPRITE_WIDTH, STEP_SIZE};
-        break;
-    case PLAYER_DIRECTION::LEFT:
-        src = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        dst = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
-        break;
-    case PLAYER_DIRECTION::RIGHT:
-        src = {STEP_SIZE, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        dst = {0, 0, SCREEN_WIDTH-STEP_SIZE, SCREEN_HEIGHT};
-        _grass_strip = {SPRITE_WIDTH, SPRITE_HEIGHT*4, STEP_SIZE, BG_SPRITE_HEIGHT};
-        break;
-    }
-
-    LOG_nodt(1, "INFO", "Move <FrontBuffer x=%i, y=%i, w=%i, h=%i> to <BackBuffer x=%i, y=%i, w=%i, h=%i>\n", src.x, src.y, src.w, src.h, dst.x, dst.y, dst.w, dst.h);
-
-    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);
-
+    int top_strip_y = 0, bottom_strip_y, left_strip_x, right_strip_x = 0;
     int map_y, map_x = 0;
 
-    if (_camera_y < 0) {        // Camera shows the map above.
-        map_y = SCREEN_HEIGHT - abs(_camera_y);
-    } else if (_camera_y > 0) { // Camera shows the map below.
-        map_y = _camera_y;
+    if (_camera_y < 0) {
+        top_strip_y = SCREEN_HEIGHT - abs(_camera_y);
+    } else {
+        top_strip_y = _camera_y;
+    }
+    if (_camera_y < 0) {
+        bottom_strip_y = top_strip_y - STEP_SIZE;
+    } else {
+        bottom_strip_y = ((top_strip_y + SCREEN_HEIGHT) - STEP_SIZE) % SCREEN_HEIGHT;
     }
 
-    if (_camera_x < 0) {        // Camera shows the map to the left.
-        map_x = SCREEN_WIDTH - abs(_camera_x);
-    } else if (_camera_x > 0) { // Camera shows the map to the right.
-        map_x = _camera_x;
+    if (_player_direction == PLAYER_DIRECTION::UP) {
+        map_y = top_strip_y;
     }
+    if (_player_direction == PLAYER_DIRECTION::DOWN) {
+        map_y = bottom_strip_y;
+    }
+    if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+        map_y = top_strip_y;
+    }
+
+    if (_camera_x < 0) {
+        left_strip_x = SCREEN_WIDTH - abs(_camera_x);
+    } else {
+        left_strip_x = _camera_x;
+    }
+    if (_camera_x < 0) {
+        right_strip_x = left_strip_x - STEP_SIZE;
+    } else {
+        right_strip_x = ((left_strip_x + SCREEN_WIDTH) - STEP_SIZE) % SCREEN_WIDTH;
+    }
+    if (_player_direction == PLAYER_DIRECTION::LEFT) {
+        map_x = left_strip_x;
+    }
+    if (_player_direction == PLAYER_DIRECTION::RIGHT) {
+        map_x = right_strip_x;
+    }
+    if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
+        map_x = left_strip_x;
+    }
+
+    LOG_nodt(1, "INFO", "top_strip_y=%i\n", top_strip_y);
+    LOG_nodt(1, "INFO", "bottom_strip_y=%i\n", bottom_strip_y);
+    LOG_nodt(1, "INFO", "left_strip_x=%i\n", left_strip_x);
+    LOG_nodt(1, "INFO", "right_strip_x=%i\n", right_strip_x);
+
+    LOG_nodt(1, "INFO", "map_y=%i\n", map_y);
+    LOG_nodt(1, "INFO", "map_x=%i\n", map_x);
+
+    if (_player_direction == PLAYER_DIRECTION::UP)    {
+        _tile_offset_y = top_strip_y % BG_SPRITE_HEIGHT;
+    }
+    if (_player_direction == PLAYER_DIRECTION::DOWN)  {
+        _tile_offset_y = bottom_strip_y % BG_SPRITE_HEIGHT;
+    }
+    if (_player_direction == PLAYER_DIRECTION::LEFT)  {
+        _tile_offset_x = left_strip_x % BG_SPRITE_WIDTH;
+    }
+    if (_player_direction == PLAYER_DIRECTION::RIGHT) {
+        _tile_offset_x = right_strip_x % BG_SPRITE_WIDTH;
+    }
+
+    if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
+        _tile_offset_x = left_strip_x % BG_SPRITE_WIDTH;
+    }
+    if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+        _tile_offset_y = top_strip_y % BG_SPRITE_HEIGHT;
+    }
+
+    // LOG_nodt(1, "INFO", "_tile_offset_y=%i\n", _tile_offset_y);
+    // LOG_nodt(1, "INFO", "_tile_offset_x=%i\n", _tile_offset_x);
+    assert(_tile_offset_y >= 0 && _tile_offset_y < 50);
+    assert(_tile_offset_x >= 0 && _tile_offset_x < 50);
 
     uint8_t map_idx_buffer[2] = {0, 0};
     int buf_idx = 0;
 
+    // Accumulate maps from which the strip could reside in.
     if (!(_camera_y == 0 && _camera_x == 0)) {
         switch(_player_direction) {
         case PLAYER_DIRECTION::UP:
             if (_camera_y < 0) {
-                if (_camera_x < 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
-                if (_camera_x > 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
-                }
+                if (_camera_x < 0) map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                if (_camera_x > 0) map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
             } else {
-                if (_camera_x < 0) {
-                    map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (_camera_x > 0) {
-                    map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
-                }
+                if (_camera_x < 0) map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = map_idx;
+                if (_camera_x > 0) map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
             }
             break;
         case PLAYER_DIRECTION::DOWN:
             if (_camera_y > 0) {
-                if (_camera_x < 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
-                if (_camera_x > 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
-                }
+                if (_camera_x < 0) map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
+                if (_camera_x > 0) map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
             } else {
-                if (_camera_x < 0) {
-                    map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (_camera_x > 0) {
-                    map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
-                }
+                if (_camera_x < 0) map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = map_idx;
+                if (_camera_x > 0) map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
             }
             break;
         case PLAYER_DIRECTION::RIGHT:
-            if (_camera_x < 0) {
-                if (_camera_y < 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (_camera_y > 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
-                }
-            } else {
-                if (_camera_y < 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
-                if (_camera_y > 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
-                }
+            if (_camera_x > 0) {
+                if (_camera_y < 0) map_idx_buffer[buf_idx++] = GetNorthEastIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = GetEastIdx(map_idx);
+                if (_camera_y > 0) map_idx_buffer[buf_idx++] = GetSouthEastIdx(map_idx);
+            }
+            if (_camera_x <= 0) {
+                if (_camera_y < 0) map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = map_idx;
+                if (_camera_y > 0) map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
             }
             break;
         case PLAYER_DIRECTION::LEFT:
-            if (_camera_x > 0) {
-                if (_camera_y < 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = map_idx; // Still the map the player is in.
-                if (_camera_y > 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
-                }
-            } else {
-                if (_camera_y < 0) {
-                    map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
-                }
-                map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
-                if (_camera_y > 0) {
-                    map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
-                }
+            if (_camera_x >= 0) {
+                if (_camera_y < 0) map_idx_buffer[buf_idx++] = GetNorthIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = map_idx;
+                if (_camera_y > 0) map_idx_buffer[buf_idx++] = GetSouthIdx(map_idx);
+            }
+            if (_camera_x < 0) {
+                if (_camera_y < 0) map_idx_buffer[buf_idx++] = GetNorthWestIdx(map_idx);
+                                   map_idx_buffer[buf_idx++] = GetWestIdx(map_idx);
+                if (_camera_y > 0) map_idx_buffer[buf_idx++] = GetSouthWestIdx(map_idx);
             }
             break;
         }
@@ -630,129 +636,132 @@ void Game::BlitNext() {
     int blit_placement_y = 0;
     int blit_placement_x = 0;
 
-    if (_player_direction      == PLAYER_DIRECTION::DOWN)  blit_placement_y = SCREEN_HEIGHT - STEP_SIZE;
-    else if (_player_direction == PLAYER_DIRECTION::UP)    blit_placement_y = 0;
-    else if (_player_direction == PLAYER_DIRECTION::RIGHT) blit_placement_x = SCREEN_WIDTH - STEP_SIZE;
-    else if (_player_direction == PLAYER_DIRECTION::LEFT)  blit_placement_x = 0;
+    if (_player_direction == PLAYER_DIRECTION::UP)              blit_placement_y = 0;
+    else if (_player_direction      == PLAYER_DIRECTION::DOWN)  blit_placement_y = SCREEN_HEIGHT - STEP_SIZE;
+    else if (_player_direction == PLAYER_DIRECTION::LEFT)       blit_placement_x = 0;
+    else if (_player_direction == PLAYER_DIRECTION::RIGHT)      blit_placement_x = SCREEN_WIDTH - STEP_SIZE;
 
-    // LOG_nodt(1, "INFO", "<ViewportStrip y=%i, x=%i, w=%i, h=%i>\n", blit_placement_y, blit_placement_x, _grass_strip.w, _grass_strip.h);
     LOG_nodt(1, "INFO", "<MapStrip offset_y=%i, offset_x=%i, map_idxs=[%zu, %zu]>\n", map_y, map_x, map_idx_buffer[0], map_idx_buffer[1]);
     LOG_nodt(1, "INFO", "<Player y=%i, x=%i, map_idx=%zu>\n", _player_y, _player_x, map_idx);
 
-    SDL_Texture* spritesheet;
+    scene_t* current_scene = _common->GetCurrentScene();
 
+    // TODO: We should just hold onto the spritesheet texture as a private field.
+    SDL_Texture* spritesheet;
     for (uint8_t i = 0; i < current_scene->textures.size(); ++i) {
         uint8_t tag = current_scene->tags[i];
-        if (_common->isBackgroundSpriteTexture(tag)) {
-            spritesheet = current_scene->textures[i];
-            break;
-        }
+        if (_common->isBackgroundSpriteTexture(tag)) { spritesheet = current_scene->textures[i]; break; }
     }
 
-    if (_player_direction == PLAYER_DIRECTION::LEFT) {
-        if (_tile_offset_x == 0) _tile_offset_x = 40;
-        else                     _tile_offset_x -= STEP_SIZE;
-    }
-    if (_player_direction == PLAYER_DIRECTION::RIGHT) {
-        if (_tile_offset_x == 40) _tile_offset_x = 0;
-        else                     _tile_offset_x += STEP_SIZE;
-    }
-    if (_player_direction == PLAYER_DIRECTION::UP) {
-        if (_tile_offset_y == 0) _tile_offset_y = 40;
-        else                      _tile_offset_y -= STEP_SIZE;
-    }
-    if (_player_direction == PLAYER_DIRECTION::DOWN) {
-        if (_tile_offset_y == 40) _tile_offset_y = 0;
-        else                      _tile_offset_y += STEP_SIZE;
-    }
-
-    int tile_offset_y = _tile_offset_y;
-    int tile_offset_x = _tile_offset_x;
+    uint8_t tile_offset_y = _tile_offset_y;
+    uint8_t tile_offset_x = _tile_offset_x;
 
     LOG_nodt(1, "INFO", "Tile offset y - %i\n", tile_offset_y);
     LOG_nodt(1, "INFO", "Tile offset x - %i\n", tile_offset_x);
 
     assert(tile_offset_x % STEP_SIZE == 0);
-    assert(tile_offset_x >= 0);
     assert(tile_offset_y % STEP_SIZE == 0);
+    assert(tile_offset_x >= 0);
     assert(tile_offset_y >= 0);
-    assert(_grass_strip.w > 0);
-    assert(_grass_strip.h > 0);
 
-    int end_x = (_player_direction == PLAYER_DIRECTION::UP   || _player_direction == PLAYER_DIRECTION::DOWN) ? SCREEN_WIDTH : STEP_SIZE;
+    int end_x = (_player_direction == PLAYER_DIRECTION::UP   || _player_direction == PLAYER_DIRECTION::DOWN)  ? SCREEN_WIDTH  : STEP_SIZE;
     int end_y = (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) ? SCREEN_HEIGHT : STEP_SIZE;
 
     uint8_t map_segment_y, map_segment_x;
 
-    _grass_strip.y += tile_offset_y;
-    _grass_strip.x += tile_offset_x;
+    if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
+        ASSERT_AND_LOG((map_x - tile_offset_x) % BG_SPRITE_WIDTH == 0, "map_x=%i, tile_offset_x=%i", map_x, tile_offset_x);
+    }
+    if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
+        ASSERT_AND_LOG((map_y - tile_offset_y) % BG_SPRITE_HEIGHT == 0, "map_y=%i, tile_offset_y=%i", map_y, tile_offset_y);
+    }
 
     if (_player_direction == PLAYER_DIRECTION::UP || _player_direction == PLAYER_DIRECTION::DOWN) {
         for (int x = 0; x < end_x; x+=BG_SPRITE_WIDTH) {
-            // Do a quick check to see if we need to alter _map_idx.
-            if (map_x + x >= SCREEN_WIDTH && buf_idx == 0) buf_idx++;
-
+            if (map_x + x == SCREEN_WIDTH) { buf_idx++; }              // If during vertical strip, we move to a next map
+            if (buf_idx == 0) ASSERT_AND_LOG(map_x + x < SCREEN_WIDTH, "map_x+x=%i, map_x=%i, x=%i\n", map_x+x, map_x, x);
             int __map_x = (map_x+x) - (SCREEN_WIDTH * buf_idx);
             map_segment_x = (uint8_t)(__map_x/(SCREEN_WIDTH/4)) % 4;
             map_segment_y = (uint8_t)(map_y/(SCREEN_HEIGHT/4)) % 4;
-
-            SDL_Rect dst_strip = {x, blit_placement_y, _grass_strip.w, _grass_strip.h};
             SDL_Rect sprite_rect = GetSpriteRect(map_idx_buffer[buf_idx], map_segment_y, map_segment_x);
-            SDL_Rect src_strip = {sprite_rect.x + tile_offset_x, sprite_rect.y + tile_offset_y, _grass_strip.w, _grass_strip.h};
 
-            int sprite_y = sprite_rect.y + tile_offset_y;
-            int sprite_x = sprite_rect.x + tile_offset_x;
+            int strip_w = BG_SPRITE_WIDTH - tile_offset_x;
+            // Handle the edge-case near the end of the strip.
+            if (end_x - x == BG_SPRITE_WIDTH && _tile_offset_x > 0) {
+                strip_w = BG_SPRITE_WIDTH - _tile_offset_x;
+            }
 
-            assert(sprite_x % BG_SPRITE_WIDTH == _grass_strip.x % BG_SPRITE_WIDTH);
-            assert(sprite_y % BG_SPRITE_HEIGHT == _grass_strip.y % BG_SPRITE_HEIGHT);
-            assert(sprite_x >= 0);
-            assert(sprite_y >= 0);
+            int src_x       = sprite_rect.x + tile_offset_x;
+            int grass_src_x = grass_rect.x  + tile_offset_x;
+            int src_y       = sprite_rect.y + tile_offset_y;
+            int grass_src_y = grass_rect.y  + tile_offset_y;
 
-            _grass_strip.x -= tile_offset_x;
-            x -= tile_offset_x;
-            tile_offset_x = 0; // We only action the first tile offset.
+            SDL_Rect src_strip =   {src_x,       src_y,            strip_w, STEP_SIZE};
+            SDL_Rect grass_strip = {grass_src_x, grass_src_y,      strip_w, STEP_SIZE};
+            SDL_Rect dst_strip =   {x,           blit_placement_y, strip_w, STEP_SIZE};
 
-            int v = MAPS[map_idx_buffer[buf_idx]-1][map_segment_y][map_segment_x];
+            assert(src_x % BG_SPRITE_WIDTH  == grass_src_x % BG_SPRITE_WIDTH);
+            assert(src_y % BG_SPRITE_HEIGHT == grass_src_y % BG_SPRITE_HEIGHT);
+            assert(src_x >= 0);
+            assert(src_y >= 0);
+
+            if (tile_offset_x > 0) {
+                x -= tile_offset_x;
+                tile_offset_x = 0;
+            }
+
+            int v =      MAPS[map_idx_buffer[buf_idx]-1][map_segment_y][map_segment_x];
             if (v == -1) SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);
             else {
-                SDL_RenderCopy(_renderer, spritesheet, &_grass_strip, &dst_strip); // Render the grass first
-                SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);    // Overlay the actual sprite
+                         SDL_RenderCopy(_renderer, spritesheet, &grass_strip, &dst_strip);    // Render the grass first
+                         SDL_RenderCopy(_renderer, spritesheet, &src_strip,   &dst_strip);    // Overlay the actual sprite
             }
         }
     } else if (_player_direction == PLAYER_DIRECTION::LEFT || _player_direction == PLAYER_DIRECTION::RIGHT) {
-        for (int y = 0; y < end_y; y+=BG_SPRITE_HEIGHT) {     // all the sprites in Y-Axis for map.
-            if (map_y + y >= SCREEN_HEIGHT && buf_idx == 0)  buf_idx++;
+        for (int y = 0; y < end_y; y+=BG_SPRITE_HEIGHT) {
+            if (map_y + y == SCREEN_HEIGHT) { buf_idx++; }              // If during horizontal strip, we move to a next map
+            if (buf_idx == 0) assert(map_y + y < SCREEN_WIDTH);
 
             // keep the iterated y state in-tact but we might've moved into grabbing pixels from the next map.
             int __map_y = (map_y+y) - (SCREEN_HEIGHT * buf_idx);
             map_segment_x = (uint8_t)(map_x/(SCREEN_WIDTH/4)) % 4;
             map_segment_y = (uint8_t)(__map_y/(SCREEN_HEIGHT/4)) % 4;
 
-            SDL_Rect dst_strip = {blit_placement_x, y, _grass_strip.w, _grass_strip.h};
             SDL_Rect sprite_rect = GetSpriteRect(map_idx_buffer[buf_idx], map_segment_y, map_segment_x);
-            SDL_Rect src_strip = {sprite_rect.x + tile_offset_x, sprite_rect.y + tile_offset_y, _grass_strip.w, _grass_strip.h};
 
-            int sprite_y = sprite_rect.y + tile_offset_y;
-            int sprite_x = sprite_rect.x + tile_offset_x;
+            int strip_h = BG_SPRITE_HEIGHT - tile_offset_y;
+            // Handle the edge-case near the end of the strip.
+            if (end_y - y == BG_SPRITE_HEIGHT && _tile_offset_y > 0) {
+                strip_h = BG_SPRITE_HEIGHT - _tile_offset_y;
+            }
 
-            assert(sprite_x % BG_SPRITE_WIDTH == _grass_strip.x % BG_SPRITE_WIDTH);
-            assert(sprite_y % BG_SPRITE_HEIGHT == _grass_strip.y % BG_SPRITE_HEIGHT);
-            assert(sprite_x >= 0);
-            assert(sprite_y >= 0);
+            int src_x       = sprite_rect.x + tile_offset_x;
+            int grass_src_x = grass_rect.x  + tile_offset_x;
+            int src_y       = sprite_rect.y + tile_offset_y;
+            int grass_src_y = grass_rect.y  + tile_offset_y;
 
-            _grass_strip.y -= tile_offset_y;
-            y -= tile_offset_y;
-            tile_offset_y = 0; // We only action the first tile offset.
+            SDL_Rect src_strip =   {src_x,             src_y,       STEP_SIZE, strip_h};
+            SDL_Rect grass_strip = {grass_src_x,       grass_src_y, STEP_SIZE, strip_h};
+            SDL_Rect dst_strip =   {blit_placement_x,  y,           STEP_SIZE, strip_h};
 
-            int v = MAPS[map_idx_buffer[buf_idx]-1][map_segment_y][map_segment_x];
+            assert(src_x % BG_SPRITE_WIDTH  == grass_src_x % BG_SPRITE_WIDTH);
+            assert(src_y % BG_SPRITE_HEIGHT == grass_src_y % BG_SPRITE_HEIGHT);
+            assert(src_x >= 0);
+            assert(src_y >= 0);
+
+            if (tile_offset_y > 0) {
+                y -= tile_offset_y;
+                tile_offset_y = 0;
+            }
+
+            int v =      MAPS[map_idx_buffer[buf_idx]-1][map_segment_y][map_segment_x];
             if (v == -1) SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);
             else {
-                SDL_RenderCopy(_renderer, spritesheet, &_grass_strip, &dst_strip); // Render the grass first
-                SDL_RenderCopy(_renderer, spritesheet, &src_strip, &dst_strip);    // Overlay the actual sprite
+                         SDL_RenderCopy(_renderer, spritesheet, &grass_strip, &dst_strip);    // Render the grass first
+                         SDL_RenderCopy(_renderer, spritesheet, &src_strip,   &dst_strip);    // Overlay the actual sprite
             }
+        }
     }
-}
-
 
     SDL_DestroyTexture(_back_buffer);
     _common->SetBackBuffer(t);
@@ -887,16 +896,20 @@ void Game::UpdateBackBuffer() {
     // Reset the color
     SDL_SetRenderDrawColor( _renderer, 0x00, 0x00, 0x00, 0xFF );
 
-    // if (_scene_stack_idx == 0) return;
     if (_scene_stack_idx == 1) {
-       // Cleanup temporary textures.
-       while(current_scene->textures.size() > _common->GetInitialSceneTextureSize()) {
-           SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
+        // Cleanup temporary textures.
+       uint8_t textures_to_clean = current_scene->textures.size() - _common->GetInitialSceneTextureSize();
+       uint8_t i = textures_to_clean;
+       while(i > 0) {
+           SDL_DestroyTexture(current_scene->textures[_common->GetInitialSceneTextureSize() - 1 + i]);
            current_scene->textures.pop_back();
            current_scene->texture_src_rects.pop_back();
            current_scene->texture_dst_rects.pop_back();
            current_scene->tags.pop_back();
+           i--;
        }
+
+       LOG_nodt(1, "PERF", "FPS: %i\n", _fps);
 
        gametexture_t fps_texture = {
            .text_or_uri = "FPS: " + std::to_string(_fps),
@@ -946,7 +959,9 @@ void Game::HandleUpKey() {
     if (prev_action_info.key == SDLK_UP && prev_action_info.collision) return;
     if (IsColliding(_player_x, _player_y - STEP_SIZE)) return;
     _player_action = PLAYER_ACTION::MOVING;
+    _prev_player_direction = _player_direction;
     _player_direction = PLAYER_DIRECTION::UP;
+    DIRECTION();
     _scroll_y -= STEP_SIZE;
     _player_y -= STEP_SIZE;
     UpdateMap();
@@ -960,7 +975,9 @@ void Game::HandleDownKey() {
     if (prev_action_info.key == SDLK_DOWN && prev_action_info.collision) return;
     if (IsColliding(_player_x, _player_y + STEP_SIZE)) return;
     _player_action = PLAYER_ACTION::MOVING;
+    _prev_player_direction = _player_direction;
     _player_direction = PLAYER_DIRECTION::DOWN;
+    DIRECTION();
     _scroll_y += STEP_SIZE;
     _player_y += STEP_SIZE;
     UpdateMap();
@@ -974,7 +991,9 @@ void Game::HandleLeftKey() {
     if (prev_action_info.key == SDLK_LEFT && prev_action_info.collision) return;
     if (IsColliding(_player_x - STEP_SIZE, _player_y)) return;
     _player_action = PLAYER_ACTION::MOVING;
+    _prev_player_direction = _player_direction;
     _player_direction = PLAYER_DIRECTION::LEFT;
+    DIRECTION();
     _scroll_x -= STEP_SIZE;
     _player_x -= STEP_SIZE;
     UpdateMap();
@@ -988,11 +1007,13 @@ void Game::HandleRightKey() {
     if (prev_action_info.key == SDLK_RIGHT && prev_action_info.collision) return;
     if (IsColliding(_player_x + STEP_SIZE, _player_y)) return;
     _player_action = PLAYER_ACTION::MOVING;
+    _prev_player_direction = _player_direction;
     _player_direction = PLAYER_DIRECTION::RIGHT;
+    DIRECTION();
     _scroll_x += STEP_SIZE;
     _player_x += STEP_SIZE;
-    UpdateCamera();
     UpdateMap();
+    UpdateCamera();
     BlitNext();
 }
 
@@ -1017,23 +1038,43 @@ void initialize_the_game() {
     LOG_INFO("Fill back buffer initial took: %zums\n", SDL_GetTicks64()-before);
 }
 
+static Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
+static Uint64 last_frame_tick = tick - 17; // Ensures we always render the first frame straight-away.
+static Uint64 dt_frame = 17;               // Ensures no initial event wait.
+static Uint64 frame_per_second = 0;        // Counter that gets reset after 1s.
+static Uint64 seconds = 1;                 // Seconds rendered.
+
 static void mainloop(void) {
     int quit_app = 0;
-    Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
-    Uint64 last_frame_tick = tick - 17; // Ensures we always render the first frame straight-away.
-    Uint64 dt_frame = 17;               // Ensures no initial event wait.
-    Uint64 frame_per_second = 0;        // Counter that gets reset after 1s.
-    Uint64 seconds = 1;                 // Seconds rendered.
+
     SDL_Event eh;
 
     int DEFAULT_WAIT = 13;
     int timeout = 0;
 
+    bool interactive = true;
+
     if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
-    // LOG_INFO("Block for: %ims\n", timeout);
 
     while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
-        if (eh.type == SDL_QUIT) { SDL_Quit(); exit(1); }
+        if (eh.type == SDL_QUIT) {
+            // Cleanup all current scene textures.
+            auto current_scene = common_ptr->GetCurrentScene();
+            uint8_t textures_to_clean = current_scene->textures.size();
+            uint8_t i = textures_to_clean;
+            while(i > 0) {
+                SDL_DestroyTexture(current_scene->textures[common_ptr->GetInitialSceneTextureSize() - 1 + i]);
+                current_scene->textures.pop_back();
+                current_scene->texture_src_rects.pop_back();
+                current_scene->texture_dst_rects.pop_back();
+                current_scene->tags.pop_back();
+                i--;
+            }
+
+            TTF_Quit();
+            SDL_Quit();
+            exit(1);
+        }
         if (eh.type == SDL_KEYDOWN) {
             SDL_KeyboardEvent key = eh.key;
             SDL_Keysym keysym = key.keysym;
@@ -1041,25 +1082,31 @@ static void mainloop(void) {
             switch(keysym.sym) {
             case SDLK_SPACE:
                 game->HandleSpaceKey();
+                interactive = true;
                 break;
             case SDLK_UP:
                 game->HandleUpKey();
+                interactive = true;
                 game->SetPrevActionInfoKey(SDLK_UP);
                 break;
             case SDLK_DOWN:
                 game->HandleDownKey();
+                interactive = true;
                 game->SetPrevActionInfoKey(SDLK_DOWN);
                 break;
             case SDLK_LEFT:
                 game->HandleLeftKey();
+                interactive = true;
                 game->SetPrevActionInfoKey(SDLK_LEFT);
                 break;
             case SDLK_RIGHT:
                 game->HandleRightKey();
+                interactive = true;
                 game->SetPrevActionInfoKey(SDLK_RIGHT);
                 break;
             case SDLK_ESCAPE:
                 game->HandleEscKey();
+                interactive = true;
                 break;
             }
         }
@@ -1067,20 +1114,23 @@ static void mainloop(void) {
     }
 
     #ifdef __EMSCRIPTEN__
-    game->UpdateBackBuffer();
+    if (interactive) game->UpdateBackBuffer();
     #else
     tick = SDL_GetTicks64();
     dt_frame = tick - last_frame_tick;
-    if (dt_frame > DEFAULT_WAIT) { // Allow 2ms draw time.
+    if (dt_frame > DEFAULT_WAIT && interactive) { // Allow 2ms draw time.
+        game->set_fps(frame_per_second++);
         Uint64 before = SDL_GetTicks64();
         game->UpdateBackBuffer();
         Uint64 after = SDL_GetTicks64();
-        frame_per_second++;
-        if (tick > 1000*seconds) {
-            game->set_fps(frame_per_second);
+        interactive = false;
+        LOG(1, "PERF", "Updated back buffer in %zu ms\n", after-before);
+        LOG(1, "PERF", "Tick: %zu\n", tick);
+        LOG(1, "PERF", "Seconds rendered: %zu\n", seconds);
+        if (tick > 1000 * seconds) {
+            LOG(1, "PERF", ">1 second in tick\n");
             seconds++;
             frame_per_second=0;
-            timeout = 13;
         }
         frame_count++;
         last_frame_tick = tick;

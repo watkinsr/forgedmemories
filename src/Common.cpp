@@ -61,40 +61,28 @@ void Common::SetupSDL() {
         for (uint8_t j = 0; j < 3; ++j) {
             switch (j) {
             case FONT_SIZE::SMALL:
-                #ifdef __EMSCRIPTEN__
-                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 12);
-                #else
-                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 12);
-                #endif
+                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
-                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
             case FONT_SIZE::MEDIUM:
-                #ifdef __EMSCRIPTEN__
-                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 18);
-                #else
-                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 18);
-                #endif
+                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
-                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
             case FONT_SIZE::LARGE:
-                #ifdef __EMSCRIPTEN__
-                rawFont = TTF_OpenFont("/assets/FreeMono.ttf", 24);
-                #else
-                rawFont = TTF_OpenFont(DEFAULT_FONTS[i].data(), 24);
-                #endif
+                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
                     continue;
                 }
-                _fonts.push_back(std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>(rawFont, fontDeleter));
+                _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
             }
         }
@@ -107,6 +95,7 @@ void Common::SetupSDL() {
     }
 
     LOG_INFO("Fonts allocated: %zu\n", _fonts.size());
+    LOG(1, "INFO", "SDL2 setup complete!\n");
 }
 
 void Common::AddScene(std::vector<gametexture_t> scene) {
@@ -125,6 +114,7 @@ Common::Common(std::string app_name, const uint32_t BACKBUFFER_WIDTH, const uint
 
 void Common::AllocateScene(bool incrementStackIdx) {
     if (_scene_stack_idx + 1 < SCENE_STACK_MAX_SIZE) {
+        // Cleanup the previous scene.
         if (incrementStackIdx) {
             _scenes[_scene_stack_idx].texture_src_rects.clear();
             _scenes[_scene_stack_idx].texture_src_rects.shrink_to_fit();
@@ -139,13 +129,13 @@ void Common::AllocateScene(bool incrementStackIdx) {
             _scenes[_scene_stack_idx].textures.shrink_to_fit();
             _scene_stack_idx++;
         }
+
         scene_t scene;
         _scenes.push_back(scene);
+
         LOG_INFO("Common::AllocateScene() => Scene Stack size: %zu.\n", _scenes.size());
-        LOG_INFO("Common::AllocateScene() => Stack index: %u.\n",
-                  _scene_stack_idx);
-        LOG_INFO("Common::AllocateScene() => Allocate %zu textures for Scene: %u\n",
-        _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
+        LOG_INFO("Common::AllocateScene() => Stack index: %u.\n", _scene_stack_idx);
+        LOG_INFO("Common::AllocateScene() => Allocate %zu textures for Scene: %u\n", _scene_texture_locations[_scene_stack_idx].size(), _scene_stack_idx);
 
         _scenes[_scene_stack_idx].textures = std::vector<SDL_Texture*>();
         _scenes[_scene_stack_idx].texture_src_rects = std::vector<SDL_Rect>();
@@ -169,12 +159,12 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].colors.push_back(game_texture.color);
         LOG_INFO("Allocated rect\n");
     } else if (isTextTexture(game_texture.tag)) {
-        SDL_Surface* surface = TTF_RenderText_Solid(
+        SDL_Surface* surface = TTF_RenderUTF8_Solid(
             _fonts[game_texture.font_size].get(),
             game_texture.text_or_uri.c_str(),
             game_texture.color
         );
-        if (!surface) {
+        if (surface == NULL) {
             fprintf(stderr, "Panic: Failed to obtain surface, abort.\n");
             SDL_Quit();
             exit(EXIT_FAILURE);
@@ -182,7 +172,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
 
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
         SDL_FreeSurface(surface);
-        if (!text_texture) {
+        if (text_texture == NULL) {
             printf("Panic: Failed to create texture for text, abort.\n");
             exit(EXIT_FAILURE);
         }
@@ -192,10 +182,10 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         game_texture.dst_rect.w = width;
         game_texture.dst_rect.h = height;
 
-        _scenes[scene_idx].textures.push_back(text_texture);
-        _scenes[scene_idx].texture_src_rects.push_back(game_texture.src_rect);
-        _scenes[scene_idx].texture_dst_rects.push_back(game_texture.dst_rect);
-        _scenes[scene_idx].tags.push_back(game_texture.tag);
+        _scenes[scene_idx].textures.push_back(std::move(text_texture));
+        _scenes[scene_idx].texture_src_rects.push_back(std::move(game_texture.src_rect));
+        _scenes[scene_idx].texture_dst_rects.push_back(std::move(game_texture.dst_rect));
+        _scenes[scene_idx].tags.push_back(std::move(game_texture.tag));
     } else if (isImageTexture(game_texture.tag)) {
         LOG_INFO("Received image texture\n");
         const char* path = game_texture.text_or_uri.c_str();
@@ -220,11 +210,11 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
     } else if (isSpriteTexture(game_texture.tag)) {
         const char* path = game_texture.text_or_uri.c_str();
         SDL_Surface* surface = IMG_Load(path);
-
-        SDL_Texture* texture;
+        SDL_Texture* texture = NULL;
 
         if (game_texture.upscale.w != 0) {
             LOG_INFO("Upscale %s from {%i,%i} -> {%i, %i}\n", game_texture.text_or_uri.c_str(), surface->w, surface->h, game_texture.upscale.w, game_texture.upscale.h);
+
             SDL_Surface* upscaled = SDL_CreateRGBSurfaceWithFormat(
                 0,
                 game_texture.upscale.w,
@@ -232,6 +222,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
                 32,
                 SDL_PIXELFORMAT_RGBA8888
             );
+
             if (!upscaled) {
                 LOG(1, "ERROR", "Failed to create upscaled surface: %s\n", SDL_GetError());
                 SDL_FreeSurface(surface);

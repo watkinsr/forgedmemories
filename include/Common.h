@@ -22,8 +22,8 @@ enum FONT_SIZE {
 };
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-const uint32_t SCREEN_WIDTH = 800;
-const uint32_t SCREEN_HEIGHT = 600;
+const ssize_t SCREEN_WIDTH = 800;
+const ssize_t SCREEN_HEIGHT = 600;
 
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
@@ -101,12 +101,42 @@ private:
     SDL_Texture*                                                      _back_buffer;
     SDL_Window*                                                       _window;
     SDL_Renderer*                                                     _renderer;
-    vector<std::unique_ptr<TTF_Font, std::function<void(TTF_Font*)>>> _fonts;
+    vector<std::shared_ptr<TTF_Font>>                                 _fonts = {};
     SDL_Surface*                                                      _screen_surface;
     uint8_t                                                           _scene_stack_idx = 0;
     vector<scene_t>                                                   _scenes = vector<scene_t>();
     vector<vector<gametexture_t>>                                     _scene_texture_locations = vector<vector<gametexture_t>>();
     uint8_t                                                           _initial_scene_size = 0;
 };
+
+#define DIRECTION()                                             \
+    do {                                                        \
+        if (_player_direction == PLAYER_DIRECTION::UP) {        \
+            fprintf(stderr, ", d=UP");                          \
+        }                                                       \
+        if (_player_direction == PLAYER_DIRECTION::DOWN) {      \
+            fprintf(stderr, ", d=RIGHT");                       \
+        }                                                       \
+        if (_player_direction == PLAYER_DIRECTION::LEFT) {      \
+            fprintf(stderr, ", d=LEFT");                        \
+        }                                                       \
+        if (_player_direction == PLAYER_DIRECTION::RIGHT) {     \
+            fprintf(stderr, ", d=RIGHT");                       \
+        }                                                       \
+        fprintf(stderr, "\n");                                  \
+    } while (0)
+
+#define ASSERT_AND_LOG(cond, fmt, ...)                          \
+    do {                                                        \
+        if (!(cond)) {                                          \
+            fprintf(stderr,                                     \
+                    "[%s:%d] Assertion failed: %s\n",           \
+                    __FILE__, __LINE__, #cond);                 \
+            fprintf(stderr, fmt, ##__VA_ARGS__);                \
+            DIRECTION();                                        \
+            fprintf(stderr, "\n");                              \
+            abort();                                            \
+        }                                                       \
+    } while (0)
 
 #endif
