@@ -12,6 +12,8 @@
 
 using namespace std;
 
+using Timepoint = chrono::time_point<chrono::steady_clock>;
+
 struct SpriteSelection {
     uint16_t x; // index into spritesheet row
     uint16_t y; // index into spritesheet column
@@ -71,6 +73,7 @@ public:
     void save_tile(const std::vector<Placement>&, const uint8_t);
     void set_fps(const uint8_t fps) { _fps = fps; };
     void TryLoadPreviousMap();
+    Timepoint prev_clock = {};
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;

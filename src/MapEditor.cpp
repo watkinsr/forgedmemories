@@ -588,57 +588,112 @@ static std::unique_ptr<MapEditor> map_editor;
 const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
 
-int main() {
-    LOG(1, "TRACE", "main()\n");
-    std::string app_name = std::string("MapEditor");    
-    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
-    map_editor = std::make_unique<MapEditor>(common_ptr);
-
+void initialize_the_mapeditor() {
+    LOG(1, "TRACE", "initialize_the_mapeditor()\n");
     SetMapFile();
-
-    int quit_app = 0;
-    int dt, start_ticks, end_ticks = 0;
+    std::string app_name = std::string("MapEditor");
+    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
+    LOG_INFO("Able to construct Common\n");
+    map_editor = std::make_unique<MapEditor>(common_ptr);
+    LOG_INFO("Able to construct Game\n");
 
     map_editor->TryLoadPreviousMap();
+    // FIXME: map_editor->FillBackBufferInitial();
+}
 
-    while (quit_app == 0){
-        SDL_Event EventHandler;
-        while (SDL_PollEvent(&EventHandler) != 0) {
-            if (EventHandler.type == SDL_QUIT)
-                quit_app = 1;
-            else if (EventHandler.type == SDL_MOUSEMOTION) {
-                map_editor->UpdateMouseCoords(EventHandler.motion.x, EventHandler.motion.y);
+static Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
+static Uint64 last_frame_tick = tick - 17; // Ensures we always render the first frame straight-away.
+static Uint64 dt_frame = 17;               // Ensures no initial event wait.
+static Uint64 frame_per_second = 0;        // Counter that gets reset after 1s.
+static Uint64 seconds = 1;                 // Seconds rendered.
+
+static void mainloop(void) {
+    int quit_app = 0;
+
+    SDL_Event eh;
+
+    int DEFAULT_WAIT = 13;
+    int timeout = 0;
+
+    bool interactive = true;
+
+    if (dt_frame < DEFAULT_WAIT && timeout != 0) timeout = DEFAULT_WAIT - dt_frame; // Allow 3ms to draw or handle interaction.
+
+    while (SDL_WaitEventTimeout(&eh, timeout) != 0) {
+        if (eh.type == SDL_QUIT) {
+            // Cleanup all current scene textures.
+            auto current_scene = common_ptr->GetCurrentScene();
+            uint8_t textures_to_clean = current_scene->textures.size();
+            uint8_t i = textures_to_clean;
+            while(i > 0) {
+                SDL_DestroyTexture(current_scene->textures[common_ptr->GetInitialSceneTextureSize() - 1 + i]);
+                current_scene->textures.pop_back();
+                current_scene->texture_src_rects.pop_back();
+                current_scene->texture_dst_rects.pop_back();
+                current_scene->tags.pop_back();
+                i--;
             }
-            else if (EventHandler.type == SDL_MOUSEBUTTONDOWN) {
-                int x, y;
-                SDL_GetMouseState( &x, &y );
-                map_editor->UpdateMouseCoords(x, y);
-                if (!map_editor->isSelectionActive()) {
-                    map_editor->HandleSelection(x, y);
-                    if (!map_editor->isSelectionActive()) {
-                        map_editor->HandleMenuBarSelection(x, y);
-                    }
-                } else {
-                    map_editor->TryToPlace(x, y);
-                }
-            }
+
+            TTF_Quit();
+            SDL_Quit();
+            exit(1);
         }
-
-        start_ticks = SDL_GetTicks();
-        current_ticks = SDL_GetTicks();
-        dt = start_ticks - end_ticks;
-        if (dt > 1000 / 60.0) {
-            map_editor->RenderCurrentScene();
-            if (current_ticks > 1000) {
-                uint8_t fps = frame_count / (current_ticks/1000);
-                map_editor->set_fps(fps);
+        else if (eh.type == SDL_MOUSEMOTION) {
+            map_editor->UpdateMouseCoords(eh.motion.x, eh.motion.y);
+        }
+        else if (eh.type == SDL_MOUSEBUTTONDOWN) {
+            int x, y;
+            SDL_GetMouseState( &x, &y );
+            map_editor->UpdateMouseCoords(x, y);
+            if (!map_editor->isSelectionActive()) {
+                map_editor->HandleSelection(x, y);
+                if (!map_editor->isSelectionActive()) {
+                    map_editor->HandleMenuBarSelection(x, y);
+                }
+            } else {
+                map_editor->TryToPlace(x, y);
             }
-            frame_count++;
-            end_ticks = start_ticks;
         }
     }
+
+    tick = SDL_GetTicks64();
+    dt_frame = tick - last_frame_tick;
+    if (dt_frame > DEFAULT_WAIT && interactive) { // Allow 2ms draw time.
+        Uint64 before = SDL_GetTicks64();
+        map_editor->RenderCurrentScene();
+
+        // Steady clock, eval did render a frame in <= 16ms? -> 60FPS
+        // If it's > 16ms, eval (x / 1000ms) * 60frames
+        auto now = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - map_editor->prev_clock).count();
+        map_editor->prev_clock = now;
+        LOG(1, "INFO", "ms elapsed between tick: %ld\n", ms);
+        if (ms <= 16) {
+            map_editor->set_fps(60);
+        } else {
+            {
+                uint8_t fps = ((float)(ms)/1000.0f)*60;
+                map_editor->set_fps(fps);
+            }
+        }
+        Uint64 after = SDL_GetTicks64();
+        interactive = false;
+        last_frame_tick = tick;
+        dt_frame = SDL_GetTicks64() - after;
+    }
+}
+
+int main() {
+    initialize_the_mapeditor();
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(mainloop, 60, 1);
+    #else
+    while (1) { mainloop(); }
+    #endif
     return 0;
 }
+
+
 // TODO: Introduce grouping functionality that allows picking top-left/bottom-right of a given group.
 // TODO: Introduce "player" sprite that can designate player start location.
 // TODO: Introduce letf/up/right/down keys to move the snapping grid.
