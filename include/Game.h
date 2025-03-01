@@ -13,6 +13,8 @@
 
 using namespace std;
 
+using Timepoint = chrono::time_point<chrono::steady_clock>;
+
 enum PLAYER_ACTION {
     STOPPED,
     MOVING,
@@ -115,6 +117,7 @@ public:
     void GetNextBackBuffer(SDL_Texture*);
     void UpdateCamera();
     void SetPrevActionInfoKey(SDL_KeyCode kc) { prev_action_info.key = kc; };
+    Timepoint prev_clock = {};
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
     PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::SENTINEL;

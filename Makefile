@@ -1,5 +1,5 @@
 CC := g++
-CPPFLAGS := -g
+CPPFLAGS := -g -std=c++20
 LDFLAGS := -g
 LDLIBS := -lSDL2 -lSDL2_ttf -lSDL2_image -lstdc++
 OBJDIR := objdir
@@ -10,7 +10,7 @@ SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 $(OBJDIR)/%.o : src/%.cpp include/%.h include/Map.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) $< -o $@
 
-all: game game_wa
+all: game
 
 $(OBJS): | $(OBJDIR)
 

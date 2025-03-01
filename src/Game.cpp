@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cassert>
 #include "Map.h"
+#include <chrono>
 
 // Center
 #define C1 {\
@@ -1119,14 +1120,28 @@ static void mainloop(void) {
     tick = SDL_GetTicks64();
     dt_frame = tick - last_frame_tick;
     if (dt_frame > DEFAULT_WAIT && interactive) { // Allow 2ms draw time.
-        game->set_fps(frame_per_second++);
         Uint64 before = SDL_GetTicks64();
         game->UpdateBackBuffer();
+
+        // Steady clock, eval did render a frame in <= 16ms? -> 60FPS
+        // If it's > 16ms, eval (x / 1000ms) * 60frames
+        auto now = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - game->prev_clock).count();
+        game->prev_clock = now;
+        LOG(1, "INFO", "ms elapsed between tick: %ld\n", ms);
+        if (ms <= 16) {
+            game->set_fps(60);
+        } else {
+            {
+                uint8_t fps = ((float)(ms)/1000.0f)*60;
+                game->set_fps(fps);
+            }
+        }        
         Uint64 after = SDL_GetTicks64();
         interactive = false;
-        LOG(1, "PERF", "Updated back buffer in %zu ms\n", after-before);
-        LOG(1, "PERF", "Tick: %zu\n", tick);
-        LOG(1, "PERF", "Seconds rendered: %zu\n", seconds);
+        LOG(1, "PERF", "Updated back buffer in %zu ms\n", ms);
+        // LOG(1, "PERF", "Tick: %zu\n", tick);
+        // LOG(1, "PERF", "Seconds rendered: %zu\n", seconds);
         if (tick > 1000 * seconds) {
             LOG(1, "PERF", ">1 second in tick\n");
             seconds++;
