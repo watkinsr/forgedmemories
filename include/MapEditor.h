@@ -1,9 +1,14 @@
 #ifndef MAPEDITOR_H
 #define MAPEDITOR_H
 
+#include <fstream>
+
+#include <unistd.h>
+#include <limits.h>    // for PATH_MAX
+#include <cassert>
+
 #include "Log.h"
 #include "Common.h"
-#include <fstream>
 
 using namespace std;
 
@@ -20,7 +25,23 @@ struct Placement {
     uint16_t sprite_y_idx;
 };
 
-std::string MAP_FILE = "/home/ryanwatkins/workplace/rom/include/Map.h";
+static char MAP_FILE[128];
+bool g_map_file_set = false;
+
+static void SetMapFile() {
+    // Expectation to call only once.
+    assert(!g_map_file_set);
+
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == nullptr) {
+        perror("getcwd() error");
+    }
+    
+    strcpy(MAP_FILE, cwd);
+    strcat(MAP_FILE, "/include/Map.h");
+    LOG(1, "INFO", "Map file: %s\n", MAP_FILE);
+    g_map_file_set = true;
+}
 
 struct prev_map_t {
     int first_tile_x;

@@ -487,10 +487,10 @@ uint64_t frame_count = 0;
 uint64_t current_ticks = 0;
 
 void MapEditor::TryLoadPreviousMap() {
-    LOG_INFO("[TRACE] TryLoadPreviousMap()");
-    std::ifstream file(MAP_FILE.c_str());
+    LOG(1, "TRACE", "TryLoadPreviousMap()\n");
+    std::ifstream file(MAP_FILE);
     if (!file.is_open()) {
-        std::cerr << "Failed to open the file." << std::endl;
+        LOG(1, "PANIC", "Failed to open previous map at file: %s\n", MAP_FILE);
         exit(EXIT_FAILURE);
     }
 
@@ -582,9 +582,19 @@ void MapEditor::TryLoadPreviousMap() {
     LOG_INFO("Placements after loading previous map: %zu", _placements.size());
 }
 
+static std::shared_ptr<Common> common_ptr;
+static std::unique_ptr<MapEditor> map_editor;
+
+const int BACKBUFFER_WIDTH = 800;
+const int BACKBUFFER_HEIGHT = 600;
+
 int main() {
-    std::shared_ptr<Common> common_ptr = std::make_shared<Common>("Map Editor");
-    std::unique_ptr<MapEditor> map_editor = std::make_unique<MapEditor>(common_ptr);
+    LOG(1, "TRACE", "main()\n");
+    std::string app_name = std::string("MapEditor");    
+    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
+    map_editor = std::make_unique<MapEditor>(common_ptr);
+
+    SetMapFile();
 
     int quit_app = 0;
     int dt, start_ticks, end_ticks = 0;
