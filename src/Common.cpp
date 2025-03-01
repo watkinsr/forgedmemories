@@ -61,10 +61,10 @@ void Common::SetupSDL() {
         for (uint8_t j = 0; j < 3; ++j) {
             switch (j) {
             case FONT_SIZE::SMALL:
-                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
+                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 12);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
                 _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
@@ -72,15 +72,15 @@ void Common::SetupSDL() {
                 rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
                 _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
             case FONT_SIZE::LARGE:
-                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 24);
+                rawFont = TTF_OpenFont("./assets/FreeMono.ttf", 36);
                 if (!rawFont) {
                     LOG(1, "ERROR", "TTF_OpenFont error with: %s\n", TTF_GetError());
-                    continue;
+                    exit(EXIT_FAILURE);
                 }
                 _fonts.push_back(std::shared_ptr<TTF_Font>(rawFont, [](TTF_Font *ptr) { if (ptr) TTF_CloseFont(ptr); }));
                 break;
