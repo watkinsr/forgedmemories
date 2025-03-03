@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <limits.h>    // for PATH_MAX
 #include <cassert>
+#include <cstring>
 
 #include "Log.h"
 #include "Common.h"
@@ -13,6 +14,13 @@
 using namespace std;
 
 using Timepoint = chrono::time_point<chrono::steady_clock>;
+
+typedef struct Message {
+    std::vector<string> lines = {};
+    bool word_wrap = true;
+    bool flushable = true;
+    unsigned int line_width = 0;
+};
 
 struct SpriteSelection {
     uint16_t x; // index into spritesheet row
@@ -38,7 +46,7 @@ static void SetMapFile() {
     if (getcwd(cwd, sizeof(cwd)) == nullptr) {
         perror("getcwd() error");
     }
-    
+
     strcpy(MAP_FILE, cwd);
     strcat(MAP_FILE, "/include/Map.h");
     LOG(1, "INFO", "Map file: %s\n", MAP_FILE);
@@ -52,11 +60,13 @@ struct prev_map_t {
 };
 
 enum editor_mode {
+    SENTINEL,
     ADD,
-    DEL
+    DEL,
+    MARK
 };
 
-const int menu_item_width = 55; //px
+const int menu_item_width = 70;  //px
 const int menu_item_offset = 25; //px
 
 class MapEditor {
@@ -74,12 +84,12 @@ public:
     void set_fps(const uint8_t fps) { _fps = fps; };
     void TryLoadPreviousMap();
     Timepoint prev_clock = {};
+    Message message = {};
 private:
     std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
     std::vector<Placement> _placements;
-    std::vector<std::string> _messages;
-    editor_mode _editor_mode = editor_mode::ADD;
+    editor_mode _editor_mode = editor_mode::SENTINEL;  // Default state - no mode.
     int _messages_flushed = 0;
     prev_map_t _prev_map;
     float _prev_tick;

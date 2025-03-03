@@ -8,7 +8,7 @@ MAPEDITOR_OBJS := $(addprefix $(OBJDIR)/,MapEditor.o Common.o Log.o)
 INCL_CC := -I./include -I/usr/include/SDL2
 SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
-all: game mapeditor
+all: build/game index.html build/mapeditor
 
 $(OBJDIR)/Game.o: src/Game.cpp include/Map.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Game.cpp -o $(OBJDIR)/Game.o
@@ -27,13 +27,13 @@ $(OBJS): | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-mapeditor: $(MAPEDITOR_OBJS)
+build/mapeditor: $(MAPEDITOR_OBJS)
 	mkdir -p build
 	g++ $(CPPFLAGS) -o build/mapeditor $(MAPEDITOR_OBJS) $(LDLIBS) $(LDFLAGS)
 
-game: $(OBJS)
+build/game: $(OBJS)
 	mkdir -p build
 	g++ $(CPPFLAGS) -o build/game $(OBJS) $(LDLIBS) $(LDFLAGS)
 
-game_wa:
+index.html: $(OBJS)
 	emcc -I./include src/Game.cpp src/Log.cpp src/Common.cpp  --emrun --embed-file assets@/assets -sUSE_SDL=2 -sUSE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -o index.html 

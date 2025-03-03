@@ -54,6 +54,7 @@ struct gametexture_t {
     SDL_Color color;
     uint8_t font_size = FONT_SIZE::SMALL;
     uint8_t tag;
+    uint8_t idx;  // DEBUG PURPOSE
     upscale_t upscale;
 };
 

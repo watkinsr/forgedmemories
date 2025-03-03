@@ -159,13 +159,17 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         _scenes[scene_idx].colors.push_back(game_texture.color);
         LOG_INFO("Allocated rect\n");
     } else if (isTextTexture(game_texture.tag)) {
+        const char* text = game_texture.text_or_uri.c_str();
         SDL_Surface* surface = TTF_RenderUTF8_Solid(
             _fonts[game_texture.font_size].get(),
-            game_texture.text_or_uri.c_str(),
+            text,
             game_texture.color
         );
         if (surface == NULL) {
-            fprintf(stderr, "Panic: Failed to obtain surface, abort.\n");
+            char errstr[256];
+            SDL_GetErrorMsg(errstr, 256);
+            LOG(1, "PANIC", "Failed to obtain surface - %s\n", errstr);
+            LOG(1, "INFO", "Text: %s, idx: %u\n", text, game_texture.idx);
             SDL_Quit();
             exit(EXIT_FAILURE);
         }
