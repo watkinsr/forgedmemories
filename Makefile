@@ -1,5 +1,5 @@
 CC := g++
-CPPFLAGS := -g -std=c++20
+CPPFLAGS := -g -std=c++20 -fpermissive
 LDFLAGS := -g
 LDLIBS := -lSDL2 -lSDL2_ttf -lSDL2_image -lstdc++
 OBJDIR := objdir

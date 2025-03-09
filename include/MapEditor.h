@@ -15,7 +15,7 @@ using namespace std;
 
 using Timepoint = chrono::time_point<chrono::steady_clock>;
 
-typedef struct Message {
+struct Message {
     std::vector<string> lines = {};
     bool word_wrap = true;
     bool flushable = true;

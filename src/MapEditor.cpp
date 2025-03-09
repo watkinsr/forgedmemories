@@ -1,8 +1,31 @@
 #include "Common.h"
 #include "MapEditor.h"
 
+// C++ Semantics are kind of annoying regarding stack and heap.
+// Granular control of memory is a good thing to achieve.
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
+
 const int RIGHT_PANEL_WIDTH = 180;
 const float MESSAGE_RIGHT_PANEL_WIDTH = 0.90f;
+
+static Arena default_arena = {0};
+static Arena temporary_arena = {0};
+
+typedef struct {
+    int x;
+    int y;
+} Vector2D;
+
+typedef struct {
+    const Vector2D **items;
+    size_t count;
+    size_t capacity;
+} Marked_Maps;
+
+static Marked_Maps *marked_maps = NULL;
+
+void delineate_new_map_border(int top_left_x, int top_right_y);
 
 void MapEditor::_SetTextureLocations() {
     float menu_y_factor = 0.05f;
@@ -187,6 +210,16 @@ void MapEditor::RenderCurrentScene() {
         line_x_offset+=32;
     }
 
+    // Render the marked maps.
+    for (int i = 0; i < marked_maps->count; ++i) {
+        const Vector2D* v = marked_maps->items[i];
+        SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x+32*4, v->y);           // top line
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4);           // left line
+        SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
+        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
+    }
+
     SDL_RenderPresent(_renderer);
 
     // Cleanup our old dynamic text textures.
@@ -279,6 +312,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
                         const uint16_t sprite_x = x_offset + (i*16*2);
                         const uint16_t sprite_y = y_offset + (j*16*2);
                         if (mouse_x > sprite_x && mouse_x <= sprite_x + 16*2 && mouse_y > sprite_y && mouse_y <= sprite_y + 16*2) {
+                            // Store the drag&drop sprite for rendering later at mouse location.
                             _sprite_selection.selection = true;
                             _sprite_selection.x = i;
                             _sprite_selection.y = j;
@@ -298,16 +332,53 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
             int py = placement.y;
             if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
                 LOG(1, "INFO", "Selected top-left as: [%i, %i]\n", px, py);
+                LOG(1, "TODO", "Missing implementation for marking a given top-left for a given map.\n");
+                delineate_new_map_border(px, py);
+                // TODO: Handle marking a map of 4x4 tiles.
+                // - (DONE) Draw a border around the marked map.
+                // - (DONE) For now, for simplicitly reasons, draw a border and store that data some place.
+                // - Then use this saved state on a SAVE action.
+                // - Later: If there's an overlap, to disambiguate, we should provide some kind of demark option.
             }
         }
         return;
     }
 }
 
+void delineate_new_map_border(int top_left_x, int top_right_y) {
+    LOG(1, "TRACE", "delineate_new_map_border(%i, %i)\n", top_left_x, top_right_y);
+    Vector2D* v = arena_alloc(&temporary_arena, sizeof(Vector2D));
+    v->x = top_left_x;
+    v->y = top_right_y;
+    arena_da_append(&temporary_arena, marked_maps, v);
+    {
+        const Vector2D* items = *(marked_maps->items);
+        assert(marked_maps->count > 0); // Not really necessary, checks if arena works as expected.
+        LOG(1, "INFO", "Saved: [%i, %i]\n", items->x, items->y);
+        LOG(1, "INFO", "Marked maps count: %i\n", marked_maps->count);
+    }
+}
+
+Placement* binary_search_exact(std::vector<Placement>* placements, int* top_left_y, int l, int r);
+Placement* binary_search_exact(std::vector<Placement>* placements, Vector2D* v, int l, int r) {
+    if (r==l) return nullptr;
+    int idx = (r-l)/2;
+    Placement* comparator = &(placements)->at(idx);
+    LOG(1, "INFO", "Match? <Placement [%i, %i]> against [%i,%i]\n", comparator->x, comparator->y, v->x, v->y);
+    if (comparator->y == v->y) {
+        if (comparator->x == v->x)  return comparator;
+        else                        return binary_search_exact(placements, v, l, idx);
+    }
+    else if (comparator->y > v->y)  return binary_search_exact(placements, v, l, idx);
+    else                            return binary_search_exact(placements, v, idx, r);
+}
+
 void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     LOG(1, "TRACE", "MapEditor::HandleMenuBarSelection(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
     float menu_y_factor = 0.05f;
     int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
+
+    if (mouse_y > menu_y) return;
 
     if (mouse_x > menu_item_offset && mouse_x < menu_item_offset + menu_item_width*1) {
         message = {
@@ -317,7 +388,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
         };
         _editor_mode = editor_mode::ADD;
     } else if (mouse_x > menu_item_offset + menu_item_width*1 && mouse_x < menu_item_offset + menu_item_width*2) {
-        LOG_INFO("DEL menu item selected");
+        LOG(1, "INFO", "DEL menu item selected\n");
         _editor_mode = editor_mode::DEL;
         message = {
             .lines = {"DEL mode active!"},
@@ -325,11 +396,23 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH*(float)(RIGHT_PANEL_WIDTH))
         };
     } else if (mouse_x > menu_item_offset + menu_item_width*2 && mouse_x < menu_item_offset + menu_item_width*3) {
-        LOG_INFO("SAVE menu item selected");
-        if (_placements.size() == 0) return;
-        // We could probably write a file to be Map1.h where by we create 4x4 map tiles.
-        // We have _placements that represent our current "edited map".
-
+        LOG(1, "INFO", "SAVE selected.\n");
+        if (marked_maps->count == 0) {
+            message = {
+                .lines = {"Please mark a map."},
+                .word_wrap = true,
+                .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+            };
+            return;
+        }
+        if (_placements.size() == 0) {
+            message = {
+                .lines = {"No placements found, invalid."},
+                .word_wrap = true,
+                .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+            };
+            return;
+        }
         // Sort by y-coordinate with x-coordinate as second priority.
         std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
@@ -338,6 +421,20 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
         uint16_t begin_tile_y = _placements[0].y;  // Represents the first "y" within a given 4x4 tile.
         uint8_t map_idx = 0;
 
+        for (int j = 0; j < marked_maps->count; ++j) {
+            Vector2D* v = (marked_maps->items[j]);
+            int top_left_x = v->x;
+            int top_left_y = v->y;
+            Placement* match = binary_search_exact(&_placements, v, 0, _placements.size()-1);
+            if (match != nullptr) {
+                LOG(1, "INFO", "Binary search match: <Placement [%i,%i]> matches <Mark [%i,%i]>\n", match->x, match->y, top_left_x, top_left_y);
+                tile.push_back(*match);
+                // FIXME: Binary match entire row.
+                LOG(1, "TODO", "Implementation missing for binary searching entire row.\n");
+            } else {
+                LOG(1, "SOFTPANIC", "No binary match!\n");
+            }
+        }
         for (const auto& placement : _placements) {
             // HACK: Essentially we're checking if we've moved downwards a full 4x4 tile.
             if (placement.y >= (begin_tile_y + 128)) {
@@ -502,7 +599,7 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
-    LOG_INFO("MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)", mouse_x, mouse_y);
+    LOG(1, "INFO", "MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
 
     // Note: Selection cursor is top left of the sprite plus some padding.
     // Therefore it's best to take a "good guess" on what the sprite x/y is.
@@ -510,7 +607,7 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     const int sprite_x = mouse_x + 16; // Simulate mouse x as being centre x of the sprite.
     const int sprite_y = mouse_y + 16; // Simulate mouse y as being centre y of the sprite
 
-    LOG_INFO("MapEditor::TryToPlace(?) - sprite_x=%i, sprite_y=%i", sprite_x, sprite_y);
+    LOG(1, "INFO", "MapEditor::TryToPlace(?) - sprite_x=%i, sprite_y=%i\n", sprite_x, sprite_y);
 
     // Check if it can be placed in the Placement Area.
     if (sprite_x >= SCREEN_WIDTH - 160 || sprite_y < 64) return;
@@ -522,6 +619,8 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     // Adjust origin back to top-left of the sprite.
     placement.x = sprite_x - (sprite_x % 32);
     placement.y = sprite_y - (sprite_y % 32);
+
+    LOG(1, "INFO", "Placement made at [%i,%i]\n", placement.x, placement.y);
 
     placement.sprite_x_idx = _sprite_selection.x;
     placement.sprite_y_idx = _sprite_selection.y;
@@ -560,7 +659,7 @@ void MapEditor::TryLoadPreviousMap() {
                 break;
             }
             y = atoi(line.c_str());
-            std::cout << "X: " << x << ", Y: " << y << std::endl;
+            LOG(1, "INFO", "First sprite: [%i,%i]\n", x, y);
         } else if (line.starts_with("#define MAP")) continue;
         else {
             size_t pos;
@@ -614,6 +713,7 @@ void MapEditor::TryLoadPreviousMap() {
                 placement.sprite_y_idx = v % 16;
                 x_offset_idx = x_idx;
                 _placements.push_back(placement);
+                LOG(1, "INFO", "First placement stored: <Placement [%i,%i]>\n", placement.x, placement.y);
                 first_placement_set = true;
             } else if (v != -1) {
                 const int x_offset = x_idx - x_offset_idx;
@@ -631,7 +731,11 @@ void MapEditor::TryLoadPreviousMap() {
         y_idx++;
         x_idx = 0;
     }
-    LOG_INFO("Placements after loading previous map: %u\n", _placements.size());
+    LOG(1, "INFO", "Placements after loading previous map: %u\n", _placements.size());
+
+    for (const auto& placement : _placements) {
+        LOG(1, "INFO", "=> Stored: <Placement [%i,%i]>\n", placement.x, placement.y);
+    }
 }
 
 static std::shared_ptr<Common> common_ptr;
@@ -641,6 +745,7 @@ const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
 
 void initialize_the_mapeditor() {
+    marked_maps = malloc(sizeof(Marked_Maps));
     LOG(1, "TRACE", "initialize_the_mapeditor()\n");
     SetMapFile();
     std::string app_name = std::string("MapEditor");
@@ -709,6 +814,7 @@ static void mainloop(void) {
                     map_editor->HandleMenuBarSelection(x, y);
                 }
             } else {
+                // Drag & Drop before, now an active input to place it.
                 map_editor->TryToPlace(x, y);
             }
         }
