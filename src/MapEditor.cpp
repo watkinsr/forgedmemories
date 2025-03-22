@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "Common.h"
 #include "MapEditor.h"
 
@@ -25,7 +27,9 @@ typedef struct {
 
 static Marked_Maps *marked_maps = NULL;
 
+// Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
+ssize_t binary_search_region(std::vector<Placement>*, Vector2D*, Vector2D*, int, int);
 
 void MapEditor::_SetTextureLocations() {
     float menu_y_factor = 0.05f;
@@ -218,6 +222,11 @@ void MapEditor::RenderCurrentScene() {
         SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4);           // left line
         SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
         SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
+
+        SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);           // top line
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);           // left line
+        SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line
+        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4+1, v->x+32*4+1, v->y+32*4+1); // Bottom line
     }
 
     SDL_RenderPresent(_renderer);
@@ -282,9 +291,11 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         _editor_mode == editor_mode::ADD ||
         _editor_mode == editor_mode::DEL ||
         _editor_mode == editor_mode::MARK
-    )) return;
+     )) return;
+
+    LOG(1, "TRACE", "MapEditor::HandleSelection( mouse_x=%i, mouse_y=%i )\n", mouse_x, mouse_y);
+
     scene_t* current_scene = _common->GetCurrentScene();
-    LOG_INFO("Mouse: [%i, %i]\n", mouse_x, mouse_y);
     if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::DEL) {
         std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
@@ -300,8 +311,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
             placement_idx++;
         }
         return;
-    };
-    if (_editor_mode == editor_mode::ADD) {
+    } else if (_editor_mode == editor_mode::ADD) {
         for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
             uint8_t tag = current_scene->tags[i];
             const uint16_t x_offset = SCREEN_WIDTH - 160;
@@ -322,26 +332,45 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
                 }
             }
         }
-    }
-    if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::MARK) {
+    } else if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::MARK) {
+        int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(0.05f);
+        if (mouse_y < menu_y) return; // Disallow marking in the Menu Bar.
+
+        Vector2D top_left_point = {
+            .x = mouse_x - (mouse_x % SPRITE_WIDTH),
+            .y = mouse_y - (mouse_y % SPRITE_HEIGHT)
+        };
+
+        // Sort by y-coordinate with x-coordinate as second priority.
         std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
         });
-        for (const auto& placement : _placements) {
-            int px = placement.x;
-            int py = placement.y;
-            if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
-                LOG(1, "INFO", "Selected top-left as: [%i, %i]\n", px, py);
-                LOG(1, "TODO", "Missing implementation for marking a given top-left for a given map.\n");
-                delineate_new_map_border(px, py);
-                // TODO: Handle marking a map of 4x4 tiles.
-                // - (DONE) Draw a border around the marked map.
-                // - (DONE) For now, for simplicitly reasons, draw a border and store that data some place.
-                // - Then use this saved state on a SAVE action.
-                // - Later: If there's an overlap, to disambiguate, we should provide some kind of demark option.
-            }
+
+        // It's no good to mark a region with no placements, so let's check that.
+        // binary_search_region on rows we aren't certain re: next index.
+        bool was_matched = false;
+        Vector2D vl = {
+            .x = top_left_point.x,
+            .y = top_left_point.y
+        };
+
+        Vector2D vr = {
+            .x = top_left_point.x + (SPRITE_WIDTH*3),
+            .y = top_left_point.y + (SPRITE_HEIGHT*3)
+        };
+
+        LOG_INFO("<TopLeftVec2D [%i, %i]>\n", vl.x, vl.y);
+        LOG_INFO("<BottomRightVec2D [%i, %i]>\n", vr.x, vr.y);
+
+        was_matched = binary_search_region(&_placements, &vl, &vr, 0, _placements.size()-1) != -1;
+        if (was_matched) {
+            LOG_INFO("Matched on region\n");
+            delineate_new_map_border(top_left_point.x, top_left_point.y);
+            return;
+        } else {
+            LOG_INFO("No match on region\n");
+            return;
         }
-        return;
     }
 }
 
@@ -354,23 +383,49 @@ void delineate_new_map_border(int top_left_x, int top_right_y) {
     {
         const Vector2D* items = *(marked_maps->items);
         assert(marked_maps->count > 0); // Not really necessary, checks if arena works as expected.
-        LOG(1, "INFO", "Saved: [%i, %i]\n", items->x, items->y);
         LOG(1, "INFO", "Marked maps count: %i\n", marked_maps->count);
     }
 }
 
-Placement* binary_search_exact(std::vector<Placement>* placements, int* top_left_y, int l, int r);
-Placement* binary_search_exact(std::vector<Placement>* placements, Vector2D* v, int l, int r) {
-    if (r==l) return nullptr;
+ssize_t binary_search_exact(std::vector<Placement>* placements, int* top_left_y, int l, int r);
+ssize_t binary_search_exact(std::vector<Placement>* placements, Vector2D* v, int l, int r) {
+    if (r==l) return -1;
     int idx = (r-l)/2;
     Placement* comparator = &(placements)->at(idx);
     LOG(1, "INFO", "Match? <Placement [%i, %i]> against [%i,%i]\n", comparator->x, comparator->y, v->x, v->y);
     if (comparator->y == v->y) {
-        if (comparator->x == v->x)  return comparator;
+        if (comparator->x == v->x)  return idx;
         else                        return binary_search_exact(placements, v, l, idx);
     }
     else if (comparator->y > v->y)  return binary_search_exact(placements, v, l, idx);
     else                            return binary_search_exact(placements, v, idx, r);
+}
+
+// placements: Pre-sorted by Y and then X.
+// vl: Top left of region.
+// vr: Bottom right of region.
+// l : Sliding window left index
+// r : Sliding window right index
+ssize_t binary_search_region(std::vector<Placement>* placements, Vector2D* vl, Vector2D* vr, int l, int r) {
+    if (l>r) return -1;
+    int mid = l+(r-l)/2;
+    Placement* comparator = &(placements)->at(mid);
+
+    LOG(1, "INFO", "Sliding Window [%i, %i]\n", l, r);
+    LOG(1, "INFO", "[%i] Match Region? <Placement [%i, %i]> against [tl=[%i,%i], tr=[%i,%i]]\n", mid, comparator->x, comparator->y, vl->x, vl->y, vr->x, vr->y);
+
+    if (comparator->y < vl->y)                          return binary_search_region(placements, vl, vr, mid+1, r);  // Search right.
+    if (comparator->y > vl->y && comparator->y > vr->y) return binary_search_region(placements, vl, vr, l, mid-1);  // Search left.
+
+    if (comparator->y >= vl->y && comparator->y <= vr->y && comparator->x >= vl->x && comparator->x <= vr->x) {
+        return mid;  // Exact match.
+    }
+
+    if (comparator->y >= vl->y && comparator->y <= vr->y) {
+        // We're in the row ballpark.
+        if (comparator->x < vl->x) return binary_search_region(placements, vl, vr, mid+1, r);  // Search right.
+        else                       return binary_search_region(placements, vl, vr, l, mid-1);  // Search left.
+    }
 }
 
 void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
@@ -422,15 +477,46 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
         uint8_t map_idx = 0;
 
         for (int j = 0; j < marked_maps->count; ++j) {
+            // Marked map TL point.
             Vector2D* v = (marked_maps->items[j]);
             int top_left_x = v->x;
             int top_left_y = v->y;
-            Placement* match = binary_search_exact(&_placements, v, 0, _placements.size()-1);
-            if (match != nullptr) {
-                LOG(1, "INFO", "Binary search match: <Placement [%i,%i]> matches <Mark [%i,%i]>\n", match->x, match->y, top_left_x, top_left_y);
-                tile.push_back(*match);
-                // FIXME: Binary match entire row.
-                LOG(1, "TODO", "Implementation missing for binary searching entire row.\n");
+            size_t oob_norm_col_x = v->x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
+            ssize_t match = binary_search_exact(&_placements, v, 0, _placements.size()-1);
+            if (match != -1) {
+                Placement* p = &_placements[match];
+                tile.push_back(*p);
+                LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
+                // Iterate rest of row from TL mark.
+                for (ssize_t col = _placements[match+1].x/SPRITE_WIDTH; col < _placements.size(); ++col) {
+                    Placement* p2 = &_placements[col];
+                    if (p2->x/SPRITE_WIDTH >= oob_norm_col_x) break;
+                    LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
+                    tile.push_back(*p2);
+                }
+                // binary_search_region on rows we aren't certain re: next index.
+                for (size_t y = 1; y < 4; y++) {
+                    Vector2D vl = {
+                        .x = v->x,
+                        .y = (v->y + (SPRITE_HEIGHT*y))
+                    };
+                    Vector2D* vr = (marked_maps->items[j]);
+                    match = binary_search_region(&_placements, &vl, vr, 0, _placements.size()-1);
+                    if (match == -1) {
+                        LOG(1, "INFO", "No placement match on row: %u\n", vl.y/SPRITE_HEIGHT);
+                        break;
+                    }
+                    Placement* p = &_placements[match];
+                    tile.push_back(*p);
+                    LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
+                    // Iterate rest of row from TL mark.
+                    for (ssize_t col = match+1; col < _placements.size(); ++col) {
+                        Placement* p2 = &_placements[col];
+                        if (p2->x/SPRITE_WIDTH >= v->x/SPRITE_WIDTH+4) break;
+                        LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
+                        tile.push_back(*p2);
+                    }
+                }
             } else {
                 LOG(1, "SOFTPANIC", "No binary match!\n");
             }

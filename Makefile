@@ -8,7 +8,7 @@ MAPEDITOR_OBJS := $(addprefix $(OBJDIR)/,MapEditor.o Common.o Log.o)
 INCL_CC := -I./include -I/usr/include/SDL2
 SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
-all: build/game index.html build/mapeditor
+all: build/game build/mapeditor
 
 $(OBJDIR)/Game.o: src/Game.cpp include/Map.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Game.cpp -o $(OBJDIR)/Game.o

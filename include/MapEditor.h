@@ -15,6 +15,9 @@ using namespace std;
 
 using Timepoint = chrono::time_point<chrono::steady_clock>;
 
+const size_t SPRITE_WIDTH = 32;
+const size_t SPRITE_HEIGHT = 32;
+
 struct Message {
     std::vector<string> lines = {};
     bool word_wrap = true;
