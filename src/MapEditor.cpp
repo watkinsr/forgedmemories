@@ -365,7 +365,34 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         was_matched = binary_search_region(&_placements, &vl, &vr, 0, _placements.size()-1) != -1;
         if (was_matched) {
             LOG_INFO("Matched on region\n");
-            delineate_new_map_border(top_left_point.x, top_left_point.y);
+            // It's a valid delineation in absence of overlap.
+            // However, we can check overlaps since we have a dynamic array of Vector2D for the TL points.
+            // If we sort this in O(nlogn), we can then do a binary search in it O(logn), meaning we can achieve O(n(logn^2)).
+            // FIXME: Write library function to merge sort DynamicArray<Vector2D>
+
+            // For now, we can quite trivially linear search this and just check boundary conditions.
+            bool overlap = false;
+            if (marked_maps->count > 0) {
+                const Vector2D* items = *(marked_maps->items);
+                for (int j = 0; j < marked_maps->count; ++j) {
+                    Vector2D* vl = (marked_maps->items[j]);  // Existing delineated TL point.
+                    Vector2D vr = {
+                        .x = vl->x+(SPRITE_WIDTH*3),
+                        .y = vl->y+(SPRITE_HEIGHT*3)
+                    };
+                    auto tl = top_left_point;
+                    LOG_INFO("tl=[%i,%i] MATCH vl=[%i,%i], vr=[%i,%i]\n", tl.x, tl.y, vl->x, vl->y, vr.x, vr.y);
+                    if (((tl.y <= vl->y && tl.y+(SPRITE_HEIGHT*3) >= vl->y) || // Y check
+                         (tl.y >= vl->y && tl.y-(SPRITE_HEIGHT*3) <= vl->y)) &&
+                        ((tl.x <= vl->x && tl.x+(SPRITE_WIDTH*3)  >= vl->x) || // X check
+                         (tl.x >= vl->x && tl.x-(SPRITE_WIDTH*3)  <= vl->x))) {
+                        LOG_INFO("=> Ignore due to overlap condition met.\n");
+                        overlap = true;
+                        break;
+                    }
+                }
+            }
+            if (!overlap) delineate_new_map_border(top_left_point.x, top_left_point.y);
             return;
         } else {
             LOG_INFO("No match on region\n");
