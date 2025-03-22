@@ -10,6 +10,7 @@
 
 #include "Log.h"
 #include "Common.h"
+#include "Types.h"
 
 using namespace std;
 
@@ -24,25 +25,8 @@ constexpr uint8_t PLAYER_HEIGHT = 48;
 const int menu_item_width = 70;  //px
 const int menu_item_offset = 25; //px
 
-struct Message {
-    std::vector<string> lines = {};
-    bool word_wrap = true;
-    bool flushable = true;
-    unsigned int line_width = 0;
-};
-
-struct SpriteSelection {
-    uint16_t x; // index into spritesheet row
-    uint16_t y; // index into spritesheet column
-    bool selection = false;
-};
-
-struct Placement {
-    uint16_t x;
-    uint16_t y;
-    uint16_t sprite_x_idx;
-    uint16_t sprite_y_idx;
-};
+const int RIGHT_PANEL_WIDTH = 180;
+const float MESSAGE_RIGHT_PANEL_WIDTH = 0.90f;
 
 static char MAP_FILE[128];
 bool g_map_file_set = false;
@@ -61,19 +45,6 @@ static void SetMapFile() {
     LOG(1, "INFO", "Map file: %s\n", MAP_FILE);
     g_map_file_set = true;
 }
-
-struct prev_map_t {
-    int first_tile_x;
-    int first_tile_y;
-    std::vector<std::vector<int>> tiles;
-};
-
-enum editor_mode {
-    SENTINEL,
-    ADD,
-    DEL,
-    MARK
-};
 
 class MapEditor {
 public:
