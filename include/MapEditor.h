@@ -18,6 +18,12 @@ using Timepoint = chrono::time_point<chrono::steady_clock>;
 const size_t SPRITE_WIDTH = 32;
 const size_t SPRITE_HEIGHT = 32;
 
+constexpr uint8_t PLAYER_WIDTH = 48;
+constexpr uint8_t PLAYER_HEIGHT = 48;
+
+const int menu_item_width = 70;  //px
+const int menu_item_offset = 25; //px
+
 struct Message {
     std::vector<string> lines = {};
     bool word_wrap = true;
@@ -69,9 +75,6 @@ enum editor_mode {
     MARK
 };
 
-const int menu_item_width = 70;  //px
-const int menu_item_offset = 25; //px
-
 class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
@@ -89,12 +92,16 @@ public:
     Timepoint prev_clock = {};
     Message message = {};
 private:
-    std::shared_ptr<Common> _common;
     SpriteSelection _sprite_selection;
+    std::shared_ptr<Placement> _player_placement = nullptr;
     std::vector<Placement> _placements;
     editor_mode _editor_mode = editor_mode::SENTINEL;  // Default state - no mode.
-    int _messages_flushed = 0;
     prev_map_t _prev_map;
+
+    std::shared_ptr<Common> _common;
+
+    // Miscellaneous fields.
+    int _messages_flushed = 0;
     float _prev_tick;
     int _mouse_x;
     int _mouse_y;

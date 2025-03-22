@@ -25,6 +25,9 @@ constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
 const ssize_t SCREEN_WIDTH = 800;
 const ssize_t SCREEN_HEIGHT = 600;
 
+constexpr uint16_t SPRITESHEET_WIDTH = 256;
+constexpr uint16_t SPRITESHEET_HEIGHT = 256;
+
 #define TEXT_TAG 1 << 0
 #define IMAGE_TAG 1 << 1
 #define SPRITE_TAG 1 << 2

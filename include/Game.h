@@ -44,9 +44,10 @@ enum PLAYER_DIRECTION {
 const int SPRITE_WIDTH = 50;
 const int SPRITE_HEIGHT = 50;
 
-#define PLAYER_SCALE_FACTOR 1.25
 constexpr uint8_t PLAYER_WIDTH = 60;
 constexpr uint8_t PLAYER_HEIGHT = 60;
+
+#define PLAYER_SCALE_FACTOR 1.25
 
 const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;

@@ -30,6 +30,9 @@ static Marked_Maps *marked_maps = NULL;
 // Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
 ssize_t binary_search_region(std::vector<Placement>*, Vector2D*, Vector2D*, int, int);
+void SaveTile(const vector<Placement>&, const uint8_t, Message*);
+void HandleSaveSelection(std::vector<Placement>&, Message*);
+void HandleAddAction(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
 
 void MapEditor::_SetTextureLocations() {
     float menu_y_factor = 0.05f;
@@ -118,6 +121,14 @@ void MapEditor::_SetTextureLocations() {
             .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG,
             .idx = 8
         },
+        // Player sprite.
+        {   .text_or_uri = "assets/player2.png",
+            .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
+            .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+            .color = {0,0,0,0},
+            .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG,
+            .idx = 9
+        },
     };
     _common->AddScene(SCENE_1);
 }
@@ -145,6 +156,22 @@ void MapEditor::RenderCurrentScene() {
         } else if (_common->isTextTexture(tag)) {
             SDL_Texture* texture = current_scene->textures[texture_idx++];
             SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
+        } else if (_common->isPlayerSpriteTexture(current_scene->tags[i])) {
+            // Render the player sprite to the right.
+            SDL_Texture* texture = current_scene->textures[texture_idx++];
+
+            const uint16_t x_offset = SCREEN_WIDTH - 160;
+            const uint16_t y_offset = 64 + SPRITESHEET_HEIGHT + SPRITE_HEIGHT;
+
+            src_rect.x = 0;
+            src_rect.y = 0;
+
+            dst_rect.x = x_offset;
+            dst_rect.y = y_offset;
+            dst_rect.w = SPRITE_WIDTH;
+            dst_rect.h = SPRITE_HEIGHT;
+
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
         } else if (_common->isBackgroundSpriteTexture(tag)) {
             // Get the spritesheet texture.
             SDL_Texture* texture = current_scene->textures[texture_idx++];
@@ -181,15 +208,14 @@ void MapEditor::RenderCurrentScene() {
 
             src_rect.x = 0;
             src_rect.y = 0;
-            src_rect.w = 256;
-            src_rect.h = 256;
+            src_rect.w = SPRITESHEET_WIDTH;
+            src_rect.h = SPRITESHEET_HEIGHT;
             dst_rect.x = x_offset;
             dst_rect.y = y_offset;
-            dst_rect.w = 256;
-            dst_rect.h = 256;
+            dst_rect.w = SPRITESHEET_WIDTH;
+            dst_rect.h = SPRITESHEET_HEIGHT;
 
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-
         }
     }
 
@@ -286,6 +312,37 @@ MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     _common->AllocateScene(false);
 }
 
+void HandleAddAction(scene_t* scene, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
+    LOG(1, "TRACE", "HandleAddAction(scene=?, sprite_selection=?, common_ptr=?, mx=%i, my=%i)\n", mx, my);
+
+    bool acted_on = false;
+
+    // FIXME: Really we only need to search on subset of textures.
+    for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
+        uint8_t tag = scene->tags[i];
+        const uint16_t x_offset = SCREEN_WIDTH - 160;
+        const uint16_t y_offset = 64;
+        if (common_ptr->isBackgroundSpriteTexture(tag)) {
+            for (uint8_t i = 0; i < 4; ++i) {
+                for (uint8_t j = 0; j < 8; ++j) {
+                    const uint16_t sprite_x = x_offset + (i*SPRITE_WIDTH);
+                    const uint16_t sprite_y = y_offset + (j*SPRITE_HEIGHT);
+                    if (mx > sprite_x && mx <= sprite_x + SPRITE_WIDTH && my > sprite_y && my <= sprite_y + SPRITE_HEIGHT) {
+                        // Store the drag&drop sprite for rendering later at mouse location.
+                        sprite_selection->selection = true;
+                        sprite_selection->x = i;
+                        sprite_selection->y = j;
+                        LOG(1, "INFO", "Selection made on sprite.\n");
+                        acted_on = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!acted_on) LOG(1, "INFO", "Unable to act on add action, no sprite found to select\n");
+}
+
 void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
     if (!(
         _editor_mode == editor_mode::ADD ||
@@ -312,26 +369,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         }
         return;
     } else if (_editor_mode == editor_mode::ADD) {
-        for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
-            uint8_t tag = current_scene->tags[i];
-            const uint16_t x_offset = SCREEN_WIDTH - 160;
-            const uint16_t y_offset = 64;
-            if (_common->isBackgroundSpriteTexture(tag)) {
-                for (uint8_t i = 0; i < 4; ++i) {
-                    for (uint8_t j = 0; j < 8; ++j) {
-                        const uint16_t sprite_x = x_offset + (i*16*2);
-                        const uint16_t sprite_y = y_offset + (j*16*2);
-                        if (mouse_x > sprite_x && mouse_x <= sprite_x + 16*2 && mouse_y > sprite_y && mouse_y <= sprite_y + 16*2) {
-                            // Store the drag&drop sprite for rendering later at mouse location.
-                            _sprite_selection.selection = true;
-                            _sprite_selection.x = i;
-                            _sprite_selection.y = j;
-                            LOG(1, "INFO", "Selection made on sprite.\n");
-                        }
-                    }
-                }
-            }
-        }
+        HandleAddAction(current_scene, &_sprite_selection, _common, mouse_x, mouse_y);
     } else if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::MARK) {
         int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(0.05f);
         if (mouse_y < menu_y) return; // Disallow marking in the Menu Bar.
@@ -455,6 +493,93 @@ ssize_t binary_search_region(std::vector<Placement>* placements, Vector2D* vl, V
     }
 }
 
+void HandleSaveSelection(std::vector<Placement>& placements, Message* message) {
+    LOG(1, "TRACE", "HandleSaveSelection().\n");
+    if (marked_maps->count == 0) {
+        *message = {
+            .lines = {"Please mark a map."},
+            .word_wrap = true,
+            .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+        };
+        return;
+    }
+    if (placements.size() == 0) {
+        *message = {
+            .lines = {"No placements found, invalid."},
+            .word_wrap = true,
+            .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+        };
+        return;
+    }
+    // Sort by y-coordinate with x-coordinate as second priority.
+    std::sort(placements.begin(), placements.end(), [](const Placement& a, const Placement& b) {
+        return a.y < b.y || (a.y == b.y && a.x < b.x);
+    });
+    std::vector<Placement> tile = {};
+    uint16_t begin_tile_y = placements[0].y;  // Represents the first "y" within a given 4x4 tile.
+    uint8_t map_idx = 0;
+
+    for (int j = 0; j < marked_maps->count; ++j) {
+        // Marked map TL point.
+        Vector2D* v = (marked_maps->items[j]);
+        int top_left_x = v->x;
+        int top_left_y = v->y;
+        size_t oob_norm_col_x = v->x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
+        ssize_t match = binary_search_exact(&placements, v, 0, placements.size()-1);
+        if (match != -1) {
+            Placement* p = &placements[match];
+            tile.push_back(*p);
+            LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
+            // Iterate rest of row from TL mark.
+            for (ssize_t col = placements[match+1].x/SPRITE_WIDTH; col < placements.size(); ++col) {
+                Placement* p2 = &placements[col];
+                if (p2->x/SPRITE_WIDTH >= oob_norm_col_x) break;
+                LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
+                tile.push_back(*p2);
+            }
+            // binary_search_region on rows we aren't certain re: next index.
+            for (size_t y = 1; y < 4; y++) {
+                Vector2D vl = {
+                    .x = v->x,
+                    .y = (v->y + (SPRITE_HEIGHT*y))
+                };
+                Vector2D* vr = (marked_maps->items[j]);
+                match = binary_search_region(&placements, &vl, vr, 0, placements.size()-1);
+                if (match == -1) {
+                    LOG(1, "INFO", "No placement match on row: %u\n", vl.y/SPRITE_HEIGHT);
+                    break;
+                }
+                Placement* p = &placements[match];
+                tile.push_back(*p);
+                LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
+                // Iterate rest of row from TL mark.
+                for (ssize_t col = match+1; col < placements.size(); ++col) {
+                    Placement* p2 = &placements[col];
+                    if (p2->x/SPRITE_WIDTH >= v->x/SPRITE_WIDTH+4) break;
+                    LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
+                    tile.push_back(*p2);
+                }
+            }
+        } else {
+            LOG(1, "SOFTPANIC", "No binary match!\n");
+        }
+    }
+    for (const auto& placement : placements) {
+        // HACK: Essentially we're checking if we've moved downwards a full 4x4 tile.
+        if (placement.y >= (begin_tile_y + 128)) {
+            if (tile.size() > 0) {
+                SaveTile(tile, map_idx, message);
+                map_idx++;
+                tile.resize(0);
+            }
+            begin_tile_y = placement.y;
+        }
+        tile.push_back(placement);
+    }
+    // HACK: And then we make sure that if we didn't move down 4x4 tile, we save it anyway.
+    if (tile.size() > 0) SaveTile(tile, map_idx, message);
+}
+
 void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     LOG(1, "TRACE", "MapEditor::HandleMenuBarSelection(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
     float menu_y_factor = 0.05f;
@@ -478,90 +603,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH*(float)(RIGHT_PANEL_WIDTH))
         };
     } else if (mouse_x > menu_item_offset + menu_item_width*2 && mouse_x < menu_item_offset + menu_item_width*3) {
-        LOG(1, "INFO", "SAVE selected.\n");
-        if (marked_maps->count == 0) {
-            message = {
-                .lines = {"Please mark a map."},
-                .word_wrap = true,
-                .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
-            };
-            return;
-        }
-        if (_placements.size() == 0) {
-            message = {
-                .lines = {"No placements found, invalid."},
-                .word_wrap = true,
-                .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
-            };
-            return;
-        }
-        // Sort by y-coordinate with x-coordinate as second priority.
-        std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
-            return a.y < b.y || (a.y == b.y && a.x < b.x);
-        });
-        std::vector<Placement> tile = {};
-        uint16_t begin_tile_y = _placements[0].y;  // Represents the first "y" within a given 4x4 tile.
-        uint8_t map_idx = 0;
-
-        for (int j = 0; j < marked_maps->count; ++j) {
-            // Marked map TL point.
-            Vector2D* v = (marked_maps->items[j]);
-            int top_left_x = v->x;
-            int top_left_y = v->y;
-            size_t oob_norm_col_x = v->x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
-            ssize_t match = binary_search_exact(&_placements, v, 0, _placements.size()-1);
-            if (match != -1) {
-                Placement* p = &_placements[match];
-                tile.push_back(*p);
-                LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
-                // Iterate rest of row from TL mark.
-                for (ssize_t col = _placements[match+1].x/SPRITE_WIDTH; col < _placements.size(); ++col) {
-                    Placement* p2 = &_placements[col];
-                    if (p2->x/SPRITE_WIDTH >= oob_norm_col_x) break;
-                    LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
-                    tile.push_back(*p2);
-                }
-                // binary_search_region on rows we aren't certain re: next index.
-                for (size_t y = 1; y < 4; y++) {
-                    Vector2D vl = {
-                        .x = v->x,
-                        .y = (v->y + (SPRITE_HEIGHT*y))
-                    };
-                    Vector2D* vr = (marked_maps->items[j]);
-                    match = binary_search_region(&_placements, &vl, vr, 0, _placements.size()-1);
-                    if (match == -1) {
-                        LOG(1, "INFO", "No placement match on row: %u\n", vl.y/SPRITE_HEIGHT);
-                        break;
-                    }
-                    Placement* p = &_placements[match];
-                    tile.push_back(*p);
-                    LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
-                    // Iterate rest of row from TL mark.
-                    for (ssize_t col = match+1; col < _placements.size(); ++col) {
-                        Placement* p2 = &_placements[col];
-                        if (p2->x/SPRITE_WIDTH >= v->x/SPRITE_WIDTH+4) break;
-                        LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
-                        tile.push_back(*p2);
-                    }
-                }
-            } else {
-                LOG(1, "SOFTPANIC", "No binary match!\n");
-            }
-        }
-        for (const auto& placement : _placements) {
-            // HACK: Essentially we're checking if we've moved downwards a full 4x4 tile.
-            if (placement.y >= (begin_tile_y + 128)) {
-                if (tile.size() > 0) {
-                    save_tile(tile, map_idx);
-                    map_idx++;
-                    tile.resize(0);
-                }
-                begin_tile_y = placement.y;
-            }
-            tile.push_back(placement);
-        }
-        // HACK: And then we make sure that if we didn't move down 4x4 tile, we save it anyway.
-        if (tile.size() > 0) save_tile(tile, map_idx);
+        HandleSaveSelection(_placements, &message);
     } else if (mouse_x > menu_item_offset + menu_item_width*3 && mouse_x < menu_item_offset + menu_item_width*4) {
         LOG(1, "INFO", "MARK menu item selected\n");
         _editor_mode = editor_mode::MARK;
@@ -573,8 +615,8 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     }
 }
 
-void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) {
-    LOG_INFO("[TRACE] MapEditor::save_tile(?)");
+void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* message) {
+    LOG(1, "TRACE", "SaveTile(?)");
 
     std::ofstream out_file;
     out_file.open(MAP_FILE);
@@ -702,8 +744,8 @@ void MapEditor::save_tile(const vector<Placement>& tile, const uint8_t map_idx) 
 
     out_file.close();
 
-    if (message.flushable) {
-        message = {
+    if (message->flushable) {
+        *message = {
             .lines = {"Save successful!"},
             .word_wrap = true,
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
@@ -971,6 +1013,5 @@ int main() {
 }
 
 
-// TODO: Introduce grouping functionality that allows picking top-left/bottom-right of a given group.
 // TODO: Introduce "player" sprite that can designate player start location.
 // TODO: Introduce letf/up/right/down keys to move the snapping grid.
