@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+SDL_OUTDIR=$HOME/.local/share/thirdparty_opensource
+mkdir -p $SDL_OUTDIR
+
+set -xe
+
+git submodule sync --recursive
+git submodule update --init --remote --recursive
+
+ROOTDIR=$(pwd)
+
+# Build SDL2.
+cd ROOTDIR/SDL && ./autogen.sh && ./configure --prefix $SDL_OUTDIR && make -j$(nproc) && sudo make install
+
+# Build SDL_image (SDL2 version)
+cd $ROOTDIR/SDL_image && ./autogen.sh && ./configure --prefix $SDL_OUTDIR && make -j$(nproc) && sudo make install
+
+# Build SDL_ttf (SDL2 version)
+cd $ROOTDIR/SDL_ttf && ./autogen.sh && ./configure --prefix $SDL_OUTDIR && make -j$(nproc) && sudo make install

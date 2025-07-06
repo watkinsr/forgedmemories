@@ -1,13 +1,14 @@
 CC := g++
 CPPFLAGS := -g -std=c++20 -fpermissive
 LDFLAGS := -g
-LDLIBS := -lSDL2 -lSDL2_ttf -lSDL2_image -lstdc++
+LDLIBS := -L$(HOME)/.local/share/thirdparty_opensource/lib -lSDL2 -lSDL2_ttf -lSDL2_image -lstdc++ -Wl,-rpath,$(HOME)/.local/share/thirdparty_opensource/lib
 OBJDIR := objdir
 
 GAME_OBJS := $(addprefix $(OBJDIR)/,Game.o Common.o Log.o)
 MAPEDITOR_OBJS := $(addprefix $(OBJDIR)/,MapEditor.o Common.o Log.o Algorithm.o)
 
-INCL_CC := -I./include -I/usr/include/SDL2
+# Note: $(HOME)/.local/share/thirdparty_opensource is defined in scripts/build.sh
+INCL_CC := -I./include -I$(HOME)/.local/share/thirdparty_opensource/include/SDL2/
 SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
 all: build/game build/mapeditor

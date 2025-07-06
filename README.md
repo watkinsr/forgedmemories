@@ -10,8 +10,13 @@ See: https://wiki.libsdl.org/SDL2/README/emscripten
 
 See: http://www.eterna23.net/bozohttpd/
 
-# Native Linux X86_64
+# Getting started
 ## Build
+- First compile the SDL2 dependencies.
+```sh
+./scripts/bootstrap_deps
+```
+- Then make the MapEditor/Game
 ```sh
 # In the project directory.
 make
@@ -26,8 +31,8 @@ make
 ./build/mapeditor
 ```
 
-# WASM32
-## Build
+## WASM32
+### Build
 ```sh
 git clone https://github.com/emscripten-core/emsdk.git
 cd emsdk
@@ -42,7 +47,7 @@ cd bozohttpd-20240126
 make -f Makefile.boot
 ```
 
-## Run
+### Run
 You can probably serve it from somewhere else but `bozohttpd` seems lightweight and works.
 See: http://www.eterna23.net/bozohttpd/
 ```
