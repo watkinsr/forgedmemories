@@ -1,3 +1,8 @@
+#define SPRITE_SELECTION_PANE_WIDTH 160
+#define SPRITE_TABLE_SELECTION_PANE_Y_OFFSET 64
+#define SPRITE_TABLE_COLS 4
+#define SPRITE_TABLE_ROWS 8
+
 // C++ Semantics are kind of annoying regarding stack and heap.
 // Granular control of memory is a good thing to achieve.
 #define ARENA_IMPLEMENTATION
@@ -8,9 +13,9 @@ static Arena temporary_arena = {0};
 
 #include <cmath>
 
+#include "Algorithm.h"
 #include "Common.h"
 #include "MapEditor.h"
-#include "Algorithm.h"
 
 Marked_Maps *marked_maps = NULL;
 
@@ -18,8 +23,17 @@ Marked_Maps *marked_maps = NULL;
 void delineate_new_map_border(int top_left_x, int top_right_y);
 ssize_t binary_search_region(std::vector<Placement>*, Vector2D*, Vector2D*, int, int);
 void SaveTile(const vector<Placement>&, const uint8_t, Message*);
-void HandleSaveSelection(std::vector<Placement>&, Message*);
-void HandleAddAction(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
+void handle_save_selection(Message*);
+void HandleAddDragAndDrop(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
+
+void store_placement(std::shared_ptr<Common> common_ptr, Placement p) {
+    if (common_ptr->isBackgroundSpriteTexture(p.tag)) {
+        g_generic_map_placements.data.push_back(std::move(p));
+    } else {
+        g_player_placements.data.push_back(std::move(p));
+    }
+    LOG(1, "INFO", "First placement stored: <Placement [%i,%i]>\n", p.x, p.y);
+}
 
 void MapEditor::_SetTextureLocations() {
     float menu_y_factor = 0.05f;
@@ -147,8 +161,8 @@ void MapEditor::RenderCurrentScene() {
             // Render the player sprite to the right.
             SDL_Texture* texture = current_scene->textures[texture_idx++];
 
-            const uint16_t x_offset = SCREEN_WIDTH - 160;
-            const uint16_t y_offset = 64 + SPRITESHEET_HEIGHT + SPRITE_HEIGHT;
+            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+            const uint16_t y_offset = SPRITESHEET_HEIGHT + SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
 
             src_rect.x = 0;
             src_rect.y = 0;
@@ -159,12 +173,39 @@ void MapEditor::RenderCurrentScene() {
             dst_rect.h = SPRITE_HEIGHT;
 
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+
+            // Render placements.
+            for (auto placement : g_player_placements.data) {
+                src_rect.x = 0;
+                src_rect.y = 0;
+                src_rect.w = 50;
+                src_rect.h = 50;
+                dst_rect.x = placement.x;
+                dst_rect.y = placement.y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // Render drag&drop
+            if (_sprite_selection.selection && _common->isPlayerSpriteTexture(_sprite_selection.tag)) {
+                src_rect.x = 0;
+                src_rect.y = 0;
+                src_rect.w = SPRITE_WIDTH;
+                src_rect.h = SPRITE_HEIGHT;
+                dst_rect.x = _mouse_x;
+                dst_rect.y = _mouse_y;
+                dst_rect.w = SPRITE_WIDTH;
+                dst_rect.h = SPRITE_HEIGHT;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+            
         } else if (_common->isBackgroundSpriteTexture(tag)) {
             // Get the spritesheet texture.
             SDL_Texture* texture = current_scene->textures[texture_idx++];
 
             // Render drag&drop
-            if (_sprite_selection.selection) {
+            if (_sprite_selection.selection && _common->isBackgroundSpriteTexture(_sprite_selection.tag)) {
                 src_rect.x = _sprite_selection.x*16;
                 src_rect.y = _sprite_selection.y*16;
                 src_rect.w = 16;
@@ -177,7 +218,7 @@ void MapEditor::RenderCurrentScene() {
             }
 
             // Render placements.
-            for (auto placement : _placements) {
+            for (auto placement : g_generic_map_placements.data) {
                 src_rect.x = placement.sprite_x_idx*16;
                 src_rect.y = placement.sprite_y_idx*16;
                 src_rect.w = 16;
@@ -190,8 +231,8 @@ void MapEditor::RenderCurrentScene() {
             }
 
             // Render the spritesheet to the right.
-            const uint16_t x_offset = SCREEN_WIDTH - 160;
-            const uint16_t y_offset = 64;
+            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+            const uint16_t y_offset = SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
 
             src_rect.x = 0;
             src_rect.y = 0;
@@ -236,8 +277,8 @@ void MapEditor::RenderCurrentScene() {
         SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
         SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
 
-        SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);           // top line
-        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);           // left line
+        SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);             // top line
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);               // left line
         SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line
         SDL_RenderDrawLine( _renderer, v->x, v->y+32*4+1, v->x+32*4+1, v->y+32*4+1); // Bottom line
     }
@@ -299,32 +340,57 @@ MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     _common->AllocateScene(false);
 }
 
-void HandleAddAction(scene_t* scene, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
+void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
     LOG(1, "TRACE", "HandleAddAction(scene=?, sprite_selection=?, common_ptr=?, mx=%i, my=%i)\n", mx, my);
 
     bool acted_on = false;
 
-    // FIXME: Really we only need to search on subset of textures.
-    for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
-        uint8_t tag = scene->tags[i];
-        const uint16_t x_offset = SCREEN_WIDTH - 160;
-        const uint16_t y_offset = 64;
-        if (common_ptr->isBackgroundSpriteTexture(tag)) {
-            for (uint8_t i = 0; i < 4; ++i) {
-                for (uint8_t j = 0; j < 8; ++j) {
-                    const uint16_t sprite_x = x_offset + (i*SPRITE_WIDTH);
-                    const uint16_t sprite_y = y_offset + (j*SPRITE_HEIGHT);
-                    if (mx > sprite_x && mx <= sprite_x + SPRITE_WIDTH && my > sprite_y && my <= sprite_y + SPRITE_HEIGHT) {
-                        // Store the drag&drop sprite for rendering later at mouse location.
-                        sprite_selection->selection = true;
-                        sprite_selection->x = i;
-                        sprite_selection->y = j;
-                        LOG(1, "INFO", "Selection made on sprite.\n");
-                        acted_on = true;
-                    }
-                }
+    if (
+        mx < SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH ||                               // To left of selection possible region.
+        mx > (SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH) + SPRITESHEET_WIDTH/2 ||       // To right of selection possible region.
+        my < SPRITE_TABLE_SELECTION_PANE_Y_OFFSET ||                                     // Above the Sprite table
+        my > (SPRITE_TABLE_SELECTION_PANE_Y_OFFSET + SPRITESHEET_HEIGHT + SPRITE_HEIGHT) // Goes past Sprite Table + 'Special Row'
+    )
+    {
+        LOG(1, "DEBUG", "Outside selection region, ignore attempt at selection.\n");
+        return;
+    }
+
+    // Reference values to selection region.
+    const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+    const uint16_t y_offset = 64;
+
+    // FIXME: This can be O(1) if we have an array s.t.
+    //        [first_sprite, ..., end_row, first_next_row, ...]
+    //        Then we'd just index into there depending on the X/Y given the origin at 0,0 (top-left of table)
+    //        But for now, we just do a lazy search.
+    auto MAPSPRITE_TAG = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+    auto PLAYER_TAG = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+    for (uint8_t i = 0; i < SPRITE_TABLE_COLS; ++i) {
+        for (uint8_t j = 0; j < SPRITE_TABLE_ROWS; ++j) {
+            const uint16_t sprite_x = x_offset + (i*SPRITE_WIDTH);
+            const uint16_t sprite_y = y_offset + (j*SPRITE_HEIGHT);
+            if (mx > sprite_x && mx <= sprite_x + SPRITE_WIDTH && my > sprite_y && my <= sprite_y + SPRITE_HEIGHT) {
+                // Store the drag&drop sprite for rendering later at mouse location.
+                sprite_selection->selection = true;
+                sprite_selection->x = i;
+                sprite_selection->y = j;
+                sprite_selection->tag = MAPSPRITE_TAG;
+                acted_on = true;
+                LOG(1, "INFO", "Selection made on <MapSprite tag=%u, x=%u, y=%u>.\n", MAPSPRITE_TAG, i, j);
+                return;
             }
         }
+    }
+    // Check for the player sprite selection
+    if (mx < x_offset + SPRITE_WIDTH && my > y_offset + SPRITESHEET_HEIGHT) {
+        sprite_selection->selection = true;
+        sprite_selection->x = 0;
+        sprite_selection->y = 0;
+        sprite_selection->tag = PLAYER_TAG;
+        acted_on = true;
+        LOG(1, "INFO", "Selection made on <PlayerSprite tag=%u, x=%u, y=%u>.\n", PLAYER_TAG, 0, 0);
+        return;
     }
 
     if (!acted_on) LOG(1, "INFO", "Unable to act on add action, no sprite found to select\n");
@@ -340,6 +406,12 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
     LOG(1, "TRACE", "MapEditor::HandleSelection( mouse_x=%i, mouse_y=%i )\n", mouse_x, mouse_y);
 
     scene_t* current_scene = _common->GetCurrentScene();
+
+    // FIXME: Again, we have many issues here.
+    //        First we should really be binary searching placements at this point.
+    //        We also should gathering all placements to search.
+    auto _placements = g_generic_map_placements.data;
+
     if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::DEL) {
         std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
@@ -356,7 +428,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         }
         return;
     } else if (_editor_mode == editor_mode::ADD) {
-        HandleAddAction(current_scene, &_sprite_selection, _common, mouse_x, mouse_y);
+        HandleAddDragAndDrop(current_scene, &_sprite_selection, _common, mouse_x, mouse_y);
     } else if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::MARK) {
         int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(0.05f);
         if (mouse_y < menu_y) return; // Disallow marking in the Menu Bar.
@@ -439,8 +511,8 @@ void delineate_new_map_border(int top_left_x, int top_right_y) {
     }
 }
 
-void HandleSaveSelection(std::vector<Placement>& placements, Message* message) {
-    LOG(1, "TRACE", "HandleSaveSelection().\n");
+void handle_save_selection(Message* message) {
+    LOG(1, "TRACE", "handle_save_selection()\n");
     if (marked_maps->count == 0) {
         *message = {
             .lines = {"Please mark a map."},
@@ -449,7 +521,7 @@ void HandleSaveSelection(std::vector<Placement>& placements, Message* message) {
         };
         return;
     }
-    if (placements.size() == 0) {
+    if (g_generic_map_placements.data.size() == 0 && g_player_placements.data.size() == 0) {
         *message = {
             .lines = {"No placements found, invalid."},
             .word_wrap = true,
@@ -457,6 +529,16 @@ void HandleSaveSelection(std::vector<Placement>& placements, Message* message) {
         };
         return;
     }
+
+    // FIXME: We provide all the placements at this point, but it seems redundant.
+    std::vector<Placement> placements = {};
+    for (auto placement : g_generic_map_placements.data) {
+        placements.push_back(placement);
+    }
+    for (auto placement : g_player_placements.data) {
+        placements.push_back(placement);
+    }
+
     // Sort by y-coordinate with x-coordinate as second priority.
     std::sort(placements.begin(), placements.end(), [](const Placement& a, const Placement& b) {
         return a.y < b.y || (a.y == b.y && a.x < b.x);
@@ -487,7 +569,7 @@ void HandleSaveSelection(std::vector<Placement>& placements, Message* message) {
             for (size_t y = 1; y < 4; y++) {
                 Vector2D vl = {
                     .x = v->x,
-                    .y = (v->y + (SPRITE_HEIGHT*y))
+                    .y = (v->y + (SPRITE_HEIGHT*y)) // FIXME: SPRITE_HEIGHT here is really tile height.
                 };
                 Vector2D* vr = (marked_maps->items[j]);
                 match = binary_search_region(&placements, &vl, vr, 0, placements.size()-1);
@@ -549,7 +631,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH*(float)(RIGHT_PANEL_WIDTH))
         };
     } else if (mouse_x > menu_item_offset + menu_item_width*2 && mouse_x < menu_item_offset + menu_item_width*3) {
-        HandleSaveSelection(_placements, &message);
+        handle_save_selection(&message);
     } else if (mouse_x > menu_item_offset + menu_item_width*3 && mouse_x < menu_item_offset + menu_item_width*4) {
         LOG(1, "INFO", "MARK menu item selected\n");
         _editor_mode = editor_mode::MARK;
@@ -711,7 +793,7 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     LOG(1, "INFO", "MapEditor::TryToPlace(?) - sprite_x=%i, sprite_y=%i\n", sprite_x, sprite_y);
 
     // Check if it can be placed in the Placement Area.
-    if (sprite_x >= SCREEN_WIDTH - 160 || sprite_y < 64) return;
+    if (sprite_x >= SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH || sprite_y < 64) return;
 
     // Snap grid starts at 64. No need to mod this value for now.
 
@@ -725,12 +807,13 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
 
     placement.sprite_x_idx = _sprite_selection.x;
     placement.sprite_y_idx = _sprite_selection.y;
-    _placements.push_back(placement);
+    placement.tag = _sprite_selection.tag;
+    store_placement(_common, placement);
     _sprite_selection.selection = false;
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
-    // LOG_INFO("MapEditor::UpdateMouseCoords(x=%i, y=%i)", x, y);
+    LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }
@@ -806,16 +889,22 @@ void MapEditor::TryLoadPreviousMap() {
     uint8_t x_idx = 0;
     uint8_t y_idx = 0;
     bool first_placement_set = false;
+    uint8_t placements_restored = 0;
+    uint8_t tag;
 
     for (const auto& tile : _prev_map.tiles) {
         for (const auto& v : tile) {
+            if (v < 256) tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+            else         tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+
             if (v != -1 && !first_placement_set) {
                 placement.sprite_x_idx = v / 16;
                 placement.sprite_y_idx = v % 16;
+                placement.tag = tag;
                 x_offset_idx = x_idx;
-                _placements.push_back(placement);
-                LOG(1, "INFO", "First placement stored: <Placement [%i,%i]>\n", placement.x, placement.y);
                 first_placement_set = true;
+                store_placement(_common, placement);
+                placements_restored++;
             } else if (v != -1) {
                 const int x_offset = x_idx - x_offset_idx;
                 const int y_offset = y_idx - y_offset_idx;
@@ -824,19 +913,17 @@ void MapEditor::TryLoadPreviousMap() {
                     .y = _prev_map.first_tile_y + (y_offset * 32),
                     .sprite_x_idx = v / 16,
                     .sprite_y_idx = v % 16,
+                    .tag = tag,
                 };
-                _placements.push_back(std::move(p));
+                store_placement(_common, p);
+                placements_restored++;
             }
             x_idx++;
         }
         y_idx++;
         x_idx = 0;
     }
-    LOG(1, "INFO", "Placements after loading previous map: %u\n", _placements.size());
-
-    for (const auto& placement : _placements) {
-        LOG(1, "INFO", "=> Stored: <Placement [%i,%i]>\n", placement.x, placement.y);
-    }
+    LOG(1, "INFO", "Restored %u placements.\n", placements_restored);
 }
 
 static std::shared_ptr<Common> common_ptr;

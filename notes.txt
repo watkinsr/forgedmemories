@@ -1,0 +1,5 @@
+- FIXME: We need a way to signal the player's start point
+- FIXME: We need a way to move the map editor grid, likely it's possible to use the back buffer for this.
+  - Probably up/down keys to at least first move the pixels accordingly.
+  - Then, we'd need a "pseudo-infinite" grid concept.
+  - Then, as part of that, given >1 marked map, we'll need to save it in an "acceptable way" that can be loaded.

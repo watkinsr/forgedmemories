@@ -13,7 +13,7 @@ SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
 all: build/game build/mapeditor
 
-$(OBJDIR)/Algorithm.o: src/Algorithm.cpp include/Algorithm.h
+$(OBJDIR)/Algorithm.o: src/Algorithm.cpp include/Algorithm.h include/Macros.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Algorithm.cpp -o $(OBJDIR)/Algorithm.o
 
 $(OBJDIR)/Game.o: src/Game.cpp include/Map.h include/Types.h
@@ -25,7 +25,7 @@ $(OBJDIR)/Common.o: src/Common.cpp include/Map.h
 $(OBJDIR)/Log.o: src/Log.cpp
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Log.cpp -o $(OBJDIR)/Log.o
 
-$(OBJDIR)/MapEditor.o: src/MapEditor.cpp include/MapEditor.h include/Algorithm.h include/Types.h
+$(OBJDIR)/MapEditor.o: src/MapEditor.cpp include/MapEditor.h include/Algorithm.h include/Types.h include/Common.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/MapEditor.cpp -o $(OBJDIR)/MapEditor.o
 
 $(GAME_OBJS): | $(OBJDIR)

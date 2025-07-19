@@ -46,6 +46,14 @@ static void SetMapFile() {
     g_map_file_set = true;
 }
 
+struct Placements {
+    uint8_t tag;
+    std::vector<Placement> data;
+};
+
+Placements g_generic_map_placements = { .tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG), .data = {} };
+Placements g_player_placements = { .tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG), .data = {} };
+
 class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
@@ -65,7 +73,6 @@ public:
 private:
     SpriteSelection _sprite_selection;
     std::shared_ptr<Placement> _player_placement = nullptr;
-    std::vector<Placement> _placements;
     editor_mode _editor_mode = editor_mode::SENTINEL;  // Default state - no mode.
     prev_map_t _prev_map;
 

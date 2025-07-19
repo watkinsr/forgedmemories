@@ -18,8 +18,9 @@ struct Message {
 };
 
 struct SpriteSelection {
-    uint16_t x; // index into spritesheet row
-    uint16_t y; // index into spritesheet column
+    uint16_t x;   // Index into relevant spritesheet row
+    uint16_t y;   // index into relevant spritesheet column
+    uint8_t tag;  // Is it a Player sprite or Generic Map sprites or anything else?
     bool selection = false;
 };
 
@@ -28,6 +29,7 @@ struct Placement {
     uint16_t y;
     uint16_t sprite_x_idx;
     uint16_t sprite_y_idx;
+    uint8_t tag; // Is it a Player sprite or Generic Map sprites or anything else?
 };
 
 struct prev_map_t {
