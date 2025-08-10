@@ -21,6 +21,7 @@ struct SpriteSelection {
     uint16_t x;   // Index into relevant spritesheet row
     uint16_t y;   // index into relevant spritesheet column
     uint8_t tag;  // Is it a Player sprite or Generic Map sprites or anything else?
+    uint8_t texture_idx;
     bool selection = false;
 };
 

@@ -27,6 +27,30 @@ Marked_Maps *marked_maps = NULL;
 static std::shared_ptr<Common> common_ptr;
 static std::unique_ptr<MapEditor> map_editor;
 
+static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, int mouse_y) {
+    LOG(1, "TRACE", "MapEditor::BlitDragAndDrop()\n");
+    SDL_Renderer* _renderer = common_ptr->GetRenderer();
+
+    SDL_Rect src;
+    SDL_Rect dst;
+
+    src.x = entity.x*16;
+    src.y = entity.y*16;
+    src.w = 16;
+    src.h = 16;
+
+    dst.x = mouse_x;
+    dst.y = mouse_y;
+    dst.w = 32;
+    dst.h = 32;
+
+    scene_t* scene = common_ptr->GetCurrentScene();
+    SDL_Texture* texture = scene->textures[entity.texture_idx];
+    LOG(1, "INFO", "BlitDragAndDrop - SpriteSelectionPtr: %p\n", (void*)texture);
+
+    SDL_RenderCopy(_renderer, texture, &src, &dst);
+}
+
 // Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
 ssize_t binary_search_region(std::vector<Placement>*, Vector2D*, Vector2D*, int, int);
@@ -216,6 +240,12 @@ void MapEditor::SwapBuffers() {
     SDL_SetRenderTarget(_renderer, NULL);                            // Set the renderer to target the screen buffer now.
     SDL_RenderClear(_renderer);                                      // Un-apply the front-buffer.
     SDL_RenderCopy(_renderer, _common->GetBackBuffer(), NULL, NULL); // Apply the back buffer
+
+    const SpriteSelection& entity = _sprite_selection;
+    if (entity.selection) {
+        BlitDragAndDrop(entity, _mouse_x, _mouse_y);
+    }
+
     SDL_RenderPresent(_renderer);                                    // Present the front buffer.
 }
 
@@ -251,6 +281,9 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
     //        But for now, we just do a lazy search.
     auto MAPSPRITE_TAG = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
     auto PLAYER_TAG = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+
+    ssize_t texture_idx = 0;
+
     for (uint8_t i = 0; i < SPRITE_TABLE_COLS; ++i) {
         for (uint8_t j = 0; j < SPRITE_TABLE_ROWS; ++j) {
             const uint16_t sprite_x = x_offset + (i*SPRITE_WIDTH);
@@ -261,6 +294,18 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
                 sprite_selection->x = i;
                 sprite_selection->y = j;
                 sprite_selection->tag = MAPSPRITE_TAG;
+
+                // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
+                for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
+                    uint8_t tag = scene->tags[i];
+
+                    if (common_ptr->isTextTexture(tag) || common_ptr->isPlayerSpriteTexture(tag)) texture_idx++;
+                    else if (tag == MAPSPRITE_TAG) {
+                        sprite_selection->texture_idx = texture_idx;
+                        break;
+                    }
+                }
+
                 acted_on = true;
                 LOG(1, "INFO", "Selection made on <MapSprite tag=%u, x=%u, y=%u>.\n", MAPSPRITE_TAG, i, j);
                 return;
@@ -273,6 +318,27 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
         sprite_selection->x = 0;
         sprite_selection->y = 0;
         sprite_selection->tag = PLAYER_TAG;
+
+        // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
+        for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
+            uint8_t tag = scene->tags[i];
+
+            if (common_ptr->isTextTexture(tag) || common_ptr->isBackgroundSpriteTexture(tag)) texture_idx++;
+            else if (tag == PLAYER_TAG) {
+                sprite_selection->texture_idx = texture_idx;
+                break;
+            }
+        }
+
+        // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
+        for (uint8_t i = 0; i < scene->textures.size(); ++i) {
+            uint8_t tag = scene->tags[i];
+            if (tag == PLAYER_TAG) {
+                sprite_selection->texture_idx = i;
+                break;
+            }
+        }
+
         acted_on = true;
         LOG(1, "INFO", "Selection made on <PlayerSprite tag=%u, x=%u, y=%u>.\n", PLAYER_TAG, 0, 0);
         return;
@@ -753,6 +819,12 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     }
 }
 
+void BlitNewPlacement(const Placement& placement) {
+    LOG(1, "TRACE", "MapEditor::BlitNewPlacement\n");
+
+    // FIXME!
+}
+
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     LOG(1, "INFO", "MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
 
@@ -780,12 +852,16 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     placement.sprite_x_idx = _sprite_selection.x;
     placement.sprite_y_idx = _sprite_selection.y;
     placement.tag = _sprite_selection.tag;
+
+    // FIXME: Move this placement to the backbuffer.
+    //        BlitNewPlacement(placement);
+
     store_placement(_common, placement);
     _sprite_selection.selection = false;
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
-    LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
+    // LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }
@@ -1136,7 +1212,7 @@ static void mainloop(void) {
         }
         else if (eh.type == SDL_MOUSEMOTION) {
             map_editor->UpdateMouseCoords(eh.motion.x, eh.motion.y);
-            // FIXME: Drag & Drop should now be drawn on the front buffer.
+            interactive = true;
         }
         else if (eh.type == SDL_MOUSEBUTTONDOWN) {
             int x, y;
@@ -1192,5 +1268,5 @@ int main() {
     return 0;
 }
 
-// FIXME: Drag & Drop should now be drawn on the front buffer.
+// FIXME: Once drag & drop succeeds it needs to be reflected on the back buffer there onwards.
 // FIXME: Now we can move the placement grid, we should draw the strips that were removed.

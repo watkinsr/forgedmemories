@@ -80,8 +80,8 @@ public:
     void set_fps(const uint8_t fps) { _fps = fps; };
     void TryLoadPreviousMap();
     Timepoint prev_clock = {};
-private:
     SpriteSelection _sprite_selection;
+private:
     std::shared_ptr<Placement> _player_placement = nullptr;
     editor_mode _editor_mode = editor_mode::SENTINEL;  // Default state - no mode.
     prev_map_t _prev_map;
