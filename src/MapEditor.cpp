@@ -347,6 +347,18 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
     if (!acted_on) LOG(1, "INFO", "Unable to act on add action, no sprite found to select\n");
 }
 
+void inline BlitRemovedPlacement(const ssize_t placement_x, const ssize_t placement_y) {
+    LOG(1, "TRACE", "BlitRemovedPlacement(%u, %u)\n", placement_x, placement_y);
+    SDL_Rect src = {placement_x+1, placement_y+1, 31, 31};
+    SDL_Color color = {64,64,64,255};
+
+    SDL_Renderer* _renderer = common_ptr->GetRenderer();
+    SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
+
+    SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderFillRect(_renderer, &src);
+}
+
 void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
     if (!(
         _editor_mode == editor_mode::ADD ||
@@ -358,24 +370,56 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
 
     scene_t* current_scene = _common->GetCurrentScene();
 
-    // FIXME: Again, we have many issues here.
-    //        First we should really be binary searching placements at this point.
-    //        We also should gathering all placements to search.
-    auto _placements = g_generic_map_placements.data;
+    auto map_placements = g_generic_map_placements.data;
+
+    // FIXME: We just require g_placements instead of g_generic_map_placements / g_player_placements
 
     if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::DEL) {
-        std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
+        auto map_placements = g_generic_map_placements.data;
+        // FIXME: Binary search the placements vector.
+        std::sort(map_placements.begin(), map_placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
         });
         int placement_idx = 0;
-        for (const auto& placement : _placements) {
-            int px = placement.x;
-            int py = placement.y;
-            if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
-                _placements.erase(_placements.begin() + placement_idx);
-                break;
+        bool placement_removed = false;
+        {
+            for (const auto& placement : map_placements) {
+                int px = placement.x;
+                int py = placement.y;
+                if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
+                    const auto& placement = map_placements.begin() + placement_idx;
+                    map_placements.erase(placement);
+                    BlitRemovedPlacement(px, py);
+                    SwapBuffers();
+                    placement_removed = true;
+                    break;
+                }
+                placement_idx++;
             }
-            placement_idx++;
+        }
+
+        if (placement_removed) return;
+
+        auto player_placements = g_player_placements.data;
+        // FIXME: Binary search the placements vector.
+        std::sort(player_placements.begin(), player_placements.end(), [](const Placement& a, const Placement& b) {
+            return a.y < b.y || (a.y == b.y && a.x < b.x);
+        });
+
+        {
+            for (const auto& placement : player_placements) {
+                int px = placement.x;
+                int py = placement.y;
+                if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
+                    const auto& placement = player_placements.begin() + placement_idx;
+                    player_placements.erase(placement);
+                    BlitRemovedPlacement(px, py);
+                    SwapBuffers();
+                    placement_removed = true;
+                    break;
+                }
+                placement_idx++;
+            }
         }
         return;
     } else if (_editor_mode == editor_mode::ADD) {
@@ -390,7 +434,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         };
 
         // Sort by y-coordinate with x-coordinate as second priority.
-        std::sort(_placements.begin(), _placements.end(), [](const Placement& a, const Placement& b) {
+        std::sort(map_placements.begin(), map_placements.end(), [](const Placement& a, const Placement& b) {
             return a.y < b.y || (a.y == b.y && a.x < b.x);
         });
 
@@ -410,7 +454,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         LOG_INFO("<TopLeftVec2D [%i, %i]>\n", vl.x, vl.y);
         LOG_INFO("<BottomRightVec2D [%i, %i]>\n", vr.x, vr.y);
 
-        was_matched = binary_search_region(&_placements, &vl, &vr, 0, _placements.size()-1) != -1;
+        was_matched = binary_search_region(&map_placements, &vl, &vr, 0, map_placements.size()-1) != -1;
         if (was_matched) {
             LOG_INFO("Matched on region\n");
             // It's a valid delineation in absence of overlap.
@@ -679,7 +723,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH*(float)(RIGHT_PANEL_WIDTH))
         };
     }
-    BlitMessage(message);
+    if (message.lines.size() > 0) BlitMessage(message);
 }
 
 void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* message) {
@@ -819,10 +863,20 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     }
 }
 
-void BlitNewPlacement(const Placement& placement) {
+void inline BlitNewPlacement(const Placement& placement, const uint8_t texture_idx) {
     LOG(1, "TRACE", "MapEditor::BlitNewPlacement\n");
 
-    // FIXME!
+    SDL_Rect src;
+    SDL_Rect dst;
+
+    src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
+    dst = {placement.x, placement.y, 32, 32};
+
+    SDL_Renderer* _renderer = common_ptr->GetRenderer();
+    SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
+    scene_t* scene = common_ptr->GetCurrentScene();
+
+    SDL_RenderCopy(_renderer, scene->textures[texture_idx], &src, &dst);
 }
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
@@ -853,8 +907,8 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     placement.sprite_y_idx = _sprite_selection.y;
     placement.tag = _sprite_selection.tag;
 
-    // FIXME: Move this placement to the backbuffer.
-    //        BlitNewPlacement(placement);
+    BlitNewPlacement(placement, _sprite_selection.texture_idx);
+    SwapBuffers(); // Reflect immediately.
 
     store_placement(_common, placement);
     _sprite_selection.selection = false;
@@ -1268,5 +1322,8 @@ int main() {
     return 0;
 }
 
-// FIXME: Once drag & drop succeeds it needs to be reflected on the back buffer there onwards.
-// FIXME: Now we can move the placement grid, we should draw the strips that were removed.
+// FIXME: Now we can move the placement grid:
+//        1. We should advance by "Placement Grid square" on up/down/left/right
+//        2. Draw the next part of the placement grid.
+
+// FIXME: The player position should be respected s.t. the Map header file does indeed define the player start point.
