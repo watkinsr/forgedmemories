@@ -75,7 +75,6 @@ Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     LOG_nodt(1, "INFO", "<Player begin_x=%zu, begin_y=%zu>\n", PLAYER_BEGIN_X, PLAYER_BEGIN_Y);
     _SetTextureLocations();
     common_ptr->AllocateScene(false);
-    FillBackBufferInitial();
 }
 
 Game::~Game() {}

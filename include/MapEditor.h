@@ -12,6 +12,11 @@
 #include "Common.h"
 #include "Types.h"
 
+#define STEP_SIZE 10
+
+const int BACKBUFFER_WIDTH = 800;
+const int BACKBUFFER_HEIGHT = 600;
+
 using namespace std;
 
 using Timepoint = chrono::time_point<chrono::steady_clock>;
@@ -58,7 +63,13 @@ class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
     ~MapEditor() {}
-    void RenderCurrentScene();
+    void RenderScene(scene_t* scene, SDL_Renderer* _renderer);
+    void BlitPlacementArea(uint8_t direction);
+    void BlitMessage(const Message& message);
+    void BlitNext(uint8_t direction);
+    void SwapBuffers();
+    void FillBackBufferInitial();
+    void GetNextBackBuffer(SDL_Texture* t, uint8_t direction);
     void _SetTextureLocations();
     void HandleSelection(const int, const int);
     void HandleMenuBarSelection(const int, const int);
@@ -69,7 +80,6 @@ public:
     void set_fps(const uint8_t fps) { _fps = fps; };
     void TryLoadPreviousMap();
     Timepoint prev_clock = {};
-    Message message = {};
 private:
     SpriteSelection _sprite_selection;
     std::shared_ptr<Placement> _player_placement = nullptr;

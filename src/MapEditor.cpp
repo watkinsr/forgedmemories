@@ -17,7 +17,15 @@ static Arena temporary_arena = {0};
 #include "Common.h"
 #include "MapEditor.h"
 
+#define PLACEMENT_MOVE_GRID_UP 1
+#define PLACEMENT_MOVE_GRID_DOWN 2
+#define PLACEMENT_MOVE_GRID_LEFT 4
+#define PLACEMENT_MOVE_GRID_RIGHT 8
+
 Marked_Maps *marked_maps = NULL;
+
+static std::shared_ptr<Common> common_ptr;
+static std::unique_ptr<MapEditor> map_editor;
 
 // Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
@@ -134,204 +142,81 @@ void MapEditor::_SetTextureLocations() {
     _common->AddScene(SCENE_1);
 }
 
-void MapEditor::RenderCurrentScene() {
+void MapEditor::BlitPlacementArea(uint8_t direction) {
     SDL_Renderer* _renderer = _common->GetRenderer();
-    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
-    scene_t* current_scene = _common->GetCurrentScene();
+    SDL_Texture* t = SDL_CreateTexture(
+        _renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        BACKBUFFER_WIDTH,
+        BACKBUFFER_HEIGHT
+    );
 
-    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
-    else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
-    SDL_RenderClear(_renderer);
+    SDL_Rect src;
+    SDL_Rect dst;
 
-    uint8_t texture_idx = 0;
-    uint8_t color_idx = 0;
+    float menu_y_factor = 0.05f;
+    int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
 
-    for (uint8_t i = 0; i < current_scene->texture_src_rects.size(); ++i) {
-        SDL_Rect src_rect = current_scene->texture_src_rects[i];
-        SDL_Rect dst_rect = current_scene->texture_dst_rects[i];
-        uint8_t tag = current_scene->tags[i];
-        if (_common->isRectTexture(tag)) {
-            SDL_Color color = current_scene->colors[color_idx++];
-            SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
-            SDL_RenderFillRect(_renderer, &src_rect);
-        } else if (_common->isTextTexture(tag)) {
-            SDL_Texture* texture = current_scene->textures[texture_idx++];
-            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
-        } else if (_common->isPlayerSpriteTexture(current_scene->tags[i])) {
-            // Render the player sprite to the right.
-            SDL_Texture* texture = current_scene->textures[texture_idx++];
+    float placement_bar_y_factor = 0.03f;
+    int placement_bar_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(placement_bar_y_factor);
 
-            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
-            const uint16_t y_offset = SPRITESHEET_HEIGHT + SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
+    const int placement_bar_y_offset = menu_y + placement_bar_y;
+    const int placement_bar_width = SCREEN_WIDTH-180;
+    const int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
 
-            src_rect.x = 0;
-            src_rect.y = 0;
-
-            dst_rect.x = x_offset;
-            dst_rect.y = y_offset;
-            dst_rect.w = SPRITE_WIDTH;
-            dst_rect.h = SPRITE_HEIGHT;
-
-            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-
-            // Render placements.
-            for (auto placement : g_player_placements.data) {
-                src_rect.x = 0;
-                src_rect.y = 0;
-                src_rect.w = 50;
-                src_rect.h = 50;
-                dst_rect.x = placement.x;
-                dst_rect.y = placement.y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-
-            // Render drag&drop
-            if (_sprite_selection.selection && _common->isPlayerSpriteTexture(_sprite_selection.tag)) {
-                src_rect.x = 0;
-                src_rect.y = 0;
-                src_rect.w = SPRITE_WIDTH;
-                src_rect.h = SPRITE_HEIGHT;
-                dst_rect.x = _mouse_x;
-                dst_rect.y = _mouse_y;
-                dst_rect.w = SPRITE_WIDTH;
-                dst_rect.h = SPRITE_HEIGHT;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-            
-        } else if (_common->isBackgroundSpriteTexture(tag)) {
-            // Get the spritesheet texture.
-            SDL_Texture* texture = current_scene->textures[texture_idx++];
-
-            // Render drag&drop
-            if (_sprite_selection.selection && _common->isBackgroundSpriteTexture(_sprite_selection.tag)) {
-                src_rect.x = _sprite_selection.x*16;
-                src_rect.y = _sprite_selection.y*16;
-                src_rect.w = 16;
-                src_rect.h = 16;
-                dst_rect.x = _mouse_x;
-                dst_rect.y = _mouse_y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-
-            // Render placements.
-            for (auto placement : g_generic_map_placements.data) {
-                src_rect.x = placement.sprite_x_idx*16;
-                src_rect.y = placement.sprite_y_idx*16;
-                src_rect.w = 16;
-                src_rect.h = 16;
-                dst_rect.x = placement.x;
-                dst_rect.y = placement.y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-
-            // Render the spritesheet to the right.
-            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
-            const uint16_t y_offset = SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
-
-            src_rect.x = 0;
-            src_rect.y = 0;
-            src_rect.w = SPRITESHEET_WIDTH;
-            src_rect.h = SPRITESHEET_HEIGHT;
-            dst_rect.x = x_offset;
-            dst_rect.y = y_offset;
-            dst_rect.w = SPRITESHEET_WIDTH;
-            dst_rect.h = SPRITESHEET_HEIGHT;
-
-            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-        }
+    switch(direction) {
+        case PLACEMENT_MOVE_GRID_UP:
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer up by %u pixels\n", STEP_SIZE);
+            src = {0, placement_bar_y_offset+STEP_SIZE, placement_bar_width, playground_y-STEP_SIZE};
+            dst = {0, placement_bar_y_offset, placement_bar_width, playground_y-STEP_SIZE};
+            break;
+        case PLACEMENT_MOVE_GRID_DOWN:
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer down by %u pixels\n", STEP_SIZE);
+            src = {0, placement_bar_y_offset, placement_bar_width, playground_y-STEP_SIZE};
+            dst = {0, placement_bar_y_offset+STEP_SIZE, placement_bar_width, playground_y-STEP_SIZE};
+            break;
+        case PLACEMENT_MOVE_GRID_LEFT:
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer left by %u pixels\n", STEP_SIZE);
+            src = {STEP_SIZE, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            dst = {0, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            break;
+        case PLACEMENT_MOVE_GRID_RIGHT:
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer right by %u pixels\n", STEP_SIZE);
+            src = {0, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            dst = {STEP_SIZE, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            break;
+        default:
+            src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+            dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+            break;
     }
+    
+    SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
 
-    // Render the "snap" lines in the placement area.
-    SDL_SetRenderDrawColor(_renderer, 0x00, 0xFF, 0x00, 0xFF);
+    // >>> Copy over the rest of the pixels:
+    // 1. Copy the right panel.
+    src = {placement_bar_width, 0, SCREEN_WIDTH-placement_bar_width, SCREEN_HEIGHT};
+    dst = {placement_bar_width, 0, SCREEN_WIDTH-placement_bar_width, SCREEN_HEIGHT};
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy right panel.
 
-    // Note: Offset=68 since menu_bar_y_offset=57, sprite_2x_scale_y=32"
-    uint16_t line_y_offset = 64;
-    uint16_t line_x_offset = 0;
+    // 2. Copy over the top-menu.
+    src = {0, 0, placement_bar_width, menu_y + placement_bar_y};
+    dst = {0, 0, placement_bar_width, menu_y + placement_bar_y};
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy top-menu.
+    
+    SDL_DestroyTexture(_back_buffer);                               // Now we can get rid of the back buffer.
+    _common->SetBackBuffer(t);                                      // Swap to next back buffer.
+}
 
-    const int screen_y_mod = SCREEN_HEIGHT % 32;
-
-    // Draw's the horizontal lines.
-    while(line_y_offset < SCREEN_HEIGHT + (screen_y_mod)) {
-        SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-192, line_y_offset);
-        line_y_offset+=32;
-    }
-
-    // Draw's the vertical lines.
-    while(line_x_offset < SCREEN_WIDTH-180) {
-        SDL_RenderDrawLine(_renderer, line_x_offset, 64, line_x_offset, line_y_offset - 32);
-        line_x_offset+=32;
-    }
-
-    // Render the marked maps.
-    for (int i = 0; i < marked_maps->count; ++i) {
-        const Vector2D* v = marked_maps->items[i];
-        SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
-        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x+32*4, v->y);           // top line
-        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4);           // left line
-        SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
-        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
-
-        SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);             // top line
-        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);               // left line
-        SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line
-        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4+1, v->x+32*4+1, v->y+32*4+1); // Bottom line
-    }
-
-    SDL_RenderPresent(_renderer);
-
-    // Cleanup our old dynamic text textures.
-    int cleanup_counter = 0;
-    while(current_scene->textures.size() > _common->GetInitialSceneTextureSize()) {
-        SDL_DestroyTexture(current_scene->textures[current_scene->textures.size() - 1]);
-        current_scene->textures.pop_back();
-        current_scene->texture_src_rects.pop_back();
-        current_scene->texture_dst_rects.pop_back();
-        current_scene->tags.pop_back();
-        cleanup_counter++;
-    }
-    // if (cleanup_counter > 0) LOG(1, "INFO", "Cleaned up %i text textures\n", cleanup_counter);
-    _messages_flushed = 0;
-
-    if (message.flushable) {
-        float y_offset = (SCREEN_HEIGHT * 0.8) + (SCREEN_HEIGHT * 0.05f);
-        assert(message.lines.size() > 0);
-        int message_offset_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH + (RIGHT_PANEL_WIDTH-message.line_width);
-        for (const auto& line : message.lines) {
-            gametexture_t message_texture = {
-                .text_or_uri = line,
-                .src_rect = {0, 0, 0, 0},
-                .dst_rect = {message_offset_x, y_offset, 0, 0},
-                .color = {255,255,255,255},
-                .font_size = FONT_SIZE::SMALL,
-                .tag = TEXT_TAG,
-                .idx = 255 // Arbitrary, helps debugging.
-            };
-            _common->LoadTexture(_scene_stack_idx, std::move(message_texture));
-            _messages_flushed++;
-            y_offset += 16 + 10;  // Push it down by FONT_SIZE::SMALL + padding.
-        }
-    }
-
-    float tick = SDL_GetTicks();
-    float deltaTick = tick - _prev_tick;
-    uint32_t fps = 1000.0f / deltaTick;
-    gametexture_t fps_texture = {
-        .text_or_uri = "FPS: " + std::to_string(fps),
-        .src_rect = {0, 0, 0, 0},
-        .dst_rect = {SCREEN_WIDTH - 190, 5, 0, 0},
-        .color = {255,255,255,255},
-        .font_size = FONT_SIZE::SMALL,
-        .tag = TEXT_TAG
-    };
-    _common->LoadTexture(_scene_stack_idx, std::move(fps_texture));
-
-    _prev_tick = tick;
+void MapEditor::SwapBuffers() {
+    SDL_Renderer* _renderer = _common->GetRenderer();
+    SDL_SetRenderTarget(_renderer, NULL);                            // Set the renderer to target the screen buffer now.
+    SDL_RenderClear(_renderer);                                      // Un-apply the front-buffer.
+    SDL_RenderCopy(_renderer, _common->GetBackBuffer(), NULL, NULL); // Apply the back buffer
+    SDL_RenderPresent(_renderer);                                    // Present the front buffer.
 }
 
 
@@ -608,10 +493,97 @@ void handle_save_selection(Message* message) {
     if (tile.size() > 0) SaveTile(tile, map_idx, message);
 }
 
+const inline SDL_Texture* getAllocBackBuffer(std::shared_ptr<Common>& common_ptr) {
+    return SDL_CreateTexture(
+        common_ptr->GetRenderer(),
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        BACKBUFFER_WIDTH,
+        BACKBUFFER_HEIGHT
+    );
+}
+
+void MapEditor::BlitMessage(const Message& message) {
+    LOG(1, "TRACE", "MapEditor::BlitMessage\n");
+    assert(message.flushable); // FIXME: This is now a redundant flag.
+
+    // BlitMessage:
+    // 1. Copy across left-panel
+    // 2. Copy across right-panel spritesheet
+    // 3. Draw the actual text texture.
+
+    SDL_Renderer* _renderer = _common->GetRenderer();
+    const SDL_Texture* t = getAllocBackBuffer(_common);
+    SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+
+    int y_offset = 0.7f*SCREEN_HEIGHT; // FIXME: Rename this.
+
+    SDL_Rect src;
+    SDL_Rect dst;
+
+    // 1. Copy across left-panel
+    src = {0, 0, SCREEN_WIDTH-180, SCREEN_HEIGHT};
+    dst = {0, 0, SCREEN_WIDTH-180, SCREEN_HEIGHT};
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy left panel
+
+    // 2. Copy across right-panel spritesheet
+    src = {SCREEN_WIDTH-180, 0, 180, y_offset};
+    dst = {SCREEN_WIDTH-180, 0, 180, y_offset};
+    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy spritesheet
+
+    int line_offset = 0;
+
+    if (message.flushable) {
+        float y_offset = (SCREEN_HEIGHT * 0.8) + (SCREEN_HEIGHT * 0.05f);
+        assert(message.lines.size() > 0);
+        int message_offset_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH + (RIGHT_PANEL_WIDTH-message.line_width);
+        for (const auto& line : message.lines) {
+            LOG(1, "INFO", "MapEditor::BlitMessage - (MessageLine: %s)\n", line.c_str());
+            SDL_Surface* surface = TTF_RenderUTF8_Solid(
+                get_font(_common, FONT_SIZE::SMALL),
+                line.c_str(),
+                {255,255,255,255}
+            );
+            // FIXME: Factor to Surface_Error();
+            if (surface == NULL) {
+                char errstr[256];
+                SDL_GetErrorMsg(errstr, 256);
+                LOG(1, "PANIC", "Failed to obtain surface - %s\n", errstr);
+                SDL_Quit();
+                exit(EXIT_FAILURE);
+            }
+
+            SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
+            SDL_FreeSurface(surface);
+            // FIXME: Factor to Texture_Failure();
+            if (text_texture == NULL) {
+                printf("Panic: Failed to create texture for text, abort.\n");
+                exit(EXIT_FAILURE);
+            }
+
+            std::pair<int, int> texture_dims = GetTextureDimensions(text_texture);
+            const int width = std::get<0>(texture_dims);
+            const int height = std::get<1>(texture_dims);
+
+            dst = {SCREEN_WIDTH-180, y_offset+line_offset, width, height};
+
+            SDL_RenderCopy(_renderer, text_texture, NULL, &dst);
+
+            line_offset+=height;
+        }
+    }
+
+    SDL_DestroyTexture(_back_buffer);                               // Now we can get rid of the back buffer.
+    _common->SetBackBuffer(t);                                      // Swap to next back buffer.
+}
+
 void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     LOG(1, "TRACE", "MapEditor::HandleMenuBarSelection(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
     float menu_y_factor = 0.05f;
     int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
+
+    Message message = {};
 
     if (mouse_y > menu_y) return;
 
@@ -641,6 +613,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
             .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH*(float)(RIGHT_PANEL_WIDTH))
         };
     }
+    BlitMessage(message);
 }
 
 void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* message) {
@@ -718,7 +691,6 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
                 col_cur++;
             }
         }
-
 
         // If the column cursor jumped, fill the gap.
         if (x_norm_jump > 1) {
@@ -864,7 +836,6 @@ void MapEditor::TryLoadPreviousMap() {
         }
     }
 
-
     for (const auto& tile : tiles) {
         std::cout << "[";
         for (const auto& v : tile) {
@@ -926,12 +897,6 @@ void MapEditor::TryLoadPreviousMap() {
     LOG(1, "INFO", "Restored %u placements.\n", placements_restored);
 }
 
-static std::shared_ptr<Common> common_ptr;
-static std::unique_ptr<MapEditor> map_editor;
-
-const int BACKBUFFER_WIDTH = 800;
-const int BACKBUFFER_HEIGHT = 600;
-
 void initialize_the_mapeditor() {
     marked_maps = malloc(sizeof(Marked_Maps));
     LOG(1, "TRACE", "initialize_the_mapeditor()\n");
@@ -942,14 +907,174 @@ void initialize_the_mapeditor() {
     map_editor = std::make_unique<MapEditor>(common_ptr);
     LOG_INFO("Able to construct Game\n");
 
-    map_editor->message = {
+    Message message = {
         .lines = {"No mode currently active."},
         .word_wrap = true,
         .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
     };
-
+    map_editor->BlitMessage(message);
     map_editor->TryLoadPreviousMap();
-    // FIXME: map_editor->FillBackBufferInitial();
+    map_editor->FillBackBufferInitial();
+}
+
+void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
+    uint8_t texture_idx = 0;
+    uint8_t color_idx = 0;
+    
+    for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
+        SDL_Rect src_rect = scene->texture_src_rects[i];
+        SDL_Rect dst_rect = scene->texture_dst_rects[i];
+        uint8_t tag = scene->tags[i];
+        if (_common->isRectTexture(tag)) {
+            SDL_Color color = scene->colors[color_idx++];
+            SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
+            SDL_RenderFillRect(_renderer, &src_rect);
+        } else if (_common->isTextTexture(tag)) {
+            SDL_Texture* texture = scene->textures[texture_idx++];
+            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
+        } else if (_common->isPlayerSpriteTexture(scene->tags[i])) {
+            // Render the player sprite to the right.
+            SDL_Texture* texture = scene->textures[texture_idx++];
+
+            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+            const uint16_t y_offset = SPRITESHEET_HEIGHT + SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
+
+            src_rect.x = 0;
+            src_rect.y = 0;
+
+            dst_rect.x = x_offset;
+            dst_rect.y = y_offset;
+            dst_rect.w = SPRITE_WIDTH;
+            dst_rect.h = SPRITE_HEIGHT;
+
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+
+            // Render placements.
+            for (auto placement : g_player_placements.data) {
+                src_rect.x = 0;
+                src_rect.y = 0;
+                src_rect.w = 50;
+                src_rect.h = 50;
+                dst_rect.x = placement.x;
+                dst_rect.y = placement.y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // Render drag&drop
+            if (_sprite_selection.selection && _common->isPlayerSpriteTexture(_sprite_selection.tag)) {
+                src_rect.x = 0;
+                src_rect.y = 0;
+                src_rect.w = SPRITE_WIDTH;
+                src_rect.h = SPRITE_HEIGHT;
+                dst_rect.x = _mouse_x;
+                dst_rect.y = _mouse_y;
+                dst_rect.w = SPRITE_WIDTH;
+                dst_rect.h = SPRITE_HEIGHT;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+            
+        } else if (_common->isBackgroundSpriteTexture(tag)) {
+            // Get the spritesheet texture.
+            SDL_Texture* texture = scene->textures[texture_idx++];
+
+            // Render drag&drop
+            if (_sprite_selection.selection && _common->isBackgroundSpriteTexture(_sprite_selection.tag)) {
+                src_rect.x = _sprite_selection.x*16;
+                src_rect.y = _sprite_selection.y*16;
+                src_rect.w = 16;
+                src_rect.h = 16;
+                dst_rect.x = _mouse_x;
+                dst_rect.y = _mouse_y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // Render placements.
+            for (auto placement : g_generic_map_placements.data) {
+                src_rect.x = placement.sprite_x_idx*16;
+                src_rect.y = placement.sprite_y_idx*16;
+                src_rect.w = 16;
+                src_rect.h = 16;
+                dst_rect.x = placement.x;
+                dst_rect.y = placement.y;
+                dst_rect.w = 32;
+                dst_rect.h = 32;
+                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+            }
+
+            // Render the spritesheet to the right.
+            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+            const uint16_t y_offset = SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
+
+            src_rect.x = 0;
+            src_rect.y = 0;
+            src_rect.w = SPRITESHEET_WIDTH;
+            src_rect.h = SPRITESHEET_HEIGHT;
+            dst_rect.x = x_offset;
+            dst_rect.y = y_offset;
+            dst_rect.w = SPRITESHEET_WIDTH;
+            dst_rect.h = SPRITESHEET_HEIGHT;
+
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+        }
+    }
+
+    // Render the "snap" lines in the placement area.
+    SDL_SetRenderDrawColor(_renderer, 0x00, 0xFF, 0x00, 0xFF);
+
+    // Note: Offset=68 since menu_bar_y_offset=57, sprite_2x_scale_y=32"
+    uint16_t line_y_offset = 64;
+    uint16_t line_x_offset = 0;
+
+    const int screen_y_mod = SCREEN_HEIGHT % 32;
+
+    // Draw's the horizontal lines.
+    while(line_y_offset < SCREEN_HEIGHT + (screen_y_mod)) {
+        SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-192, line_y_offset);
+        line_y_offset+=32;
+    }
+
+    // Draw's the vertical lines.
+    while(line_x_offset < SCREEN_WIDTH-180) {
+        SDL_RenderDrawLine(_renderer, line_x_offset, 64, line_x_offset, line_y_offset - 32);
+        line_x_offset+=32;
+    }
+
+    // Render the marked maps.
+    for (int i = 0; i < marked_maps->count; ++i) {
+        const Vector2D* v = marked_maps->items[i];
+        SDL_SetRenderDrawColor( _renderer, 0xFF, 0x00, 0x00, 0xFF );
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x+32*4, v->y);           // top line
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4);           // left line
+        SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
+        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
+
+        SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);             // top line
+        SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);               // left line
+        SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line
+        SDL_RenderDrawLine( _renderer, v->x, v->y+32*4+1, v->x+32*4+1, v->y+32*4+1); // Bottom line
+    }
+}
+
+void MapEditor::FillBackBufferInitial() {
+    LOG(1, "TRACE", "MapEditor::FillBackBufferInitial\n");
+    SDL_Renderer* _renderer = _common->GetRenderer();
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+    SDL_SetRenderTarget(_renderer, _back_buffer);
+
+    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
+    scene_t* current_scene = _common->GetCurrentScene();
+
+    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
+    SDL_RenderClear(_renderer);
+
+    RenderScene(current_scene, _renderer);
+
+
 }
 
 static Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
@@ -957,6 +1082,11 @@ static Uint64 last_frame_tick = tick - 17; // Ensures we always render the first
 static Uint64 dt_frame = 17;               // Ensures no initial event wait.
 static Uint64 frame_per_second = 0;        // Counter that gets reset after 1s.
 static Uint64 seconds = 1;                 // Seconds rendered.
+
+void move_placement_area(uint8_t direction) {
+    LOG(1, "TRACE", "MapEditor::placement_move(%u)\n", direction);
+    map_editor->BlitPlacementArea(direction);
+}
 
 static void mainloop(void) {
     int quit_app = 0;
@@ -989,8 +1119,24 @@ static void mainloop(void) {
             SDL_Quit();
             exit(1);
         }
+        else if (eh.type == SDL_KEYDOWN) {
+            auto sym = eh.key.keysym.sym;
+            if (sym == SDLK_UP) {
+                move_placement_area(PLACEMENT_MOVE_GRID_UP);
+            }
+            else if (sym == SDLK_DOWN) {
+                move_placement_area(PLACEMENT_MOVE_GRID_DOWN);
+            }
+            else if (sym == SDLK_LEFT) {
+                move_placement_area(PLACEMENT_MOVE_GRID_LEFT);
+            }
+            else if (sym == SDLK_RIGHT) {
+                move_placement_area(PLACEMENT_MOVE_GRID_RIGHT);
+            }
+        }
         else if (eh.type == SDL_MOUSEMOTION) {
             map_editor->UpdateMouseCoords(eh.motion.x, eh.motion.y);
+            // FIXME: Drag & Drop should now be drawn on the front buffer.
         }
         else if (eh.type == SDL_MOUSEBUTTONDOWN) {
             int x, y;
@@ -1012,7 +1158,8 @@ static void mainloop(void) {
     dt_frame = tick - last_frame_tick;
     if (dt_frame > DEFAULT_WAIT && interactive) { // Allow 2ms draw time.
         Uint64 before = SDL_GetTicks64();
-        map_editor->RenderCurrentScene();
+
+        map_editor->SwapBuffers();
 
         // Steady clock, eval did render a frame in <= 16ms? -> 60FPS
         // If it's > 16ms, eval (x / 1000ms) * 60frames
@@ -1045,6 +1192,5 @@ int main() {
     return 0;
 }
 
-
-// TODO: Introduce "player" sprite that can designate player start location.
-// TODO: Introduce letf/up/right/down keys to move the snapping grid.
+// FIXME: Drag & Drop should now be drawn on the front buffer.
+// FIXME: Now we can move the placement grid, we should draw the strips that were removed.

@@ -83,7 +83,6 @@ public:
     bool isImageTexture(uint8_t);
     bool isSpriteTexture(uint8_t);
     bool isRectTexture(uint8_t);
-    std::pair<int, int> GetTextureDimensions(SDL_Texture*);
     SDL_Renderer* GetRenderer();
     SDL_Texture* GetBackBuffer() { return _back_buffer; };
     void SetBackBuffer(SDL_Texture* t) { _back_buffer = t; };
@@ -93,6 +92,7 @@ public:
     void SetInitialSceneTextureSize(const uint8_t);
     uint8_t GetInitialSceneTextureSize();
     void DestroyFonts();
+    vector<std::shared_ptr<TTF_Font>>                                 _fonts = {};
 private:
     uint32_t _BACKBUFFER_WIDTH;
     uint32_t _BACKBUFFER_HEIGHT;
@@ -105,7 +105,6 @@ private:
     SDL_Texture*                                                      _back_buffer;
     SDL_Window*                                                       _window;
     SDL_Renderer*                                                     _renderer;
-    vector<std::shared_ptr<TTF_Font>>                                 _fonts = {};
     SDL_Surface*                                                      _screen_surface;
     uint8_t                                                           _scene_stack_idx = 0;
     vector<scene_t>                                                   _scenes = vector<scene_t>();
@@ -144,3 +143,6 @@ private:
     } while (0)
 
 #endif
+
+const TTF_Font* get_font(std::shared_ptr<Common>& common_ptr, FONT_SIZE size);
+constexpr inline std::pair<int, int> GetTextureDimensions(SDL_Texture* texture);

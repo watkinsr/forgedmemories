@@ -1,5 +1,20 @@
 #include "Common.h"
 
+constexpr inline std::pair<int, int> GetTextureDimensions(SDL_Texture* texture) {
+    int width = 0;
+    int height = 0;
+    if (SDL_QueryTexture(texture, NULL, NULL, &width, &height) != 0) {
+        printf("Panic: Failed to query texture, abort.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return std::pair(width, height);
+}
+
+const TTF_Font* get_font(std::shared_ptr<Common>& common_ptr, FONT_SIZE size) {
+    return common_ptr->_fonts[size].get();
+}
+
 void Common::SetupSDL() {
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "Panic: SDL initialization failed, abort.\n");
@@ -311,16 +326,7 @@ bool Common::isRectTexture(uint8_t tag) {
     return (tag & RECT_TAG) == RECT_TAG;
 }
 
-std::pair<int, int> Common::GetTextureDimensions(SDL_Texture* texture) {
-    int width = 0;
-    int height = 0;
-    if (SDL_QueryTexture(texture, NULL, NULL, &width, &height) != 0) {
-        printf("Panic: Failed to query texture, abort.\n");
-        exit(EXIT_FAILURE);
-    }
 
-    return std::pair(width, height);
-}
 
 SDL_Renderer* Common::GetRenderer() { return _renderer; }
 SDL_Window* Common::GetWindow() { return _window; }
