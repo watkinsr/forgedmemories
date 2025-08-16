@@ -22,6 +22,11 @@ static Arena temporary_arena = {0};
 #define PLACEMENT_MOVE_GRID_LEFT 4
 #define PLACEMENT_MOVE_GRID_RIGHT 8
 
+#define PLACEMENT_TILE_DIST 32
+
+uint32_t camera_x = 0;
+uint32_t camera_y = 0;
+
 Marked_Maps *marked_maps = NULL;
 
 static std::shared_ptr<Common> common_ptr;
@@ -166,6 +171,57 @@ void MapEditor::_SetTextureLocations() {
     _common->AddScene(SCENE_1);
 }
 
+void draw_horizontal_strip(SDL_Renderer* renderer, uint32_t y_offset_begin, uint32_t y_offset_end) {
+    LOG(1, "TRACE", "draw_horizontal_strip(renderer=?)\n");
+    const int placement_bar_width = SCREEN_WIDTH-180;
+    SDL_Rect fill_rect;
+
+    auto y_offset = y_offset_begin;
+    auto x_offset = 0;
+
+    SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255);
+    fill_rect = {0, y_offset_begin, placement_bar_width, PLACEMENT_TILE_DIST};
+    SDL_RenderFillRect(renderer, &fill_rect);
+
+    SDL_SetRenderDrawColor(renderer, 0x00, 0xFF, 0x00, 0xFF);
+
+    while(y_offset < y_offset_end) { // Draw's the horizontal lines.
+        SDL_RenderDrawLine(renderer, 0, y_offset, SCREEN_WIDTH-192, y_offset);
+        y_offset+=32;
+    }
+
+    while(x_offset < SCREEN_WIDTH-180) { // Draw's the vertical lines.
+        SDL_RenderDrawLine(renderer, x_offset, y_offset_begin, x_offset, y_offset_begin + PLACEMENT_TILE_DIST);
+        x_offset+=32;
+    }
+}
+
+void draw_vertical_strip(SDL_Renderer* renderer, uint32_t x_offset_begin, uint32_t x_offset_end, int grid_height) {
+    LOG(1, "TRACE", "draw_vertical_strip(renderer=?, x_offset_begin=%u, x_offset_end=%u, grid_height=%i)\n", x_offset_begin, x_offset_end, grid_height);
+    const int grid_begin_y = 64;
+    SDL_Rect fill_rect;
+
+    auto y_offset = grid_begin_y;
+    auto x_offset = x_offset_begin;
+
+    SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255);
+    fill_rect = {x_offset_begin, grid_begin_y, PLACEMENT_TILE_DIST, grid_height};
+    SDL_RenderFillRect(renderer, &fill_rect);
+
+    SDL_SetRenderDrawColor(renderer, 0x00, 0xFF, 0x00, 0xFF);
+
+    while(y_offset < SCREEN_HEIGHT) { // Draw's the horizontal lines.
+        SDL_RenderDrawLine(renderer, x_offset_begin, y_offset, x_offset_end, y_offset);
+        y_offset+=PLACEMENT_TILE_DIST;
+    }
+
+    while(x_offset < SCREEN_WIDTH-180) { // Draw's the vertical lines.
+        SDL_RenderDrawLine(renderer, x_offset, grid_begin_y, x_offset, y_offset-PLACEMENT_TILE_DIST);
+        x_offset+=PLACEMENT_TILE_DIST;
+    }
+    return;
+}
+
 void MapEditor::BlitPlacementArea(uint8_t direction) {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* t = SDL_CreateTexture(
@@ -185,40 +241,60 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
     float placement_bar_y_factor = 0.03f;
     int placement_bar_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(placement_bar_y_factor);
 
-    const int placement_bar_y_offset = menu_y + placement_bar_y;
+    const int grid_begin_y = 64;
+
     const int placement_bar_width = SCREEN_WIDTH-180;
-    const int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
+    const int grid_height = (SCREEN_HEIGHT - grid_begin_y)-((SCREEN_HEIGHT - grid_begin_y) % PLACEMENT_TILE_DIST);
+
+    SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+
+    uint32_t offset_x_begin;
+
+    // FIXME: When drawing the next strip, we should check if any sprites are in that strip.
 
     switch(direction) {
         case PLACEMENT_MOVE_GRID_UP:
-            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer up by %u pixels\n", STEP_SIZE);
-            src = {0, placement_bar_y_offset+STEP_SIZE, placement_bar_width, playground_y-STEP_SIZE};
-            dst = {0, placement_bar_y_offset, placement_bar_width, playground_y-STEP_SIZE};
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer up by %u pixels\n", PLACEMENT_TILE_DIST);
+            camera_y -= PLACEMENT_TILE_DIST;
+            src = {0, grid_begin_y+PLACEMENT_TILE_DIST, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
+            dst = {0, grid_begin_y, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
+            SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
+            draw_horizontal_strip(_renderer, grid_begin_y+(grid_height-PLACEMENT_TILE_DIST), SCREEN_HEIGHT);
             break;
         case PLACEMENT_MOVE_GRID_DOWN:
-            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer down by %u pixels\n", STEP_SIZE);
-            src = {0, placement_bar_y_offset, placement_bar_width, playground_y-STEP_SIZE};
-            dst = {0, placement_bar_y_offset+STEP_SIZE, placement_bar_width, playground_y-STEP_SIZE};
+            camera_y += PLACEMENT_TILE_DIST;
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer down by %u pixels\n", PLACEMENT_TILE_DIST);
+            src = {0, grid_begin_y, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
+            dst = {0, grid_begin_y+PLACEMENT_TILE_DIST, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
+            SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
+            draw_horizontal_strip(_renderer, grid_begin_y, grid_begin_y+PLACEMENT_TILE_DIST);
             break;
         case PLACEMENT_MOVE_GRID_LEFT:
-            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer left by %u pixels\n", STEP_SIZE);
-            src = {STEP_SIZE, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
-            dst = {0, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            camera_x -= PLACEMENT_TILE_DIST;
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer left by %u pixels\n", PLACEMENT_TILE_DIST);
+            src = {PLACEMENT_TILE_DIST, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
+            dst = {0, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
+            SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
+            offset_x_begin = (SCREEN_WIDTH-180) - ((SCREEN_WIDTH-180) % PLACEMENT_TILE_DIST) - PLACEMENT_TILE_DIST;
+            draw_vertical_strip(_renderer, offset_x_begin, offset_x_begin+PLACEMENT_TILE_DIST, grid_height);
             break;
         case PLACEMENT_MOVE_GRID_RIGHT:
-            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer right by %u pixels\n", STEP_SIZE);
-            src = {0, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
-            dst = {STEP_SIZE, placement_bar_y_offset, placement_bar_width-STEP_SIZE, playground_y};
+            camera_x += PLACEMENT_TILE_DIST;
+            LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer right by %u pixels\n", PLACEMENT_TILE_DIST);
+            src = {0, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
+            dst = {PLACEMENT_TILE_DIST, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
+            SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
+            draw_vertical_strip(_renderer, 0, PLACEMENT_TILE_DIST, grid_height);
             break;
         default:
             src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
             dst = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+            SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             break;
     }
-    
-    SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
-    SDL_Texture* _back_buffer = _common->GetBackBuffer();
-    SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
+
+    LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Camera (x=%u, y=%u)\n", camera_x, camera_y);
 
     // >>> Copy over the rest of the pixels:
     // 1. Copy the right panel.
@@ -1162,14 +1238,16 @@ void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
     const int screen_y_mod = SCREEN_HEIGHT % 32;
 
     // Draw's the horizontal lines.
-    while(line_y_offset < SCREEN_HEIGHT + (screen_y_mod)) {
+    while(line_y_offset < SCREEN_HEIGHT) {
         SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-192, line_y_offset);
         line_y_offset+=32;
     }
 
+    auto vertical_line_begin_y = 64;
+
     // Draw's the vertical lines.
     while(line_x_offset < SCREEN_WIDTH-180) {
-        SDL_RenderDrawLine(_renderer, line_x_offset, 64, line_x_offset, line_y_offset - 32);
+        SDL_RenderDrawLine(_renderer, line_x_offset, vertical_line_begin_y, line_x_offset, line_y_offset - 32);
         line_x_offset+=32;
     }
 
