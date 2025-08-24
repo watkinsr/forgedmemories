@@ -1028,11 +1028,8 @@ static std::unique_ptr<Game> game;
 
 void initialize_the_game() {
     LOG(1, "TRACE", "initialize_the_game()\n");
-    std::string app_name = std::string("Game");
-    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
-    LOG_INFO("Able to construct Common\n");
+    common_ptr = std::make_shared<Common>("Game", BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
     game = std::make_unique<Game>(common_ptr);
-    LOG_INFO("Able to construct Game\n");
     Uint64 before = SDL_GetTicks64();
     game->FillBackBufferInitial();
     LOG_INFO("Fill back buffer initial took: %zums\n", SDL_GetTicks64()-before);

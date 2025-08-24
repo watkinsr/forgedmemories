@@ -119,9 +119,9 @@ void Common::AddScene(std::vector<gametexture_t> scene) {
 
 Common::~Common() {}
 
-Common::Common(std::string app_name, const uint32_t BACKBUFFER_WIDTH, const uint32_t BACKBUFFER_HEIGHT) {
+Common::Common(const char* app_name, const uint32_t BACKBUFFER_WIDTH, const uint32_t BACKBUFFER_HEIGHT) {
     LOG_INFO("Common::Common cstror\n");
-    _app_name = app_name.c_str();
+    _app_name = app_name;
     _BACKBUFFER_WIDTH = BACKBUFFER_WIDTH;
     _BACKBUFFER_HEIGHT = BACKBUFFER_HEIGHT;
     SetupSDL();

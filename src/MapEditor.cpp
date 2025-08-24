@@ -999,61 +999,135 @@ void MapEditor::UpdateMouseCoords(int x, int y) {
 uint64_t frame_count = 0;
 uint64_t current_ticks = 0;
 
-void MapEditor::TryLoadPreviousMap() {
-    LOG(1, "TRACE", "TryLoadPreviousMap()\n");
+static inline std::ifstream open_file(const char* file_name) {
     std::ifstream file(MAP_FILE);
     if (!file.is_open()) {
         LOG(1, "PANIC", "Failed to open previous map at file: %s\n", MAP_FILE);
         exit(EXIT_FAILURE);
     }
+    return file;
+}
 
-    std::string line;
-    int x, y;
-    std::vector<std::vector<int>> tiles = {{}};
-    int tile_idx = 0;
-    while (std::getline(file, line)) {
-        if (line.starts_with("#define MAP0_METADATA")) {
-            line = line.substr(sizeof("#define MAP0_METADATA"));
-            size_t pos;
-            while ((pos = line.find(",")) != std::string::npos) {
-                x = atoi(line.substr(0, pos).c_str());
-                line.erase(0, pos + 1);
-                break;
-            }
-            y = atoi(line.c_str());
-            LOG(1, "INFO", "First sprite: [%i,%i]\n", x, y);
-        } else if (line.starts_with("#define MAP")) continue;
-        else {
-            size_t pos;
-            if (pos = line.find("{") == std::string::npos) continue;
-            line.erase(std::remove(line.begin(), line.end(), '{'), line.end());
-            line.erase(std::remove(line.begin(), line.end(), '}'), line.end());
+static void inline parse_metadata(std::string& current_line, int* x, int* y) {
+    current_line = current_line.substr(sizeof("#define MAP0_METADATA"));
+    size_t pos = current_line.find(",");
+    *x = atoi(current_line.substr(0, pos).c_str());
+    current_line.erase(0, pos + 1);
+    *y = atoi(current_line.c_str());
+}
 
-            while ((pos = line.find(",")) != std::string::npos) {
-                if (tiles[tile_idx].size() == 0) tiles[tile_idx] = std::vector<int>();
-                tiles[tile_idx].push_back(atoi(line.substr(0, pos).c_str()));
-                line.erase(0, pos + 1);
-            }
-            if (tile_idx == 3) tiles[tile_idx].push_back(atoi(line.c_str()));
-            tile_idx++;
-            if (tile_idx == 4) break;
-            std::vector<int> v = {};
-            tiles.push_back(std::move(v));
+
+static inline constexpr void remove_spaces(char *s) {
+    char *d = s;
+    for (char *p = s; *p; ++p) {
+        if (!isspace((unsigned char)*p)) {
+            *d++ = *p;
         }
     }
+    *d = '\0';
+}
 
-    for (const auto& tile : tiles) {
-        std::cout << "[";
-        for (const auto& v : tile) {
-            std::cout << v << ", ";
+static size_t inline constexpr next_comma_dist(std::string& current_line) {
+    size_t dist = 0;
+    for (;;) {
+        char token = current_line[dist];
+        if (token == '\0') {
+            return 0;
         }
-        std::cout << "]";
-        std::cout << std::endl;
+        else if (token == '\\') {
+            return 0;
+        }
+        else if (token == ',') {
+            break;
+        }
+        dist++;
+    }
+    return dist;
+}
+
+static void inline parse_row(std::string& current_line, void* map, size_t* offset) {
+    current_line.erase(std::remove(current_line.begin(), current_line.end(), '{'), current_line.end());
+    current_line.erase(std::remove(current_line.begin(), current_line.end(), '}'), current_line.end());
+
+    char first_token;
+    remove_spaces(current_line.data());
+
+    size_t dist;
+    for (;;) {
+        std::string prev_line = current_line; // DEBUG ONLY
+        char first_token = current_line[0];
+        dist = next_comma_dist(current_line);
+        if (dist == 0) {
+            LOG(1, "WARN", "Move to next line, line=%s\n", current_line.c_str());
+            break;
+        }
+        const char* chopped_value = current_line.substr(0, dist).c_str();
+        current_line.erase(0, dist);
+        int sprite_encoding = atoi(chopped_value);
+        LOG(1, "INFO", "(chop=%s, dist=%d, encoding=%i, first_token=%c)\n", chopped_value, dist, sprite_encoding, first_token);
+        std::memcpy(map + *offset, &sprite_encoding, sizeof(sprite_encoding));
+        *offset += sizeof(int32_t); // Move along by int32_t
+        current_line.erase(0, 1); // Drop the comma
+    }
+}
+
+void MapEditor::Load() {
+    LOG(1, "TRACE", "Load()\n");
+
+    std::string line;
+    size_t line_number = 0;
+    int x, y;
+
+    size_t map_size = sizeof(int) * 16;
+
+    void* map = arena_alloc(&default_arena, map_size);
+    void* begin_map = map;
+
+    size_t offset = 0;
+
+    std::ifstream file = open_file(MAP_FILE);
+    for (;;) {
+        if (!std::getline(file, line)) break;
+        if (line.starts_with("}")) break; // FIXME: We need to be able to handle >1 map.
+
+        LOG(1, "INFO", "Line: %s\n", line.c_str());
+
+        if (line.starts_with("#define MAP0_METADATA")) {
+            parse_metadata(line, &x, &y);
+            LOG(1, "INFO", "TL: [%i,%i]\n", x, y);
+            continue;
+        }
+
+        if (line.starts_with("#define MAP0")) {
+            continue;
+        }
+
+        parse_row(line, map, &offset);
     }
     file.close();
 
     _prev_map.first_tile_x = x;
     _prev_map.first_tile_y = y;
+
+    size_t end = begin_map + sizeof(int) * 16;
+
+    LOG(1, "INFO", "begin_map_ptr: %p\n", begin_map);
+    LOG(1, "INFO", "map_ptr: %p\n", map);
+
+    std::vector<std::vector<int>> tiles(4, std::vector<int>(4));
+
+    size_t tile_idx = 0;
+    size_t counter = 0;
+
+    while(begin_map < end) {
+        const int* encoding = static_cast<const int*>(begin_map);
+        LOG(1, "INFO", "encoding: %i\n", *encoding);
+        auto row_idx = counter%4;
+        tiles[tile_idx][row_idx] = *encoding;
+        begin_map+=sizeof(int);
+        counter++;
+        tile_idx = counter/4;
+    }
     _prev_map.tiles = std::move(tiles);
 
     Placement placement = {
@@ -1104,14 +1178,10 @@ void MapEditor::TryLoadPreviousMap() {
 }
 
 void initialize_the_mapeditor() {
-    marked_maps = malloc(sizeof(Marked_Maps));
     LOG(1, "TRACE", "initialize_the_mapeditor()\n");
-    SetMapFile();
-    std::string app_name = std::string("MapEditor");
-    common_ptr = std::make_shared<Common>(std::move(app_name), BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
-    LOG_INFO("Able to construct Common\n");
+    marked_maps = arena_alloc(&default_arena, sizeof(Marked_Maps));
+    common_ptr = std::make_shared<Common>("MapEditor", BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
     map_editor = std::make_unique<MapEditor>(common_ptr);
-    LOG_INFO("Able to construct Game\n");
 
     Message message = {
         .lines = {"No mode currently active."},
@@ -1119,7 +1189,9 @@ void initialize_the_mapeditor() {
         .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
     };
     map_editor->BlitMessage(message);
-    map_editor->TryLoadPreviousMap();
+
+    SetMapFile();
+    map_editor->Load();
     map_editor->FillBackBufferInitial();
 }
 

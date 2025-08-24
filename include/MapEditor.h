@@ -34,12 +34,8 @@ const int RIGHT_PANEL_WIDTH = 180;
 const float MESSAGE_RIGHT_PANEL_WIDTH = 0.90f;
 
 static char MAP_FILE[128];
-bool g_map_file_set = false;
 
-static void SetMapFile() {
-    // Expectation to call only once.
-    assert(!g_map_file_set);
-
+static constexpr void SetMapFile() {
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) == nullptr) {
         perror("getcwd() error");
@@ -48,7 +44,6 @@ static void SetMapFile() {
     strcpy(MAP_FILE, cwd);
     strcat(MAP_FILE, "/include/Map.h");
     LOG(1, "INFO", "Map file: %s\n", MAP_FILE);
-    g_map_file_set = true;
 }
 
 struct Placements {
@@ -78,7 +73,7 @@ public:
     void TryToPlace(int, int);
     void save_tile(const std::vector<Placement>&, const uint8_t);
     void set_fps(const uint8_t fps) { _fps = fps; };
-    void TryLoadPreviousMap();
+    void Load();
     Timepoint prev_clock = {};
     SpriteSelection _sprite_selection;
 private:

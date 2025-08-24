@@ -63,7 +63,7 @@ struct gametexture_t {
 
 class Common {
 public:
-    Common(std::string app_name, const uint32_t, const uint32_t);
+    Common(const char* app_name, const uint32_t, const uint32_t);
     ~Common();
     void SetupSDL();
 
@@ -99,7 +99,7 @@ private:
     std::function<void(TTF_Font*)> fontDeleter;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
     void _SetTextureLocations();
-    const char* _app_name;
+    char* _app_name;
     uint32_t _tick;
     uint32_t _deltaTick;
     SDL_Texture*                                                      _back_buffer;
