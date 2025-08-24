@@ -63,6 +63,21 @@ void SaveTile(const vector<Placement>&, const uint8_t, Message*);
 void handle_save_selection(Message*);
 void HandleAddDragAndDrop(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
 
+void inline BlitMarkedMap(int top_left_x, int top_right_y) {
+    LOG(1, "TRACE", "MapEditor::BlitMarkedMap\n");
+
+    SDL_Renderer* _renderer = common_ptr->GetRenderer();
+    SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
+
+    SDL_SetRenderDrawColor(_renderer, 0xFF, 0x00, 0x00, 0xFF);
+
+    // int SDL_RenderDrawLine(SDL_Renderer * renderer, int x1, int y1, int x2, int y2);
+    SDL_RenderDrawLine(_renderer, top_left_x, top_right_y, top_left_x, top_right_y+128);         // Top line
+    SDL_RenderDrawLine(_renderer, top_left_x, top_right_y, top_left_x+128, top_right_y);         // Left line
+    SDL_RenderDrawLine(_renderer, top_left_x+128, top_right_y, top_left_x+128, top_right_y+128); // Right line
+    SDL_RenderDrawLine(_renderer, top_left_x, top_right_y+128, top_left_x+128, top_right_y+128); // Bottom line
+}
+
 void store_placement(std::shared_ptr<Common> common_ptr, Placement p) {
     if (common_ptr->isBackgroundSpriteTexture(p.tag)) {
         g_generic_map_placements.data.push_back(std::move(p));
@@ -580,6 +595,7 @@ void delineate_new_map_border(int top_left_x, int top_right_y) {
         assert(marked_maps->count > 0); // Not really necessary, checks if arena works as expected.
         LOG(1, "INFO", "Marked maps count: %i\n", marked_maps->count);
     }
+    BlitMarkedMap(top_left_x, top_right_y);
 }
 
 void handle_save_selection(Message* message) {
