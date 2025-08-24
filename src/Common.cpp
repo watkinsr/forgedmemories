@@ -38,6 +38,7 @@ void Common::SetupSDL() {
         exit(EXIT_FAILURE);
     }
 
+    // This is 50MB memory allocated, pretty excessive?
     _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
     if (_renderer == NULL) {
         fprintf(stderr, "panic: SDL Renderer creation failed, abort.\n");

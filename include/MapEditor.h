@@ -1,12 +1,14 @@
 #ifndef MAPEDITOR_H
 #define MAPEDITOR_H
 
+#include <set>
+
 #include <fstream>
 
-#include <unistd.h>
-#include <limits.h>    // for PATH_MAX
 #include <cassert>
 #include <cstring>
+#include <limits.h>    // for PATH_MAX
+#include <unistd.h>
 
 #include "Log.h"
 #include "Common.h"
@@ -51,14 +53,12 @@ struct Placements {
     std::vector<Placement> data;
 };
 
-Placements g_generic_map_placements = { .tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG), .data = {} };
-Placements g_player_placements = { .tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG), .data = {} };
+std::set<Placement, OrderHorizontally> g_placements;
 
 class MapEditor {
 public:
     MapEditor(std::shared_ptr<Common> common_ptr);
     ~MapEditor() {}
-    void RenderScene(scene_t* scene, SDL_Renderer* _renderer);
     void BlitPlacementArea(uint8_t direction);
     void BlitMessage(const Message& message);
     void BlitNext(uint8_t direction);

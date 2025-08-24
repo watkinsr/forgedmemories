@@ -52,4 +52,10 @@ typedef struct {
     size_t capacity;
 } Marked_Maps;
 
+struct OrderHorizontally {
+    bool operator()(const Placement& a, const Placement& b) const {
+        return a.y < b.y || (a.y == b.y && a.x < b.x);
+    }
+};
+
 #endif

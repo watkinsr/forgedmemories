@@ -58,7 +58,7 @@ static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, i
 
 // Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
-ssize_t binary_search_region(std::vector<Placement>*, Vector2D*, Vector2D*, int, int);
+ssize_t binary_search_region(std::set<Placement, OrderHorizontally>*, Vector2D*, Vector2D*, int, int);
 void SaveTile(const vector<Placement>&, const uint8_t, Message*);
 void handle_save_selection(Message*);
 void HandleAddDragAndDrop(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
@@ -79,12 +79,8 @@ void inline BlitMarkedMap(int top_left_x, int top_right_y) {
 }
 
 void store_placement(std::shared_ptr<Common> common_ptr, Placement p) {
-    if (common_ptr->isBackgroundSpriteTexture(p.tag)) {
-        g_generic_map_placements.data.push_back(std::move(p));
-    } else {
-        g_player_placements.data.push_back(std::move(p));
-    }
-    LOG(1, "INFO", "First placement stored: <Placement [%i,%i]>\n", p.x, p.y);
+    g_placements.insert(std::move(p));
+    LOG(1, "INFO", "Stored <Placement [%i,%i]>\n", p.x, p.y);
 }
 
 void MapEditor::_SetTextureLocations() {
@@ -461,49 +457,16 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
 
     scene_t* current_scene = _common->GetCurrentScene();
 
-    auto map_placements = g_generic_map_placements.data;
-
-    // FIXME: We just require g_placements instead of g_generic_map_placements / g_player_placements
-
     if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::DEL) {
-        auto map_placements = g_generic_map_placements.data;
-        // FIXME: Binary search the placements vector.
-        std::sort(map_placements.begin(), map_placements.end(), [](const Placement& a, const Placement& b) {
-            return a.y < b.y || (a.y == b.y && a.x < b.x);
-        });
         int placement_idx = 0;
         bool placement_removed = false;
         {
-            for (const auto& placement : map_placements) {
+            for(auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+                auto placement = (*it);
                 int px = placement.x;
                 int py = placement.y;
                 if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
-                    const auto& placement = map_placements.begin() + placement_idx;
-                    map_placements.erase(placement);
-                    BlitRemovedPlacement(px, py);
-                    SwapBuffers();
-                    placement_removed = true;
-                    break;
-                }
-                placement_idx++;
-            }
-        }
-
-        if (placement_removed) return;
-
-        auto player_placements = g_player_placements.data;
-        // FIXME: Binary search the placements vector.
-        std::sort(player_placements.begin(), player_placements.end(), [](const Placement& a, const Placement& b) {
-            return a.y < b.y || (a.y == b.y && a.x < b.x);
-        });
-
-        {
-            for (const auto& placement : player_placements) {
-                int px = placement.x;
-                int py = placement.y;
-                if (mouse_x > px && mouse_x < px + 32 && mouse_y > py && mouse_y < py + 32) {
-                    const auto& placement = player_placements.begin() + placement_idx;
-                    player_placements.erase(placement);
+                    g_placements.erase(it);
                     BlitRemovedPlacement(px, py);
                     SwapBuffers();
                     placement_removed = true;
@@ -524,11 +487,6 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
             .y = mouse_y - (mouse_y % SPRITE_HEIGHT)
         };
 
-        // Sort by y-coordinate with x-coordinate as second priority.
-        std::sort(map_placements.begin(), map_placements.end(), [](const Placement& a, const Placement& b) {
-            return a.y < b.y || (a.y == b.y && a.x < b.x);
-        });
-
         // It's no good to mark a region with no placements, so let's check that.
         // binary_search_region on rows we aren't certain re: next index.
         bool was_matched = false;
@@ -545,7 +503,14 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         LOG_INFO("<TopLeftVec2D [%i, %i]>\n", vl.x, vl.y);
         LOG_INFO("<BottomRightVec2D [%i, %i]>\n", vr.x, vr.y);
 
-        was_matched = binary_search_region(&map_placements, &vl, &vr, 0, map_placements.size()-1) != -1;
+        Placement top_left     = { .x = top_left_point.x, .y = top_left_point.y };
+        Placement bottom_right = { .x = top_left_point.x + (SPRITE_WIDTH*3), .y = top_left_point.y + (SPRITE_HEIGHT*3) };
+        auto it1 = g_placements.lower_bound(top_left);
+        auto it2 = g_placements.upper_bound(bottom_right);
+
+        for (auto it = it1; it != it2; ++it) {
+            was_matched = true;
+        }
         if (was_matched) {
             LOG_INFO("Matched on region\n");
             // It's a valid delineation in absence of overlap.
@@ -598,6 +563,25 @@ void delineate_new_map_border(int top_left_x, int top_right_y) {
     BlitMarkedMap(top_left_x, top_right_y);
 }
 
+static inline void process_rest_of_row(std::set<Placement, OrderHorizontally>::iterator& it, size_t oob_norm_col_x, std::vector<Placement>* tile) {
+    LOG(1, "TRACE", "process_rest_of_row(?)\n");
+    auto p = &(*it);
+    auto y = p->y;
+    tile->push_back(*p);
+    LOG(1, "INFO", "Intend to store <Placement [%i,%i]>\n", p->x, p->y);
+    for(++it; it != g_placements.end(); ++it) { // Iterate rest of row.
+        p = &(*it);
+        if (p->y > y) {
+            break;
+        }
+        if (p->x/SPRITE_WIDTH >= oob_norm_col_x) { // Gone past the marked map end X.
+            break;
+        }
+        tile->push_back(*p);
+        LOG(1, "INFO", "Intend to store <Placement [%i,%i]\n", p->x, p->y);
+    }
+}
+
 void handle_save_selection(Message* message) {
     LOG(1, "TRACE", "handle_save_selection()\n");
     if (marked_maps->count == 0) {
@@ -608,7 +592,7 @@ void handle_save_selection(Message* message) {
         };
         return;
     }
-    if (g_generic_map_placements.data.size() == 0 && g_player_placements.data.size() == 0) {
+    if (g_placements.size() == 0) {
         *message = {
             .lines = {"No placements found, invalid."},
             .word_wrap = true,
@@ -616,83 +600,44 @@ void handle_save_selection(Message* message) {
         };
         return;
     }
-
-    // FIXME: We provide all the placements at this point, but it seems redundant.
-    std::vector<Placement> placements = {};
-    for (auto placement : g_generic_map_placements.data) {
-        placements.push_back(placement);
-    }
-    for (auto placement : g_player_placements.data) {
-        placements.push_back(placement);
-    }
-
-    // Sort by y-coordinate with x-coordinate as second priority.
-    std::sort(placements.begin(), placements.end(), [](const Placement& a, const Placement& b) {
-        return a.y < b.y || (a.y == b.y && a.x < b.x);
-    });
     std::vector<Placement> tile = {};
-    uint16_t begin_tile_y = placements[0].y;  // Represents the first "y" within a given 4x4 tile.
     uint8_t map_idx = 0;
 
     for (int j = 0; j < marked_maps->count; ++j) {
         // Marked map TL point.
         Vector2D* v = (marked_maps->items[j]);
-        int top_left_x = v->x;
-        int top_left_y = v->y;
-        size_t oob_norm_col_x = v->x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
-        ssize_t match = binary_search_exact(&placements, v, 0, placements.size()-1);
-        if (match != -1) {
-            Placement* p = &placements[match];
-            tile.push_back(*p);
-            LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
-            // Iterate rest of row from TL mark.
-            for (ssize_t col = placements[match+1].x/SPRITE_WIDTH; col < placements.size(); ++col) {
-                Placement* p2 = &placements[col];
-                if (p2->x/SPRITE_WIDTH >= oob_norm_col_x) break;
-                LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
-                tile.push_back(*p2);
-            }
-            // binary_search_region on rows we aren't certain re: next index.
-            for (size_t y = 1; y < 4; y++) {
-                Vector2D vl = {
-                    .x = v->x,
-                    .y = (v->y + (SPRITE_HEIGHT*y)) // FIXME: SPRITE_HEIGHT here is really tile height.
-                };
-                Vector2D* vr = (marked_maps->items[j]);
-                match = binary_search_region(&placements, &vl, vr, 0, placements.size()-1);
-                if (match == -1) {
-                    LOG(1, "INFO", "No placement match on row: %u\n", vl.y/SPRITE_HEIGHT);
-                    break;
+        int x = v->x;
+        int y = v->y;
+
+        size_t oob_norm_col_x = x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
+        Placement* p;
+        auto it = g_placements.find(Placement{.x = x, .y = y });
+        if (it != g_placements.end()) {
+            process_rest_of_row(it, oob_norm_col_x, &tile);
+
+            size_t row_idx = 1;
+            int next_x = x;
+            while (row_idx < 4) {
+                Placement candidate = { .x = next_x, .y = y + SPRITE_HEIGHT*row_idx };
+                it = g_placements.find(candidate);
+                if (it != g_placements.end()) {
+                    process_rest_of_row(it, oob_norm_col_x, &tile);
+                    next_x = x;
+                    row_idx++;
+                    continue;
                 }
-                Placement* p = &placements[match];
-                tile.push_back(*p);
-                LOG(1, "INFO", "<Placement [%i,%i]> => <Mark [%i,%i]>\n", p->x, p->y, top_left_x, top_left_y);
-                // Iterate rest of row from TL mark.
-                for (ssize_t col = match+1; col < placements.size(); ++col) {
-                    Placement* p2 = &placements[col];
-                    if (p2->x/SPRITE_WIDTH >= v->x/SPRITE_WIDTH+4) break;
-                    LOG(1, "INFO", "<Placement [%i,%i]> included.\n", p2->x, p2->y, top_left_x, top_left_y);
-                    tile.push_back(*p2);
+                next_x+=SPRITE_WIDTH;
+                if (next_x/SPRITE_WIDTH >= oob_norm_col_x) { // Gone past the marked map end X.
+                    next_x = x;
+                    row_idx++;
+                    continue;
                 }
             }
+            SaveTile(tile, map_idx, message);
         } else {
             LOG(1, "SOFTPANIC", "No binary match!\n");
         }
     }
-    for (const auto& placement : placements) {
-        // HACK: Essentially we're checking if we've moved downwards a full 4x4 tile.
-        if (placement.y >= (begin_tile_y + 128)) {
-            if (tile.size() > 0) {
-                SaveTile(tile, map_idx, message);
-                map_idx++;
-                tile.resize(0);
-            }
-            begin_tile_y = placement.y;
-        }
-        tile.push_back(placement);
-    }
-    // HACK: And then we make sure that if we didn't move down 4x4 tile, we save it anyway.
-    if (tile.size() > 0) SaveTile(tile, map_idx, message);
 }
 
 const inline SDL_Texture* getAllocBackBuffer(std::shared_ptr<Common>& common_ptr) {
@@ -819,7 +764,7 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
 }
 
 void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* message) {
-    LOG(1, "TRACE", "SaveTile(?)");
+    LOG(1, "TRACE", "SaveTile(?)\n");
 
     std::ofstream out_file;
     out_file.open(MAP_FILE);
@@ -844,7 +789,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     uint8_t idx = 0;
     uint8_t col_cur = 0;
     for (const auto& placement : tile) {
-        LOG_INFO("Placement<x: %i, y: %i>", placement.x, placement.y);
+        LOG(1, "INFO", "Placement<x: %i, y: %i>\n", placement.x, placement.y);
 
         // State representing Column cursor "jump"
         uint8_t norm_cur_x = (placement.x / 32);
@@ -860,7 +805,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
             x_norm_jump = 0;
             // Pad rest of row.
             if (col_cur < 4) {
-                LOG_INFO("Pad rest of row.");
+                LOG(1, "INFO", "Pad rest of row\n");
                 while(col_cur < 4) {
                     if (col_cur != 3) out_file << "-1,";
                     else out_file << "-1";
@@ -876,7 +821,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
 
             // Pad remaining rows.
             if (norm_y_delta > 1) {
-                LOG_INFO("Pad complete rows.");
+                LOG(1, "INFO", "Pad complete rows\n");
                 while(norm_y_delta > 1) {
                     out_file << "    {-1,-1,-1,-1},\\" << endl;
                     norm_y_delta--;
@@ -886,7 +831,9 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
             out_file << "    {";
 
             // Pad beginning of row of placement.
-            if (x_offset > 0) LOG_INFO("Pad beginning of row.");
+            if (x_offset > 0) {
+                LOG(1, "INFO", "Pad beginning of row\n");
+            }
             while(x_offset > 0) {
                 out_file << "-1,";
                 x_offset--;
@@ -896,7 +843,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
 
         // If the column cursor jumped, fill the gap.
         if (x_norm_jump > 1) {
-            LOG_INFO("X cursor jumped, fill gap. (%i - %i)", norm_cur_x, norm_prev_x);
+            LOG(1, "INFO", "X cursor jumped, fill gap. (%i - %i)\n", norm_cur_x, norm_prev_x);
             while(x_norm_jump > 1) {
                 out_file << "-1,";
                 x_norm_jump--;
@@ -912,7 +859,9 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
         prev_y = placement.y;
     }
     // Pad rest of row.
-    if (col_cur < 4) LOG_INFO("Pad rest of row.");
+    if (col_cur < 4) {
+        LOG(1, "INFO", "Pad rest of row\n");
+    }
     while(col_cur < 4) {
         if (col_cur != 3) out_file << "-1,";
         else out_file << "-1";
@@ -925,14 +874,14 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     uint8_t last_norm_y = (tile[tile.size() - 1].y / 32);
     uint8_t tile_y_delta = 3 - (last_norm_y - first_norm_y);
 
-    LOG_INFO("Need to pad finally %i rows", tile_y_delta);
+    LOG(1, "INFO", "Need to pad finally %i rows\n", tile_y_delta);
 
     // Finished
     if (tile_y_delta == 0) out_file << "}\\" << endl;
 
     // Pad remaining rows.
     else {
-        if (tile_y_delta > 0) LOG_INFO("Pad complete rows.");
+        if (tile_y_delta > 0) LOG(1, "INFO", "Pad complete rows\n");
         out_file << "},\\" << endl;
 
         while(tile_y_delta > 0) {
@@ -1205,15 +1154,25 @@ void initialize_the_mapeditor() {
         .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
     };
     map_editor->BlitMessage(message);
-
     SetMapFile();
     map_editor->Load();
     map_editor->FillBackBufferInitial();
+    map_editor->SwapBuffers();
 }
 
-void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
+void MapEditor::FillBackBufferInitial() {
+    LOG(1, "TRACE", "MapEditor::FillBackBufferInitial\n");
+    SDL_Renderer* _renderer = _common->GetRenderer();
+    SDL_Texture* _back_buffer = _common->GetBackBuffer();
+    SDL_SetRenderTarget(_renderer, _back_buffer);
+
+    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+    SDL_RenderClear(_renderer);
+
     uint8_t texture_idx = 0;
     uint8_t color_idx = 0;
+
+    auto scene = common_ptr->GetCurrentScene();
     
     for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
         SDL_Rect src_rect = scene->texture_src_rects[i];
@@ -1244,13 +1203,17 @@ void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
 
             // Render placements.
-            for (auto placement : g_player_placements.data) {
+            for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+                Placement p = *it;
+                if (!_common->isPlayerSpriteTexture(p.tag)) {
+                    continue;
+                }
                 src_rect.x = 0;
                 src_rect.y = 0;
                 src_rect.w = 50;
                 src_rect.h = 50;
-                dst_rect.x = placement.x;
-                dst_rect.y = placement.y;
+                dst_rect.x = p.x;
+                dst_rect.y = p.y;
                 dst_rect.w = 32;
                 dst_rect.h = 32;
                 SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
@@ -1286,14 +1249,17 @@ void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
                 SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
             }
 
-            // Render placements.
-            for (auto placement : g_generic_map_placements.data) {
-                src_rect.x = placement.sprite_x_idx*16;
-                src_rect.y = placement.sprite_y_idx*16;
+            for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+                Placement p = *it;
+                if (_common->isPlayerSpriteTexture(p.tag)) {
+                    continue;
+                }
+                src_rect.x = p.sprite_x_idx*16;
+                src_rect.y = p.sprite_y_idx*16;
                 src_rect.w = 16;
                 src_rect.h = 16;
-                dst_rect.x = placement.x;
-                dst_rect.y = placement.y;
+                dst_rect.x = p.x;
+                dst_rect.y = p.y;
                 dst_rect.w = 32;
                 dst_rect.h = 32;
                 SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
@@ -1353,24 +1319,6 @@ void MapEditor::RenderScene(scene_t* scene, SDL_Renderer* _renderer) {
         SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line
         SDL_RenderDrawLine( _renderer, v->x, v->y+32*4+1, v->x+32*4+1, v->y+32*4+1); // Bottom line
     }
-}
-
-void MapEditor::FillBackBufferInitial() {
-    LOG(1, "TRACE", "MapEditor::FillBackBufferInitial\n");
-    SDL_Renderer* _renderer = _common->GetRenderer();
-    SDL_Texture* _back_buffer = _common->GetBackBuffer();
-    SDL_SetRenderTarget(_renderer, _back_buffer);
-
-    uint8_t _scene_stack_idx = _common->GetSceneStackIdx();
-    scene_t* current_scene = _common->GetCurrentScene();
-
-    if (_scene_stack_idx == 0) SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
-    else SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
-    SDL_RenderClear(_renderer);
-
-    RenderScene(current_scene, _renderer);
-
-
 }
 
 static Uint64 tick = SDL_GetTicks64();     // SDL Library is initialized above via Common::Common()
