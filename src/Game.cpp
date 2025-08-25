@@ -2,52 +2,53 @@
 #include <string>
 #include <cstdlib>
 #include <cassert>
+#include "Macros.h"
 #include "Map.h"
 #include <chrono>
 
 // Center
 #define C1 {\
-    {1, -1, -1, 1},\
-    {-1, -1, 2, -1},\
+    {101, -1, -1, 101},\
+    {-1, -1, 102, -1},\
     {-1, -1, -1, -1},\
-    {1, 1, 1, 1}\
+    {101, 101, 101, 101}\
 }
 
 // Left of center
 #define L1 {\
-    {1, 1, 1, 1},\
-    {1, -1, 2, -1},\
-    {1, -1, 1, -1},\
-    {1, 1, 1, 1}\
+    {101, 101, 101, 101},\
+    {101, -1, 102, -1},\
+    {101, -1, 101, -1},\
+    {101, 101, 101, 101}\
 }
 
 // Right of center
 #define R1 {\
-    {1, 1, 1, 1},\
-    {-1, -1, 2, 1},\
-    {-1, -1, 1, 1},\
-    {1, 1, 1, 1}\
+    {101, 101, 101, 101},\
+    {-1, -1, 102, 101},\
+    {-1, -1, 101, 101},\
+    {101, 101, 101, 101}\
 }
 
 #define C2 {\
-    {1, -1, -1, 1},\
-    {1, -1, 2, -1},\
-    {1, -1, 1, -1},\
-    {1, -1, -1, 1}\
+    {101, -1, -1, 101},\
+    {101, -1, 102, -1},\
+    {101, -1, 101, -1},\
+    {101, -1, -1, 101}\
 }
 
 #define E {\
-    {1, 1, 1, 1},\
-    {1, 1, 1, 1},\
-    {1, 1, 1, 1},\
-    {1, 1, 1, 1}\
+    {101, 101, 101, 101},\
+    {101, 101, 101, 101},\
+    {101, 101, 101, 101},\
+    {101, 101, 101, 101}\
 }
 
 #define C3 {\
-    {1, 1, 1, 1},\
-    {1, -1, 2, 1},\
-    {1, -1, 1, 1},\
-    {1, -1, -1, 1}\
+    {101, 101, 101, 101},\
+    {101, -1, 102, 101},\
+    {101, -1, 101, 101},\
+    {101, -1, -1, 101}\
 }
 
 // Current player map.
@@ -304,6 +305,18 @@ SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
     if (map_idx == 0) v = 1;
     // Otherwise if it's a valid map index, get that quadrant's value.
     else v = MAPS[map_idx-1][segment_y][segment_x];
+
+    // Arbitrary decision.
+    // 1xx = Map Sprite
+    // 2xx = Player Sprite(s)
+    if (v >= 100 && v < 200) {
+        v -= 100;
+    }
+    else if (v >= 200 && v < 300) {
+        v -= 200;
+    } else if (v < -1 && v >= 300) {
+        ASSERT_NOT_REACHED();
+    }
 
     if (v == -1)  {
         // Consider the default to be the grass texture.

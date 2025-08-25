@@ -13,8 +13,8 @@ static Arena temporary_arena = {0};
 
 #include <cmath>
 
-#include "Algorithm.h"
 #include "Common.h"
+#include "Macros.h"
 #include "MapEditor.h"
 
 #define PLACEMENT_MOVE_GRID_UP 1
@@ -850,7 +850,19 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
                 col_cur++;
             }
         }
-        std::string sprite_encoding = std::to_string((placement.sprite_x_idx * 16) + placement.sprite_y_idx);
+
+        // Arbitrary decision.
+        // 1xx = Map Sprite
+        // 2xx = Player Sprite(s)
+        int encoding = (placement.sprite_x_idx * 16) + placement.sprite_y_idx;
+        if (common_ptr->isBackgroundSpriteTexture(placement.tag)) {
+            encoding += 100;
+        }
+        else if (common_ptr->isPlayerSpriteTexture(placement.tag)) {
+            encoding += 200;
+        }
+        std::string sprite_encoding = std::to_string(encoding);
+        LOG(1, "INFO", "Encoding: %s\n", sprite_encoding.c_str());
         out_file << sprite_encoding;
         if ((idx < tile.size() - 1 && tile[idx+1].y == tile[idx].y) || col_cur < 3) out_file << ",";
         col_cur++;
@@ -992,17 +1004,14 @@ static inline constexpr void remove_spaces(char *s) {
     *d = '\0';
 }
 
-static size_t inline constexpr next_comma_dist(std::string& current_line) {
+static size_t inline constexpr next_token_dist(std::string& current_line, char desired_token) {
     size_t dist = 0;
     for (;;) {
         char token = current_line[dist];
         if (token == '\0') {
             return 0;
         }
-        else if (token == '\\') {
-            return 0;
-        }
-        else if (token == ',') {
+        else if (token == desired_token) {
             break;
         }
         dist++;
@@ -1021,10 +1030,13 @@ static void inline parse_row(std::string& current_line, void* map, size_t* offse
     for (;;) {
         std::string prev_line = current_line; // DEBUG ONLY
         char first_token = current_line[0];
-        dist = next_comma_dist(current_line);
+        dist = next_token_dist(current_line, ',');
         if (dist == 0) {
-            LOG(1, "WARN", "Move to next line, line=%s\n", current_line.c_str());
-            break;
+            dist = next_token_dist(current_line, '\\');
+            if (dist == 0) {
+                LOG(1, "WARN", "(dist=%d, line=%s, line_size=%d)\n", dist, current_line.c_str(), current_line.size());
+                break;
+            }
         }
         const char* chopped_value = current_line.substr(0, dist).c_str();
         current_line.erase(0, dist);
@@ -1109,9 +1121,19 @@ void MapEditor::Load() {
     uint8_t tag;
 
     for (const auto& tile : _prev_map.tiles) {
-        for (const auto& v : tile) {
-            if (v < 256) tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
-            else         tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+        for (auto v : tile) {
+            if (v >= 100 && v < 200) {
+                tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+                v-=100;
+            }
+            else if (v >= 200) {
+                tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+                v-=200;
+            }
+            else if (v < -1 || v > 300) {
+                LOG(1, "PANIC", "Unexpected encoding: %i\n", v);
+                ASSERT_NOT_REACHED();
+            }
 
             if (v != -1 && !first_placement_set) {
                 placement.sprite_x_idx = v / 16;
