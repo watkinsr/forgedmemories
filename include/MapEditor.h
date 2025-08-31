@@ -16,6 +16,8 @@
 
 #define STEP_SIZE 10
 
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 const int BACKBUFFER_WIDTH = 800;
 const int BACKBUFFER_HEIGHT = 600;
 
@@ -78,7 +80,7 @@ public:
     SpriteSelection _sprite_selection;
 private:
     std::shared_ptr<Placement> _player_placement = nullptr;
-    editor_mode _editor_mode = editor_mode::SENTINEL;  // Default state - no mode.
+    editor_mode _editor_mode = editor_mode::EDITOR_SENTINEL;  // Default state - no mode.
     prev_map_t _prev_map;
 
     std::shared_ptr<Common> _common;

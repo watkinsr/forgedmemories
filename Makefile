@@ -1,5 +1,5 @@
 CC := g++
-CPPFLAGS := -g -std=c++20 -fpermissive
+CPPFLAGS := -g -std=c++20 -fpermissive -Wno-narrowing -Wno-format -Wno-pointer-arith
 LDFLAGS := -g
 LDLIBS := -L$(HOME)/.local/share/thirdparty_opensource/lib -lSDL2 -lSDL2_ttf -lSDL2_image -lstdc++ -Wl,-rpath,$(HOME)/.local/share/thirdparty_opensource/lib
 OBJDIR := objdir
@@ -13,10 +13,10 @@ SRC_CC := src/Game.cpp src/Common.cpp src/Log.cpp
 
 all: build/game build/mapeditor
 
-$(OBJDIR)/Game.o: src/Game.cpp include/Map.h include/Types.h
+$(OBJDIR)/Game.o: src/Game.cpp include/Map.h include/Types.h include/Common.h include/Game.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Game.cpp -o $(OBJDIR)/Game.o
 
-$(OBJDIR)/Common.o: src/Common.cpp include/Map.h
+$(OBJDIR)/Common.o: src/Common.cpp include/Map.h include/Common.h
 	$(CC) $(CPPFLAGS) -c $(INCL_CC) src/Common.cpp -o $(OBJDIR)/Common.o
 
 $(OBJDIR)/Log.o: src/Log.cpp

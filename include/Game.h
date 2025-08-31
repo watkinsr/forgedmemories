@@ -11,6 +11,12 @@
 #include "Log.h"
 #include "Common.h"
 
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+
+const int BACKBUFFER_WIDTH = 800;
+const int BACKBUFFER_HEIGHT = 600;
+
 using namespace std;
 
 using Timepoint = chrono::time_point<chrono::steady_clock>;
@@ -26,9 +32,8 @@ enum game_state_t {
     PAUSE
 };
 
-
 enum PLAYER_DIRECTION {
-    SENTINEL = 0,
+    DIRECTION_SENTINEL = 0,
     UP,
     DOWN,
     LEFT,
@@ -51,9 +56,6 @@ constexpr uint8_t PLAYER_HEIGHT = 60;
 
 const uint8_t MOVE_ANIM_TICKS = 16;
 const uint16_t ATTACK_ANIMATION_FRAMES = 6 * 3;
-
-const int BACKBUFFER_WIDTH = 800;
-const int BACKBUFFER_HEIGHT = 600;
 
 struct attack_animation_t {
     uint8_t runtime;
@@ -121,8 +123,8 @@ public:
     Timepoint prev_clock = {};
 private:
     PLAYER_ACTION _player_action = PLAYER_ACTION::STOPPED;
-    PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::SENTINEL;
-    PLAYER_DIRECTION _prev_player_direction = PLAYER_DIRECTION::SENTINEL;
+    PLAYER_DIRECTION _player_direction = PLAYER_DIRECTION::DIRECTION_SENTINEL;
+    PLAYER_DIRECTION _prev_player_direction = PLAYER_DIRECTION::DIRECTION_SENTINEL;
     void _SetTextureLocations();
     uint64_t _tick;
     uint32_t _deltaTick;

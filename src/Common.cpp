@@ -30,6 +30,9 @@ void Common::SetupSDL() {
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 
+    const ssize_t SCREEN_WIDTH = _BACKBUFFER_WIDTH;
+    const ssize_t SCREEN_HEIGHT = _BACKBUFFER_HEIGHT;
+
     LOG(1, "INFO", "Create window with dimensions: %i x %i\n", SCREEN_WIDTH, SCREEN_HEIGHT);
 
     _window = SDL_CreateWindow(_app_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -128,6 +131,15 @@ Common::Common(const char* app_name, const uint32_t BACKBUFFER_WIDTH, const uint
     SetupSDL();
 }
 
+void Common::NewScene(SceneData& data) {
+    LOG(1, "TRACE", "Common::NewScene(data=%p)\n", &data);
+    for (auto it = data.entities.begin(); it != data.entities.end(); ++it) {
+        const Entity e = it->second;
+        LOG(1, "TRACE", "Entity.tag: %u\n", e.tag);
+    }
+    scene_data.push_back(std::move(data));
+}
+
 void Common::AllocateScene(bool incrementStackIdx) {
     if (_scene_stack_idx + 1 < SCENE_STACK_MAX_SIZE) {
         // Cleanup the previous scene.
@@ -165,6 +177,48 @@ void Common::AllocateScene(bool incrementStackIdx) {
     }
     SetInitialSceneTextureSize(_scenes[_scene_stack_idx].textures.size());
     LOG_INFO("Initial scene texture size: %i\n", GetInitialSceneTextureSize());
+}
+
+SDL_Texture* Common::LoadText(FONT_SIZE font_size, std::string_view data, SDL_Rect* dst_rect, SDL_Color color) {
+    const char* text = data.data();
+    LOG(1, "TRACE", "Engine::LoadText(font_size=%u, data=%s, dst_rect=%p)\n", font_size, text, dst_rect);
+    SDL_Surface* surface = TTF_RenderUTF8_Solid(_fonts[font_size].get(), text, color);
+    if (surface == NULL) {
+        char errstr[256];
+        SDL_GetErrorMsg(errstr, 256);
+        LOG(1, "PANIC", "(text=%s) - Surface error: %s\n", text, errstr);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+
+    SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
+    SDL_FreeSurface(surface);
+    if (text_texture == NULL) {
+        printf("Panic: Failed to create texture for text, abort.\n");
+        exit(EXIT_FAILURE);
+    }
+    pair<int, int> texture_dims = GetTextureDimensions(text_texture);
+    const int width = std::get<0>(texture_dims);
+    const int height = std::get<1>(texture_dims);
+    dst_rect->w = width;
+    dst_rect->h = height;
+    LOG(1, "INFO", "LoadTextTexture(w=%u, h=%u)\n", width, height);
+    return text_texture;
+}
+
+SDL_Texture* Common::LoadImage(std::string_view uri) {
+    LOG(1, "TRACE", "Engine::LoadImage(%s)\n", uri.data());
+    SDL_Surface* surface = IMG_Load(uri.data());
+    SDL_SetColorKey( surface, SDL_TRUE, SDL_MapRGB( surface->format, 0, 0xFF, 0xFF ) );
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
+    SDL_SetTextureBlendMode( texture, SDL_BLENDMODE_BLEND );
+    SDL_FreeSurface(surface);
+    if (texture == NULL) {
+        printf("Panic: Failed to load image texture at %s.\n", uri.data());
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+     return texture;
 }
 
 void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {

@@ -24,13 +24,36 @@ static Arena temporary_arena = {0};
 
 #define PLACEMENT_TILE_DIST 32
 
-uint32_t camera_x = 0;
-uint32_t camera_y = 0;
+constexpr uint8_t bg_sprite_tag     = static_cast<uint8_t>(SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+constexpr uint8_t player_sprite_tag = static_cast<uint8_t>(SPRITE_TAG | PLAYER_SPRITE_FLAG);
+
+typedef struct Camera {
+    int64_t x;
+    int64_t y;
+};
+
+Camera camera = {0};
 
 Marked_Maps *marked_maps = NULL;
 
 static std::shared_ptr<Common> common_ptr;
 static std::unique_ptr<MapEditor> map_editor;
+
+void inline BlitNewPlacement(const Placement& placement) {
+    LOG(1, "TRACE", "MapEditor::BlitNewPlacement\n");
+
+    SDL_Rect src;
+    SDL_Rect dst;
+
+    src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
+    dst = {placement.x, placement.y, 32, 32};
+
+    SDL_Renderer* _renderer = common_ptr->GetRenderer();
+    SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
+    scene_t* scene = common_ptr->GetCurrentScene();
+
+    SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+}
 
 static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, int mouse_y) {
     LOG(1, "TRACE", "MapEditor::BlitDragAndDrop()\n");
@@ -83,7 +106,8 @@ void store_placement(std::shared_ptr<Common> common_ptr, Placement p) {
     LOG(1, "INFO", "Stored <Placement [%i,%i]>\n", p.x, p.y);
 }
 
-void MapEditor::_SetTextureLocations() {
+SceneData GetFirstScene() {
+    LOG(1, "TRACE", "MapEditor::GetFirstScene()\n");
     float menu_y_factor = 0.05f;
     int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(menu_y_factor);
 
@@ -92,94 +116,110 @@ void MapEditor::_SetTextureLocations() {
 
     int playground_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(1.0f - menu_y_factor - placement_bar_y_factor);
 
-    const vector<gametexture_t> SCENE_1 = {
-        // Menu bar rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, 0, SCREEN_WIDTH, menu_y},
-            .dst_rect = {0, 0, SCREEN_WIDTH, menu_y},
-            .color = {128,128,128,255},
-            .tag = RECT_TAG,
-            .idx = 0
-        },
-        // Menu item "ADD"
-        {   .text_or_uri = "ADD",
-            .src_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
-            .dst_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG,
-            .idx = 1
-        },
-        // Menu item "DEL"
-        {   .text_or_uri = "DEL",
-            .src_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
-            .dst_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG,
-            .idx = 2
-        },
-        // Menu item "SAVE"
-        {   .text_or_uri = "SAVE",
-            .src_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
-            .dst_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG,
-            .idx = 3
-        },
-        // Menu item "Mark" - Delineate a given map tile by selecting top left position.
-        {   .text_or_uri = "MARK",
-            .src_rect = {menu_item_offset + menu_item_width*3, 5, 0, menu_y},
-            .dst_rect = {menu_item_offset + menu_item_width*3, 5, 0, menu_y},
-            .color = {255,255,255,255},
-            .font_size = FONT_SIZE::MEDIUM,
-            .tag = TEXT_TAG,
-            .idx = 4
-        },
-        // Placement bar rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, menu_y, SCREEN_WIDTH-RIGHT_PANEL_WIDTH, menu_y + placement_bar_y},
-            .dst_rect = {0, menu_y, SCREEN_WIDTH-RIGHT_PANEL_WIDTH, menu_y + placement_bar_y},
-            .color = {96,96,96,255},
-            .tag = RECT_TAG,
-            .idx = 5
-        },
-        // Placement Menu Bar item "File"
-        {   .text_or_uri = "Placement area",
-            .src_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
-            .dst_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
-            .color = {255,255,255,255},
-            .font_size = FONT_SIZE::SMALL,
-            .tag = TEXT_TAG,
-            .idx = 6
-        },
-        // Placement rectangle.
-        {   .text_or_uri = "",
-            .src_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
-            .dst_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
-            .color = {64,64,64,255},
-            .tag = RECT_TAG,
-            .idx = 7
-        },
-        // Spritesheet.
-        {   .text_or_uri = "assets/bg/Berry Garden.png",
-            .src_rect = {0, 0, 16, 16},
-            .dst_rect = {0, 0, 64, 128},
-            .color = {0,0,0,0},
-            .tag = SPRITE_TAG | BACKGROUND_SPRITE_FLAG,
-            .idx = 8
-        },
-        // Player sprite.
-        {   .text_or_uri = "assets/player2.png",
-            .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
-            .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
-            .color = {0,0,0,0},
-            .tag = SPRITE_TAG | PLAYER_SPRITE_FLAG,
-            .idx = 9
-        },
-    };
-    _common->AddScene(SCENE_1);
+    SDL_Color default_menu_text_color = {255,255,255,255};
+
+    SceneData data = {};
+    // Menu bar rectangle.
+    data.entities.insert({ RECT_TAG, Entity {
+        .src_rect = {0, 0, SCREEN_WIDTH, menu_y},
+        .dst_rect = {0, 0, SCREEN_WIDTH, menu_y},
+        .color = {128,128,128,255},
+        .tag = RECT_TAG,
+        .data = nullptr
+    }});
+
+    // Placement bar rectangle.
+    data.entities.insert({RECT_TAG, Entity {
+        .src_rect = {0, menu_y, SCREEN_WIDTH-RIGHT_PANEL_WIDTH, menu_y + placement_bar_y},
+        .dst_rect = {0, menu_y, SCREEN_WIDTH-RIGHT_PANEL_WIDTH, menu_y + placement_bar_y},
+        .color = {96,96,96,255},
+        .tag = RECT_TAG,
+        .data = nullptr
+    }});
+
+    // Placement rectangle.
+    data.entities.insert({RECT_TAG, Entity {
+        .src_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
+        .dst_rect = {0, menu_y + placement_bar_y, SCREEN_WIDTH-180, playground_y},
+        .color = {64,64,64,255},
+        .tag = RECT_TAG,
+        .data = nullptr
+    }});
+
+    // Add menu item
+    SDL_Rect add_dst_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y};
+    SDL_Texture* add_data = common_ptr->LoadText(FONT_SIZE::MEDIUM, "ADD", &add_dst_rect, default_menu_text_color);
+    data.entities.insert({TEXT_TAG, Entity {
+        .src_rect = {menu_item_offset + menu_item_width*0, 5, 0, menu_y},
+        .dst_rect = add_dst_rect,
+        .color = default_menu_text_color,
+        .tag = TEXT_TAG,
+        .data = add_data
+    }});
+
+    // Del menu item
+    SDL_Rect del_dst_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y};
+    SDL_Texture* del_data = common_ptr->LoadText(FONT_SIZE::MEDIUM, "DEL", &del_dst_rect, default_menu_text_color);
+    data.entities.insert({TEXT_TAG, Entity {
+        .src_rect = {menu_item_offset + menu_item_width*1, 5, 0, menu_y},
+        .dst_rect = del_dst_rect,
+        .color = default_menu_text_color,
+        .tag = TEXT_TAG,
+        .data = del_data
+    }});
+
+    // Save menu item
+    SDL_Rect save_dst_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y};
+    SDL_Texture* save_data = common_ptr->LoadText(FONT_SIZE::MEDIUM, "SAVE", &save_dst_rect, default_menu_text_color);
+    data.entities.insert({TEXT_TAG, Entity {
+        .src_rect = {menu_item_offset + menu_item_width*2, 5, 0, menu_y},
+        .dst_rect = save_dst_rect,
+        .color = default_menu_text_color,
+        .tag = TEXT_TAG,
+        .data = save_data
+    }});
+
+    // Mark menu item
+    SDL_Rect mark_dst_rect = {menu_item_offset + menu_item_width*3, 5, 0, menu_y};
+    SDL_Texture* mark_data = common_ptr->LoadText(FONT_SIZE::MEDIUM, "MARK", &mark_dst_rect, default_menu_text_color);
+    data.entities.insert({TEXT_TAG, Entity {
+        .src_rect = {menu_item_offset + menu_item_width*3, 5, 0, menu_y},
+        .dst_rect = mark_dst_rect,
+        .color = default_menu_text_color,
+        .tag = TEXT_TAG,
+        .data = mark_data
+    }});
+
+    // File menu item
+    SDL_Rect file_dst_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y};
+    SDL_Texture* file_data = common_ptr->LoadText(FONT_SIZE::SMALL, "Placement area", &file_dst_rect, default_menu_text_color);
+    data.entities.insert({TEXT_TAG, Entity {
+        .src_rect = {menu_item_offset, 37, 0, menu_y + placement_bar_y},
+        .dst_rect = file_dst_rect,
+        .color = default_menu_text_color,
+        .tag = TEXT_TAG,
+        .data = file_data
+    }});
+
+    // Spritesheet.
+    data.entities.insert({bg_sprite_tag, Entity {
+        .src_rect = {0, 0, 16, 16},
+        .dst_rect = {0, 0, 64, 128},
+        .color = {0,0,0,0},
+        .tag = bg_sprite_tag,
+        .data = common_ptr->LoadImage("assets/bg/Berry Garden.png")
+    }});
+
+    // Player sprite.
+    data.entities.insert({player_sprite_tag, Entity {
+        .src_rect = {PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT},
+        .dst_rect = {0, 0, PLAYER_WIDTH, PLAYER_HEIGHT},
+        .color = {0,0,0,0},
+        .tag = player_sprite_tag,
+        .data = common_ptr->LoadImage("assets/player2.png")
+    }});
+
+    return data;
 }
 
 void draw_horizontal_strip(SDL_Renderer* renderer, uint32_t y_offset_begin, uint32_t y_offset_end) {
@@ -233,6 +273,44 @@ void draw_vertical_strip(SDL_Renderer* renderer, uint32_t x_offset_begin, uint32
     return;
 }
 
+typedef struct NextPlacements {
+    Placement** data;
+    size_t len;
+};
+
+NextPlacements search_next_placements(uint8_t direction) {
+    LOG(1, "TRACE", "search_next_placements(direction=%u) - camera(x=%i, y=%i)\n", direction, camera.x, camera.y);
+
+    NextPlacements next_placements = {0};
+
+    const auto origin_end_placement_area_y = ((SCREEN_HEIGHT-64)/32) * 32;
+    int64_t next_strip_y;
+    if (direction == PLACEMENT_MOVE_GRID_DOWN) {
+        next_strip_y = ((camera.y  + PLACEMENT_TILE_DIST) - 64) * -1;
+    } else if (direction == PLACEMENT_MOVE_GRID_UP) {
+        next_strip_y = origin_end_placement_area_y + (camera.y - PLACEMENT_TILE_DIST) * -1;
+    }
+
+    LOG(1, "TRACE", "search_next_placements - search(x=%i, y=%i), origins(begin=?, end=%u)\n", camera.x, next_strip_y, origin_end_placement_area_y);
+
+    Placement low = {.x = std::numeric_limits<uint16_t>::min(), .y = next_strip_y};
+    Placement high = {.x = std::numeric_limits<uint16_t>::max(), .y = next_strip_y};
+
+    auto first = g_placements.lower_bound(low);
+    auto last  = g_placements.upper_bound(high);
+
+    next_placements.len = std::distance(first, last);
+    if (next_placements.len > 0) {
+        Placement** ptrs = new Placement*[next_placements.len];
+        std::size_t i = 0;
+        for (auto it = first; it != last; ++it, ++i) {
+            ptrs[i] = const_cast<Placement*>(&*it);
+        }
+        next_placements.data = ptrs;
+    }
+    return next_placements;
+}
+
 void MapEditor::BlitPlacementArea(uint8_t direction) {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* t = SDL_CreateTexture(
@@ -263,26 +341,42 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
     uint32_t offset_x_begin;
 
     // FIXME: When drawing the next strip, we should check if any sprites are in that strip.
+    NextPlacements next_placements = search_next_placements(direction);
+    scene_t* scene = common_ptr->GetCurrentScene();
 
     switch(direction) {
         case PLACEMENT_MOVE_GRID_UP:
             LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer up by %u pixels\n", PLACEMENT_TILE_DIST);
-            camera_y -= PLACEMENT_TILE_DIST;
+            camera.y -= PLACEMENT_TILE_DIST;
             src = {0, grid_begin_y+PLACEMENT_TILE_DIST, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             dst = {0, grid_begin_y, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             draw_horizontal_strip(_renderer, grid_begin_y+(grid_height-PLACEMENT_TILE_DIST), SCREEN_HEIGHT);
+            for (std::size_t i = 0; i < next_placements.len; ++i) {
+                const Placement& placement = *(next_placements.data[i]);
+                LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
+                src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
+                dst = {placement.x, placement.y, 32, 32};
+                SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+            }
             break;
         case PLACEMENT_MOVE_GRID_DOWN:
-            camera_y += PLACEMENT_TILE_DIST;
+            camera.y += PLACEMENT_TILE_DIST;
             LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer down by %u pixels\n", PLACEMENT_TILE_DIST);
             src = {0, grid_begin_y, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             dst = {0, grid_begin_y+PLACEMENT_TILE_DIST, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             draw_horizontal_strip(_renderer, grid_begin_y, grid_begin_y+PLACEMENT_TILE_DIST);
+            for (std::size_t i = 0; i < next_placements.len; ++i) {
+                const Placement& placement = *(next_placements.data[i]);
+                LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
+                src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
+                dst = {placement.x, placement.y, 32, 32};
+                SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+            }
             break;
         case PLACEMENT_MOVE_GRID_LEFT:
-            camera_x -= PLACEMENT_TILE_DIST;
+            camera.x -= PLACEMENT_TILE_DIST;
             LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer left by %u pixels\n", PLACEMENT_TILE_DIST);
             src = {PLACEMENT_TILE_DIST, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
             dst = {0, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
@@ -291,7 +385,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             draw_vertical_strip(_renderer, offset_x_begin, offset_x_begin+PLACEMENT_TILE_DIST, grid_height);
             break;
         case PLACEMENT_MOVE_GRID_RIGHT:
-            camera_x += PLACEMENT_TILE_DIST;
+            camera.x += PLACEMENT_TILE_DIST;
             LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Move back buffer right by %u pixels\n", PLACEMENT_TILE_DIST);
             src = {0, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
             dst = {PLACEMENT_TILE_DIST, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
@@ -305,7 +399,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             break;
     }
 
-    LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Camera (x=%u, y=%u)\n", camera_x, camera_y);
+    // LOG(1, "INFO", "MapEditor::GetNextBackBuffer - Camera (x=%i, y=%i)\n", camera.x, camera.y);
 
     // >>> Copy over the rest of the pixels:
     // 1. Copy the right panel.
@@ -338,8 +432,9 @@ void MapEditor::SwapBuffers() {
 
 
 MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
-    _SetTextureLocations();
-    _common->AllocateScene(false);
+    LOG(1, "TRACE", "MapEditor::cstr(common_ptr=?)\n");
+    SceneData scene_data = GetFirstScene();
+    common_ptr->NewScene(scene_data);
 }
 
 void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
@@ -916,21 +1011,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     }
 }
 
-void inline BlitNewPlacement(const Placement& placement, const uint8_t texture_idx) {
-    LOG(1, "TRACE", "MapEditor::BlitNewPlacement\n");
 
-    SDL_Rect src;
-    SDL_Rect dst;
-
-    src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
-    dst = {placement.x, placement.y, 32, 32};
-
-    SDL_Renderer* _renderer = common_ptr->GetRenderer();
-    SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
-    scene_t* scene = common_ptr->GetCurrentScene();
-
-    SDL_RenderCopy(_renderer, scene->textures[texture_idx], &src, &dst);
-}
 
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     LOG(1, "INFO", "MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
@@ -959,8 +1040,9 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     placement.sprite_x_idx = _sprite_selection.x;
     placement.sprite_y_idx = _sprite_selection.y;
     placement.tag = _sprite_selection.tag;
+    placement.texture_idx = _sprite_selection.texture_idx;
 
-    BlitNewPlacement(placement, _sprite_selection.texture_idx);
+    BlitNewPlacement(placement);
     SwapBuffers(); // Reflect immediately.
 
     store_placement(_common, placement);
@@ -1194,98 +1276,58 @@ void MapEditor::FillBackBufferInitial() {
     uint8_t texture_idx = 0;
     uint8_t color_idx = 0;
 
-    auto scene = common_ptr->GetCurrentScene();
-    
-    for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
-        SDL_Rect src_rect = scene->texture_src_rects[i];
-        SDL_Rect dst_rect = scene->texture_dst_rects[i];
-        uint8_t tag = scene->tags[i];
-        if (_common->isRectTexture(tag)) {
-            SDL_Color color = scene->colors[color_idx++];
-            SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
-            SDL_RenderFillRect(_renderer, &src_rect);
-        } else if (_common->isTextTexture(tag)) {
-            SDL_Texture* texture = scene->textures[texture_idx++];
-            SDL_RenderCopy(_renderer, texture, NULL, &dst_rect);
-        } else if (_common->isPlayerSpriteTexture(scene->tags[i])) {
-            // Render the player sprite to the right.
-            SDL_Texture* texture = scene->textures[texture_idx++];
+    Entity probe_low;
+    Entity probe_high;
 
-            const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
-            const uint16_t y_offset = SPRITESHEET_HEIGHT + SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
+    SceneData scene_data = common_ptr->scene_data[0];
 
-            src_rect.x = 0;
-            src_rect.y = 0;
+    auto [it_rect, end_it_rect] = scene_data.entities.equal_range(RECT_TAG);
 
-            dst_rect.x = x_offset;
-            dst_rect.y = y_offset;
-            dst_rect.w = SPRITE_WIDTH;
-            dst_rect.h = SPRITE_HEIGHT;
+    for (; it_rect != end_it_rect; ++it_rect) {
+        const Entity entity = it_rect->second;
+        LOG(1, "INFO", "rect tag entity => %s\n", entity.tag == RECT_TAG ? "yes" : "no");
+        SDL_Rect src_rect = entity.src_rect;
+        SDL_Color color = entity.color;
+        SDL_SetRenderDrawColor(_renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderFillRect(_renderer, &src_rect);
+    }
 
+    auto [it_text, end_it_text] = scene_data.entities.equal_range(TEXT_TAG);
+
+    for (; it_text != end_it_text; ++it_text) {
+        const Entity entity = it_text->second;
+        SDL_Rect dst_rect = entity.dst_rect;
+        LOG(1, "INFO", "<Text tag=%u, dst_rect<y=%u, y=%i, w=%i, h=%i>>\n", entity.tag, dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h);
+        SDL_RenderCopy(_renderer, entity.data, NULL, &dst_rect);
+    }
+
+    LOG(1, "INFO", "Background sprite tag: %u\n", bg_sprite_tag);
+    auto [it_bg_sprite, end_it_bg_sprite] = scene_data.entities.equal_range(bg_sprite_tag);
+
+    for (; it_bg_sprite != end_it_bg_sprite; ++it_bg_sprite) {
+        const Entity entity = it_bg_sprite->second;
+        LOG(1, "INFO", "bg_sprite tag entity => %s\n", entity.tag == bg_sprite_tag ? "yes" : "no");
+        SDL_Rect src_rect;
+        SDL_Rect dst_rect;
+        
+        // Get the spritesheet texture.
+        SDL_Texture* texture = entity.data;
+
+        for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+            Placement p = *it;
+            if (_common->isPlayerSpriteTexture(p.tag)) {
+                continue;
+            }
+            src_rect.x = p.sprite_x_idx*16;
+            src_rect.y = p.sprite_y_idx*16;
+            src_rect.w = 16;
+            src_rect.h = 16;
+            dst_rect.x = p.x;
+            dst_rect.y = p.y;
+            dst_rect.w = 32;
+            dst_rect.h = 32;
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-
-            // Render placements.
-            for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
-                Placement p = *it;
-                if (!_common->isPlayerSpriteTexture(p.tag)) {
-                    continue;
-                }
-                src_rect.x = 0;
-                src_rect.y = 0;
-                src_rect.w = 50;
-                src_rect.h = 50;
-                dst_rect.x = p.x;
-                dst_rect.y = p.y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-
-            // Render drag&drop
-            if (_sprite_selection.selection && _common->isPlayerSpriteTexture(_sprite_selection.tag)) {
-                src_rect.x = 0;
-                src_rect.y = 0;
-                src_rect.w = SPRITE_WIDTH;
-                src_rect.h = SPRITE_HEIGHT;
-                dst_rect.x = _mouse_x;
-                dst_rect.y = _mouse_y;
-                dst_rect.w = SPRITE_WIDTH;
-                dst_rect.h = SPRITE_HEIGHT;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-            
-        } else if (_common->isBackgroundSpriteTexture(tag)) {
-            // Get the spritesheet texture.
-            SDL_Texture* texture = scene->textures[texture_idx++];
-
-            // Render drag&drop
-            if (_sprite_selection.selection && _common->isBackgroundSpriteTexture(_sprite_selection.tag)) {
-                src_rect.x = _sprite_selection.x*16;
-                src_rect.y = _sprite_selection.y*16;
-                src_rect.w = 16;
-                src_rect.h = 16;
-                dst_rect.x = _mouse_x;
-                dst_rect.y = _mouse_y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
-
-            for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
-                Placement p = *it;
-                if (_common->isPlayerSpriteTexture(p.tag)) {
-                    continue;
-                }
-                src_rect.x = p.sprite_x_idx*16;
-                src_rect.y = p.sprite_y_idx*16;
-                src_rect.w = 16;
-                src_rect.h = 16;
-                dst_rect.x = p.x;
-                dst_rect.y = p.y;
-                dst_rect.w = 32;
-                dst_rect.h = 32;
-                SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
-            }
+        }
 
             // Render the spritesheet to the right.
             const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
@@ -1301,32 +1343,73 @@ void MapEditor::FillBackBufferInitial() {
             dst_rect.h = SPRITESHEET_HEIGHT;
 
             SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+    }
+
+    LOG(1, "INFO", "Background sprite tag: %u\n", player_sprite_tag);
+    auto [it_player_sprite, end_it_player_sprite] = scene_data.entities.equal_range(player_sprite_tag);
+
+    for (; it_player_sprite != end_it_player_sprite; ++it_player_sprite) {
+        const Entity entity = it_player_sprite->second;
+        LOG(1, "INFO", "player_sprite tag entity => %s\n", entity.tag == player_sprite_tag ? "yes" : "no");
+        SDL_Rect src_rect;
+        SDL_Rect dst_rect;
+
+        SDL_Texture* texture = entity.data;
+        
+        const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
+        const uint16_t y_offset = SPRITESHEET_HEIGHT + SPRITE_TABLE_SELECTION_PANE_Y_OFFSET;
+
+        src_rect.x = 0;
+        src_rect.y = 0;
+
+        dst_rect.x = x_offset;
+        dst_rect.y = y_offset;
+        dst_rect.w = SPRITE_WIDTH;
+        dst_rect.h = SPRITE_HEIGHT;
+
+        SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
+
+        // Render placements.
+        for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+            Placement p = *it;
+            if (!_common->isPlayerSpriteTexture(p.tag)) {
+                continue;
+            }
+            src_rect.x = 0;
+            src_rect.y = 0;
+            src_rect.w = 50;
+            src_rect.h = 50;
+            dst_rect.x = p.x;
+            dst_rect.y = p.y;
+            dst_rect.w = 32;
+            dst_rect.h = 32;
+            SDL_RenderCopy(_renderer, texture, &src_rect, &dst_rect);
         }
     }
 
     // Render the "snap" lines in the placement area.
     SDL_SetRenderDrawColor(_renderer, 0x00, 0xFF, 0x00, 0xFF);
-
+    
     // Note: Offset=68 since menu_bar_y_offset=57, sprite_2x_scale_y=32"
     uint16_t line_y_offset = 64;
     uint16_t line_x_offset = 0;
-
+    
     const int screen_y_mod = SCREEN_HEIGHT % 32;
-
+    
     // Draw's the horizontal lines.
     while(line_y_offset < SCREEN_HEIGHT) {
         SDL_RenderDrawLine(_renderer, 0, line_y_offset, SCREEN_WIDTH-192, line_y_offset);
         line_y_offset+=32;
     }
-
+    
     auto vertical_line_begin_y = 64;
-
+    
     // Draw's the vertical lines.
     while(line_x_offset < SCREEN_WIDTH-180) {
         SDL_RenderDrawLine(_renderer, line_x_offset, vertical_line_begin_y, line_x_offset, line_y_offset - 32);
         line_x_offset+=32;
     }
-
+    
     // Render the marked maps.
     for (int i = 0; i < marked_maps->count; ++i) {
         const Vector2D* v = marked_maps->items[i];
@@ -1335,7 +1418,7 @@ void MapEditor::FillBackBufferInitial() {
         SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4);           // left line
         SDL_RenderDrawLine( _renderer, v->x+32*4, v->y, v->x+32*4, v->y+32*4); // right line
         SDL_RenderDrawLine( _renderer, v->x, v->y+32*4, v->x+32*4, v->y+32*4); // Bottom line
-
+    
         SDL_RenderDrawLine( _renderer, v->x+1, v->y, v->x+32*4+1, v->y);             // top line
         SDL_RenderDrawLine( _renderer, v->x, v->y, v->x, v->y+32*4+1);               // left line
         SDL_RenderDrawLine( _renderer, v->x+32*4+1, v->y, v->x+32*4+1, v->y+32*4+1); // right line

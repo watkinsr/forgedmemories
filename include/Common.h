@@ -6,12 +6,15 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
-#include <vector>
-#include <string>
+
 #include <functional>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 #include "Log.h"
+#include "Types.h"
 
 using namespace std;
 
@@ -22,8 +25,6 @@ enum FONT_SIZE {
 };
 
 constexpr uint8_t DEFAULT_FONT_ARRAY_LEN = 2;
-const ssize_t SCREEN_WIDTH = 800;
-const ssize_t SCREEN_HEIGHT = 600;
 
 constexpr uint16_t SPRITESHEET_WIDTH = 256;   // Technically only 128 is actually sprites.
 constexpr uint16_t SPRITESHEET_HEIGHT = 256;
@@ -36,6 +37,10 @@ constexpr uint16_t SPRITESHEET_HEIGHT = 256;
 #define PLAYER_SPRITE_FLAG 1 << 0
 #define BACKGROUND_SPRITE_FLAG 1 << 1
 #define ENEMY_SPRITE_FLAG 0x03
+
+struct SceneData {
+    std::unordered_multimap<uint8_t, Entity> entities;
+};
 
 struct scene_t {
     vector<SDL_Texture*> textures;
@@ -72,9 +77,12 @@ public:
         "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
         "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf"
     };
+    void NewScene(SceneData& data);
     void AddScene(std::vector<gametexture_t>);
     SDL_Event* GetEvent();
     void AllocateScene(bool);
+    SDL_Texture* LoadText(FONT_SIZE font_size, std::string_view data, SDL_Rect* dst_rect, SDL_Color color);
+    SDL_Texture* LoadImage(std::string_view uri);
     void LoadTexture(const uint8_t, gametexture_t);
     bool isEnemySpriteTexture(uint8_t);
     bool isPlayerSpriteTexture(uint8_t);
@@ -93,6 +101,7 @@ public:
     uint8_t GetInitialSceneTextureSize();
     void DestroyFonts();
     vector<std::shared_ptr<TTF_Font>>                                 _fonts = {};
+    vector<SceneData> scene_data = vector<SceneData>();
 private:
     uint32_t _BACKBUFFER_WIDTH;
     uint32_t _BACKBUFFER_HEIGHT;
@@ -107,7 +116,7 @@ private:
     SDL_Renderer*                                                     _renderer;
     SDL_Surface*                                                      _screen_surface;
     uint8_t                                                           _scene_stack_idx = 0;
-    vector<scene_t>                                                   _scenes = vector<scene_t>();
+    vector<scene_t>                                                   _scenes = vector<scene_t>();    
     vector<vector<gametexture_t>>                                     _scene_texture_locations = vector<vector<gametexture_t>>();
     uint8_t                                                           _initial_scene_size = 0;
 };
