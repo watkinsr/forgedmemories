@@ -30,6 +30,7 @@ struct SpriteSelection {
     uint16_t y;   // index into relevant spritesheet column
     uint8_t tag;  // Is it a Player sprite or Generic Map sprites or anything else?
     uint8_t texture_idx;
+    Entity* entity_ptr; // Ptr -> SceneData::v
     bool selection = false;
 };
 

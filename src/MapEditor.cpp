@@ -39,8 +39,20 @@ Marked_Maps *marked_maps = NULL;
 static std::shared_ptr<Common> common_ptr;
 static std::unique_ptr<MapEditor> map_editor;
 
+inline SDL_Texture* get_texture_by_entity_tag(SceneData* scene_data, uint8_t tag) {
+    SDL_Texture* data;
+    auto [it, end] = scene_data->entities.equal_range(tag);
+    for (; it != end; ++it) {
+        const Entity entity = it->second;
+        data = entity.data;
+        LOG(1, "INFO", "BlitNewPlacement - (Tag=%u, Ptr=%p)\n", tag, (void*)data);
+    }
+    return data;
+}
+
 void inline BlitNewPlacement(const Placement& placement) {
     LOG(1, "TRACE", "MapEditor::BlitNewPlacement\n");
+    SceneData* scene_data = common_ptr->GetSceneData();
 
     SDL_Rect src;
     SDL_Rect dst;
@@ -50,10 +62,12 @@ void inline BlitNewPlacement(const Placement& placement) {
 
     SDL_Renderer* _renderer = common_ptr->GetRenderer();
     SDL_SetRenderTarget(_renderer, common_ptr->GetBackBuffer()); // Blit to the back buffer.
-    scene_t* scene = common_ptr->GetCurrentScene();
 
-    SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+    SDL_Texture* data = get_texture_by_entity_tag(scene_data, placement.tag);
+    SDL_RenderCopy(_renderer, data, &src, &dst);
 }
+
+
 
 static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, int mouse_y) {
     LOG(1, "TRACE", "MapEditor::BlitDragAndDrop()\n");
@@ -72,11 +86,10 @@ static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, i
     dst.w = 32;
     dst.h = 32;
 
-    scene_t* scene = common_ptr->GetCurrentScene();
-    SDL_Texture* texture = scene->textures[entity.texture_idx];
-    LOG(1, "INFO", "BlitDragAndDrop - SpriteSelectionPtr: %p\n", (void*)texture);
-
-    SDL_RenderCopy(_renderer, texture, &src, &dst);
+    SceneData* scene_data = common_ptr->GetSceneData();
+    SDL_Texture* data = get_texture_by_entity_tag(scene_data, entity.tag);
+    LOG(1, "INFO", "BlitDragAndDrop - (Tag=%u, Ptr=%p)\n", entity.tag, (void*)data);
+    SDL_RenderCopy(_renderer, data, &src, &dst);
 }
 
 // Forward Declarations
@@ -342,7 +355,8 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
 
     // FIXME: When drawing the next strip, we should check if any sprites are in that strip.
     NextPlacements next_placements = search_next_placements(direction);
-    scene_t* scene = common_ptr->GetCurrentScene();
+    SceneData* scene_data = common_ptr->GetSceneData();
+    SDL_Texture* data;
 
     switch(direction) {
         case PLACEMENT_MOVE_GRID_UP:
@@ -357,7 +371,8 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
                 LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
                 src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
                 dst = {placement.x, placement.y, 32, 32};
-                SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+                data = get_texture_by_entity_tag(scene_data, placement.tag);
+                SDL_RenderCopy(_renderer, data, &src, &dst);
             }
             break;
         case PLACEMENT_MOVE_GRID_DOWN:
@@ -372,7 +387,8 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
                 LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
                 src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
                 dst = {placement.x, placement.y, 32, 32};
-                SDL_RenderCopy(_renderer, scene->textures[placement.texture_idx], &src, &dst);
+                data = get_texture_by_entity_tag(scene_data, placement.tag);
+                SDL_RenderCopy(_renderer, data, &src, &dst);
             }
             break;
         case PLACEMENT_MOVE_GRID_LEFT:
@@ -437,8 +453,8 @@ MapEditor::MapEditor(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     common_ptr->NewScene(scene_data);
 }
 
-void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
-    LOG(1, "TRACE", "HandleAddAction(scene=?, sprite_selection=?, common_ptr=?, mx=%i, my=%i)\n", mx, my);
+void HandleAddDragAndDrop(SceneData* scene_data, SpriteSelection* sprite_selection, std::shared_ptr<Common> common_ptr, const int mx, const int my) {
+    LOG(1, "TRACE", "HandleAddAction(scene_data=%p, sprite_selection=?, common_ptr=?, mx=%i, my=%i)\n", scene_data, mx, my);
 
     bool acted_on = false;
 
@@ -456,6 +472,8 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
     // Reference values to selection region.
     const uint16_t x_offset = SCREEN_WIDTH - SPRITE_SELECTION_PANE_WIDTH;
     const uint16_t y_offset = 64;
+
+
 
     // FIXME: This can be O(1) if we have an array s.t.
     //        [first_sprite, ..., end_row, first_next_row, ...]
@@ -476,19 +494,6 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
                 sprite_selection->x = i;
                 sprite_selection->y = j;
                 sprite_selection->tag = MAPSPRITE_TAG;
-
-                // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
-                for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
-                    uint8_t tag = scene->tags[i];
-
-                    if (common_ptr->isTextTexture(tag) || common_ptr->isPlayerSpriteTexture(tag)) texture_idx++;
-                    else if (tag == MAPSPRITE_TAG) {
-                        sprite_selection->texture_idx = texture_idx;
-                        break;
-                    }
-                }
-
-                acted_on = true;
                 LOG(1, "INFO", "Selection made on <MapSprite tag=%u, x=%u, y=%u>.\n", MAPSPRITE_TAG, i, j);
                 return;
             }
@@ -500,29 +505,7 @@ void HandleAddDragAndDrop(scene_t* scene, SpriteSelection* sprite_selection, std
         sprite_selection->x = 0;
         sprite_selection->y = 0;
         sprite_selection->tag = PLAYER_TAG;
-
-        // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
-        for (uint8_t i = 0; i < scene->texture_src_rects.size(); ++i) {
-            uint8_t tag = scene->tags[i];
-
-            if (common_ptr->isTextTexture(tag) || common_ptr->isBackgroundSpriteTexture(tag)) texture_idx++;
-            else if (tag == PLAYER_TAG) {
-                sprite_selection->texture_idx = texture_idx;
-                break;
-            }
-        }
-
-        // FIXME: Search for the actual texture. If we had the Spritesheet and Player textures just available it's O(1).
-        for (uint8_t i = 0; i < scene->textures.size(); ++i) {
-            uint8_t tag = scene->tags[i];
-            if (tag == PLAYER_TAG) {
-                sprite_selection->texture_idx = i;
-                break;
-            }
-        }
-
-        acted_on = true;
-        LOG(1, "INFO", "Selection made on <PlayerSprite tag=%u, x=%u, y=%u>.\n", PLAYER_TAG, 0, 0);
+        LOG(1, "INFO", "Selection made on <PlayerSprite tag=%u>.\n", PLAYER_TAG);
         return;
     }
 
@@ -550,7 +533,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
 
     LOG(1, "TRACE", "MapEditor::HandleSelection( mouse_x=%i, mouse_y=%i )\n", mouse_x, mouse_y);
 
-    scene_t* current_scene = _common->GetCurrentScene();
+    SceneData* scene_data = _common->GetSceneData();
 
     if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::DEL) {
         int placement_idx = 0;
@@ -572,7 +555,7 @@ void MapEditor::HandleSelection(const int mouse_x, const int mouse_y) {
         }
         return;
     } else if (_editor_mode == editor_mode::ADD) {
-        HandleAddDragAndDrop(current_scene, &_sprite_selection, _common, mouse_x, mouse_y);
+        HandleAddDragAndDrop(scene_data, &_sprite_selection, _common, mouse_x, mouse_y);
     } else if (mouse_x < SCREEN_WIDTH * 0.8 && _editor_mode == editor_mode::MARK) {
         int menu_y = static_cast<float>(SCREEN_HEIGHT)*static_cast<float>(0.05f);
         if (mouse_y < menu_y) return; // Disallow marking in the Menu Bar.

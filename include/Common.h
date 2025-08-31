@@ -96,6 +96,7 @@ public:
     void SetBackBuffer(SDL_Texture* t) { _back_buffer = t; };
     SDL_Window* GetWindow();
     uint8_t GetSceneStackIdx();
+    SceneData* GetSceneData() { return &scene_data[0]; };
     scene_t* GetCurrentScene();
     void SetInitialSceneTextureSize(const uint8_t);
     uint8_t GetInitialSceneTextureSize();
