@@ -64,7 +64,7 @@ const uint8_t MAP_SIZE = 9;
 // };
 
 constexpr int MAPS[MAP_SIZE][4][4] = {
-    L1, MAP0, R1, E, C2, E, R1, C3, E
+    MAP1, MAP0, R1, E, C2, E, R1, C3, E
 };
 
 uint64_t frame_count = 0;
@@ -73,7 +73,7 @@ uint64_t current_ticks = 0;
 Game::Game(std::shared_ptr<Common> common_ptr) : _common(common_ptr) {
     assert(PLAYER_BEGIN_X % STEP_SIZE == 0);
     assert(PLAYER_BEGIN_Y % STEP_SIZE == 0);
-    LOG_nodt(1, "INFO", "<Player begin_x=%zu, begin_y=%zu>\n", PLAYER_BEGIN_X, PLAYER_BEGIN_Y);
+
     _SetTextureLocations();
     common_ptr->AllocateScene(false);
 }
@@ -125,6 +125,11 @@ void Game::_SetTextureLocations() {
 
 std::string btos(bool b) { return b ? "yes" : "no"; }
 
+constexpr bool is_non_collidable_sprite(int encoding) {
+    LOG(1, "TRACE", "is_non_collidable_sprite(encoding=%i)\n", encoding);
+    return (encoding >= 200 || encoding == -1);
+}
+
 bool Game::IsColliding(const int x, const int y) {
     uint8_t _map_idx = map_idx;
 
@@ -147,8 +152,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
         didCollide = !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]  == TRANSPARENT_TARGET &&
-            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
+            is_non_collidable_sprite(MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]) &&
+            is_non_collidable_sprite(MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant])
         );
         if (didCollide) {
             LOG(1, "INFO", "Collision detected !\n");
@@ -163,8 +168,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
 
         didCollide = !(
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
+            is_non_collidable_sprite(MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant]) &&
+            is_non_collidable_sprite(MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant])
         );
         if (didCollide) {
             LOG(1, "INFO", "Collision detected !\n");
@@ -177,8 +182,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t right_bounding_box_quadrant = (right_bounding_box/(SCREEN_WIDTH/4));
         didCollide = !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant] == TRANSPARENT_TARGET
+            is_non_collidable_sprite(MAPS[_map_idx-1][top_bounding_box_quadrant][right_bounding_box_quadrant]) &&
+            is_non_collidable_sprite(MAPS[_map_idx-1][bottom_bounding_box_quadrant][right_bounding_box_quadrant])
         );
         if (didCollide) {
             LOG(1, "INFO", "Collision detected !\n");
@@ -191,8 +196,8 @@ bool Game::IsColliding(const int x, const int y) {
         uint8_t bottom_bounding_box_quadrant = (bottom_bounding_box/(SCREEN_HEIGHT/4));
         uint8_t left_bounding_box_quadrant = (left_bounding_box/(SCREEN_WIDTH/4));
         didCollide = !(
-            MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]    == TRANSPARENT_TARGET &&
-            MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant] == TRANSPARENT_TARGET
+            is_non_collidable_sprite(MAPS[_map_idx-1][top_bounding_box_quadrant][left_bounding_box_quadrant]) &&
+            is_non_collidable_sprite(MAPS[_map_idx-1][bottom_bounding_box_quadrant][left_bounding_box_quadrant])
         );
         if (didCollide) {
             LOG(1, "INFO", "Collision detected !\n");
@@ -208,10 +213,10 @@ bool Game::IsColliding(const int x, const int y) {
         if (lq == 4) lq--;
 
         // We check the current map.
-        bool tl = MAPS[_map_idx-1][tq][lq] == TRANSPARENT_TARGET;
-        bool tr = MAPS[_map_idx-1][tq][rq] == TRANSPARENT_TARGET;
-        bool bl = MAPS[_map_idx-1][bq][lq] == TRANSPARENT_TARGET;
-        bool br = MAPS[_map_idx-1][bq][rq] == TRANSPARENT_TARGET;
+        bool tl = is_non_collidable_sprite(MAPS[_map_idx-1][tq][lq]);
+        bool tr = is_non_collidable_sprite(MAPS[_map_idx-1][tq][rq]);
+        bool bl = is_non_collidable_sprite(MAPS[_map_idx-1][bq][lq]);
+        bool br = is_non_collidable_sprite(MAPS[_map_idx-1][bq][rq]);
         didCollide = !(tl && tr && bl && br);
         if (didCollide) {
             LOG(1, "INFO", "Collision detected !\n");
@@ -313,7 +318,8 @@ SDL_Rect GetSpriteRect(uint8_t map_idx, uint8_t segment_y, uint8_t segment_x) {
         v -= 100;
     }
     else if (v >= 200 && v < 300) {
-        v -= 200;
+        // If it's a player sprite, just render grass, we will pick the starting location regardless.
+        v = -1;
     } else if (v < -1 && v >= 300) {
         ASSERT_NOT_REACHED();
     }
@@ -922,7 +928,7 @@ void Game::UpdateBackBuffer() {
            i--;
        }
 
-       LOG_nodt(1, "PERF", "FPS: %i\n", _fps);
+       LOG(1, "PERF", "FPS: %i\n", _fps);
 
        gametexture_t fps_texture = {
            .text_or_uri = "FPS: " + std::to_string(_fps),
@@ -1137,7 +1143,7 @@ static void mainloop(void) {
         auto now = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - game->prev_clock).count();
         game->prev_clock = now;
-        LOG(1, "INFO", "ms elapsed between tick: %ld\n", ms);
+        LOG(1, "PERF", "ms elapsed between tick: %ld\n", ms);
         if (ms <= 16) {
             game->set_fps(60);
         } else {

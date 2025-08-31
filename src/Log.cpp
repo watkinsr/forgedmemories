@@ -1,7 +1,8 @@
 #include "Log.h"
-#include <cstdio>
-#include <ctime>
 #include <cstdarg>
+#include <cstdio>
+#include <cstring>  // for strcmp
+#include <ctime>
 
 /*
  * Send a formatted string to the log, used like printf(fmt,...)
@@ -24,10 +25,25 @@ int LOG_nodt(int prio, const char *tag, const char *fmt, ...) {
  * Send a formatted string to the log, used like printf(fmt,...)
  */
  int LOG(int prio, const char *tag, const char *fmt, ...) {
-    // Oh boy, WASM doesn't like this !
-    #ifdef __EMSCRIPTEN__
-    // No-op
-    #else
+     // printf("LOG(%i, %s, fmt=?)\n", prio, tag);
+
+     if (std::strcmp(tag, "PERF") == 0) {
+#ifndef PERF
+         return;
+#endif
+     }
+
+     if (std::strcmp(tag, "VERBOSE") == 0) {
+#ifndef VERBOSE
+         return;
+#endif
+    }
+
+#ifdef __EMSCRIPTEN__
+    // Oh boy, WASM doesn't like this => No-op
+#else
+
+    
     // Get current date and time
     std::time_t now = std::time(0);
     char datetime[20];

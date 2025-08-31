@@ -39,13 +39,37 @@ Marked_Maps *marked_maps = NULL;
 static std::shared_ptr<Common> common_ptr;
 static std::unique_ptr<MapEditor> map_editor;
 
+inline std::ofstream open_map_file() {
+    LOG(1, "TRACE", "open_map_file()\n");
+    std::ofstream out_file;
+    out_file.open(MAP_FILE);
+    if (!out_file.is_open()) {
+        fprintf(stderr, "save_tile(?) - Failed to open tile");
+        ASSERT_NOT_REACHED();
+    }
+    return out_file;
+}
+
+inline void finish_save_map(Message* message, std::ofstream& out_file) {
+    LOG(1, "TRACE", "finish_save_map(message=%p, out_file=?)\n", message);
+    out_file.close();
+
+    if (message->flushable) {
+        *message = {
+            .lines = {"Save successful!"},
+            .word_wrap = true,
+            .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+        };
+    }    
+}
+
 inline SDL_Texture* get_texture_by_entity_tag(SceneData* scene_data, uint8_t tag) {
     SDL_Texture* data;
     auto [it, end] = scene_data->entities.equal_range(tag);
     for (; it != end; ++it) {
         const Entity entity = it->second;
         data = entity.data;
-        LOG(1, "INFO", "BlitNewPlacement - (Tag=%u, Ptr=%p)\n", tag, (void*)data);
+        LOG(1, "VERBOSE", "BlitNewPlacement - (Tag=%u, Ptr=%p)\n", tag, (void*)data);
     }
     return data;
 }
@@ -70,7 +94,7 @@ void inline BlitNewPlacement(const Placement& placement) {
 
 
 static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, int mouse_y) {
-    LOG(1, "TRACE", "MapEditor::BlitDragAndDrop()\n");
+    LOG(1, "VERBOSE", "MapEditor::BlitDragAndDrop()\n");
     SDL_Renderer* _renderer = common_ptr->GetRenderer();
 
     SDL_Rect src;
@@ -88,14 +112,14 @@ static inline void BlitDragAndDrop(const SpriteSelection& entity, int mouse_x, i
 
     SceneData* scene_data = common_ptr->GetSceneData();
     SDL_Texture* data = get_texture_by_entity_tag(scene_data, entity.tag);
-    LOG(1, "INFO", "BlitDragAndDrop - (Tag=%u, Ptr=%p)\n", entity.tag, (void*)data);
+    LOG(1, "VERBOSE", "BlitDragAndDrop - (Tag=%u, Ptr=%p)\n", entity.tag, (void*)data);
     SDL_RenderCopy(_renderer, data, &src, &dst);
 }
 
 // Forward Declarations
 void delineate_new_map_border(int top_left_x, int top_right_y);
 ssize_t binary_search_region(std::set<Placement, OrderHorizontally>*, Vector2D*, Vector2D*, int, int);
-void SaveTile(const vector<Placement>&, const uint8_t, Message*);
+void save_map(const vector<Placement>& tile, const uint8_t map_idx, const Vector2D* marked_map, std::ofstream& out_file);
 void handle_save_selection(Message*);
 void HandleAddDragAndDrop(scene_t*, SpriteSelection*, std::shared_ptr<Common>, const int, const int);
 
@@ -324,6 +348,18 @@ NextPlacements search_next_placements(uint8_t direction) {
     return next_placements;
 }
 
+void inline draw_next_placements(SDL_Renderer* _renderer, NextPlacements& next_placements, SDL_Rect* src, SDL_Rect* dst, SceneData* scene_data) {
+    SDL_Texture* data;
+    for (std::size_t i = 0; i < next_placements.len; ++i) {
+        const Placement& placement = *(next_placements.data[i]);
+        LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
+        *src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
+        *dst = {placement.x, placement.y + camera.y, 32, 32};
+        data = get_texture_by_entity_tag(scene_data, placement.tag);
+        SDL_RenderCopy(_renderer, data, src, dst);
+    }
+}
+
 void MapEditor::BlitPlacementArea(uint8_t direction) {
     SDL_Renderer* _renderer = _common->GetRenderer();
     SDL_Texture* t = SDL_CreateTexture(
@@ -350,13 +386,11 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
 
     SDL_SetRenderTarget(_renderer, t);                              // Switch to our temporary back buffer holder texture.
     SDL_Texture* _back_buffer = _common->GetBackBuffer();
+    SceneData* scene_data = common_ptr->GetSceneData();
 
     uint32_t offset_x_begin;
 
-    // FIXME: When drawing the next strip, we should check if any sprites are in that strip.
     NextPlacements next_placements = search_next_placements(direction);
-    SceneData* scene_data = common_ptr->GetSceneData();
-    SDL_Texture* data;
 
     switch(direction) {
         case PLACEMENT_MOVE_GRID_UP:
@@ -366,14 +400,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             dst = {0, grid_begin_y, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             draw_horizontal_strip(_renderer, grid_begin_y+(grid_height-PLACEMENT_TILE_DIST), SCREEN_HEIGHT);
-            for (std::size_t i = 0; i < next_placements.len; ++i) {
-                const Placement& placement = *(next_placements.data[i]);
-                LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
-                src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
-                dst = {placement.x, placement.y, 32, 32};
-                data = get_texture_by_entity_tag(scene_data, placement.tag);
-                SDL_RenderCopy(_renderer, data, &src, &dst);
-            }
+            draw_next_placements(_renderer, next_placements, &src, &dst, scene_data);
             break;
         case PLACEMENT_MOVE_GRID_DOWN:
             camera.y += PLACEMENT_TILE_DIST;
@@ -382,14 +409,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             dst = {0, grid_begin_y+PLACEMENT_TILE_DIST, placement_bar_width, grid_height-PLACEMENT_TILE_DIST};
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             draw_horizontal_strip(_renderer, grid_begin_y, grid_begin_y+PLACEMENT_TILE_DIST);
-            for (std::size_t i = 0; i < next_placements.len; ++i) {
-                const Placement& placement = *(next_placements.data[i]);
-                LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
-                src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
-                dst = {placement.x, placement.y, 32, 32};
-                data = get_texture_by_entity_tag(scene_data, placement.tag);
-                SDL_RenderCopy(_renderer, data, &src, &dst);
-            }
+            draw_next_placements(_renderer, next_placements, &src, &dst, scene_data);
             break;
         case PLACEMENT_MOVE_GRID_LEFT:
             camera.x -= PLACEMENT_TILE_DIST;
@@ -634,9 +654,9 @@ void delineate_new_map_border(int top_left_x, int top_right_y) {
     v->y = top_right_y;
     arena_da_append(&temporary_arena, marked_maps, v);
     {
-        const Vector2D* items = *(marked_maps->items);
+        const Vector2D inserted_vec2 = *(marked_maps->items[marked_maps->count-1]);
         assert(marked_maps->count > 0); // Not really necessary, checks if arena works as expected.
-        LOG(1, "INFO", "Marked maps count: %i\n", marked_maps->count);
+        LOG(1, "INFO", "Mark Map(.x=%i, .y=%i) - count: %d\n", inserted_vec2.x, inserted_vec2.y, marked_maps->count);
     }
     BlitMarkedMap(top_left_x, top_right_y);
 }
@@ -657,6 +677,14 @@ static inline void process_rest_of_row(std::set<Placement, OrderHorizontally>::i
         }
         tile->push_back(*p);
         LOG(1, "INFO", "Intend to store <Placement [%i,%i]\n", p->x, p->y);
+    }
+}
+
+inline void debug_print_placements() {
+    LOG(1, "TRACE", "debug_print_placements()\n");
+    for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+        const Placement p = *it;
+        LOG(1, "INFO", "Placement(.x=%i, .y=%i)\n", p.x, p.y);
     }
 }
 
@@ -681,16 +709,18 @@ void handle_save_selection(Message* message) {
     std::vector<Placement> tile = {};
     uint8_t map_idx = 0;
 
+    debug_print_placements();
+
+    auto map_file = open_map_file();
+
     for (int j = 0; j < marked_maps->count; ++j) {
         // Marked map TL point.
         Vector2D* v = (marked_maps->items[j]);
         int x = v->x;
         int y = v->y;
-
-        size_t oob_norm_col_x = x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
-        Placement* p;
         auto it = g_placements.find(Placement{.x = x, .y = y });
         if (it != g_placements.end()) {
+            size_t oob_norm_col_x = x/SPRITE_WIDTH+4; // Out of bounds col X (normalized)
             process_rest_of_row(it, oob_norm_col_x, &tile);
 
             size_t row_idx = 1;
@@ -711,11 +741,14 @@ void handle_save_selection(Message* message) {
                     continue;
                 }
             }
-            SaveTile(tile, map_idx, message);
+            save_map(tile, j, marked_maps->items[j], map_file); // j: map_idx
+            tile.clear(); // Consumed.
         } else {
-            LOG(1, "SOFTPANIC", "No binary match!\n");
+            LOG(1, "WARN", "Unable to find placements in marked map - (.x=%i, .y=%i)\n", x, y);
         }
     }
+
+    finish_save_map(message, map_file);
 }
 
 const inline SDL_Texture* getAllocBackBuffer(std::shared_ptr<Common>& common_ptr) {
@@ -729,7 +762,7 @@ const inline SDL_Texture* getAllocBackBuffer(std::shared_ptr<Common>& common_ptr
 }
 
 void MapEditor::BlitMessage(const Message& message) {
-    LOG(1, "TRACE", "MapEditor::BlitMessage\n");
+    LOG(1, "VERBOSE", "MapEditor::BlitMessage\n");
     assert(message.flushable); // FIXME: This is now a redundant flag.
 
     // BlitMessage:
@@ -764,7 +797,7 @@ void MapEditor::BlitMessage(const Message& message) {
         assert(message.lines.size() > 0);
         int message_offset_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH + (RIGHT_PANEL_WIDTH-message.line_width);
         for (const auto& line : message.lines) {
-            LOG(1, "INFO", "MapEditor::BlitMessage - (MessageLine: %s)\n", line.c_str());
+            LOG(1, "VERBOSE", "MapEditor::BlitMessage - (MessageLine: %s)\n", line.c_str());
             SDL_Surface* surface = TTF_RenderUTF8_Solid(
                 get_font(_common, FONT_SIZE::SMALL),
                 line.c_str(),
@@ -841,17 +874,34 @@ void MapEditor::HandleMenuBarSelection(const int mouse_x, const int mouse_y) {
     if (message.lines.size() > 0) BlitMessage(message);
 }
 
-void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* message) {
-    LOG(1, "TRACE", "SaveTile(?)\n");
+void save_map(const vector<Placement>& tile, const uint8_t map_idx, const Vector2D* marked_map, std::ofstream& out_file) {
+    LOG(1, "TRACE", "SaveMap(..., marked_map(.x=%i, .y=%i))\n", marked_map->x, marked_map->y);
 
-    std::ofstream out_file;
-    out_file.open(MAP_FILE);
-    if (!out_file.is_open()) {
-        fprintf(stderr, "save_tile(?) - Failed to open tile");
-        return;
+    int player_begin_x = -1;
+    int player_begin_y = -1;
+
+    // Check if there's a player sprite inside this tile.
+    for (auto it = tile.begin(); it != tile.end(); ++it) {
+        const Placement p = *it;
+        if (p.tag == player_sprite_tag) {
+            player_begin_x = p.x;
+            player_begin_y = p.y;
+            LOG(1, "INFO", "SaveMap - Player(x=%i, y=%i)\n", player_begin_x, player_begin_y);
+            break;
+        }
     }
 
     out_file << "#define MAP" << std::to_string(map_idx) << "_METADATA " << std::to_string(tile[0].x) << "," << std::to_string(tile[0].y) << endl;
+
+    if (player_begin_x != -1) {
+        // MAP0_PLAYER_BEGIN_POSITION_X
+        out_file << "#define MAP" << std::to_string(map_idx) << "_PLAYER_BEGIN_POSITION_X " << std::to_string(player_begin_x) << endl;
+    }
+
+    if (player_begin_y != -1) {
+        // MAP0_PLAYER_BEGIN_POSITION_Y
+        out_file << "#define MAP" << std::to_string(map_idx) << "_PLAYER_BEGIN_POSITION_Y " << std::to_string(player_begin_y) << endl;
+    }
 
     out_file << "#define MAP" << std::to_string(map_idx) << " {\\" << endl;
     out_file << "    {";
@@ -867,8 +917,6 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     uint8_t idx = 0;
     uint8_t col_cur = 0;
     for (const auto& placement : tile) {
-        LOG(1, "INFO", "Placement<x: %i, y: %i>\n", placement.x, placement.y);
-
         // State representing Column cursor "jump"
         uint8_t norm_cur_x = (placement.x / 32);
         uint8_t norm_prev_x = (prev_x / 32);
@@ -883,7 +931,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
             x_norm_jump = 0;
             // Pad rest of row.
             if (col_cur < 4) {
-                LOG(1, "INFO", "Pad rest of row\n");
+                LOG(1, "VERBOSE", "Pad rest of row\n");
                 while(col_cur < 4) {
                     if (col_cur != 3) out_file << "-1,";
                     else out_file << "-1";
@@ -940,7 +988,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
             encoding += 200;
         }
         std::string sprite_encoding = std::to_string(encoding);
-        LOG(1, "INFO", "Encoding: %s\n", sprite_encoding.c_str());
+        LOG(1, "INFO", "Placement<x=%i, y=%i, encoding=%s>\n", placement.x, placement.y, sprite_encoding.c_str());
         out_file << sprite_encoding;
         if ((idx < tile.size() - 1 && tile[idx+1].y == tile[idx].y) || col_cur < 3) out_file << ",";
         col_cur++;
@@ -950,7 +998,7 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     }
     // Pad rest of row.
     if (col_cur < 4) {
-        LOG(1, "INFO", "Pad rest of row\n");
+        LOG(1, "VERBOSE", "Pad rest of row\n");
     }
     while(col_cur < 4) {
         if (col_cur != 3) out_file << "-1,";
@@ -982,16 +1030,6 @@ void SaveTile(const vector<Placement>& tile, const uint8_t map_idx, Message* mes
     }
 
     out_file << "}" << endl;
-
-    out_file.close();
-
-    if (message->flushable) {
-        *message = {
-            .lines = {"Save successful!"},
-            .word_wrap = true,
-            .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
-        };
-    }
 }
 
 
@@ -1113,12 +1151,47 @@ static void inline parse_row(std::string& current_line, void* map, size_t* offse
     }
 }
 
+void inline parse_player_begin_position_x(std::string& header, std::string& current_line, int* player_begin_x) {
+    LOG(1, "TRACE", "parse_player_begin_position_x(header=%s, line=%s, x=%p)\n", header.c_str(), current_line.c_str(), player_begin_x);
+    current_line = current_line.substr(header.size());
+    LOG(1, "INFO", "Zeroth chop: %s\n", current_line.c_str());
+    const char* chop_first_value = current_line.substr(0, current_line.size() - header.size()).c_str();
+    *player_begin_x = atoi(chop_first_value);
+    LOG(1, "INFO", "parse_player_begin_position - (chop_first=%s, x=%i)\n", chop_first_value, *player_begin_x);
+}
+
+void inline parse_player_begin_position_y(std::string& header, std::string& current_line, int* player_begin_y) {
+    LOG(1, "TRACE", "parse_player_begin_position_y(header=%s, line=%s, y=%p)\n", header.c_str(), current_line.c_str(), player_begin_y);
+    current_line = current_line.substr(header.size());
+    LOG(1, "INFO", "Zeroth chop: %s\n", current_line.c_str());
+    const char* chop_first_value = current_line.substr(0, current_line.size() - header.size()).c_str();
+    *player_begin_y = atoi(chop_first_value);
+    LOG(1, "INFO", "parse_player_begin_position - (chop_first=%s, y=%i)\n", chop_first_value, *player_begin_y);
+}
+
+std::string inline get_metadata_line_header(size_t map_idx) {
+    return "#define MAP" + std::to_string(map_idx) + "_METADATA";
+}
+
+std::string inline get_row_line_header(size_t map_idx) {
+    return "#define MAP" + std::to_string(map_idx);
+}
+
+std::string inline get_player_begin_x_header(size_t map_idx) {
+    return "#define MAP" + std::to_string(map_idx) + "_PLAYER_BEGIN_POSITION_X";
+}
+
+std::string inline get_player_begin_y_header(size_t map_idx) {
+    return "#define MAP" + std::to_string(map_idx) + "_PLAYER_BEGIN_POSITION_Y";
+}
+
 void MapEditor::Load() {
     LOG(1, "TRACE", "Load()\n");
 
     std::string line;
     size_t line_number = 0;
-    int x, y;
+    int map_begin_x, map_begin_y;
+    int player_begin_x, player_begin_y;
 
     size_t map_size = sizeof(int) * 16;
 
@@ -1126,6 +1199,12 @@ void MapEditor::Load() {
     void* begin_map = map;
 
     size_t offset = 0;
+    size_t map_idx = 0;
+
+    std::string metadata_line_header = get_metadata_line_header(map_idx);
+    std::string row_line_header = get_row_line_header(map_idx);
+    std::string player_begin_x_header = get_player_begin_x_header(map_idx);
+    std::string player_begin_y_header = get_player_begin_y_header(map_idx);
 
     std::ifstream file = open_file(MAP_FILE);
     for (;;) {
@@ -1134,13 +1213,25 @@ void MapEditor::Load() {
 
         LOG(1, "INFO", "Line: %s\n", line.c_str());
 
-        if (line.starts_with("#define MAP0_METADATA")) {
-            parse_metadata(line, &x, &y);
-            LOG(1, "INFO", "TL: [%i,%i]\n", x, y);
+        if (line.starts_with(metadata_line_header)) {
+            parse_metadata(line, &map_begin_x, &map_begin_y);
+            LOG(1, "INFO", "TL: [%i,%i]\n", map_begin_x, map_begin_y);
             continue;
         }
 
-        if (line.starts_with("#define MAP0")) {
+        if (line.starts_with(player_begin_x_header)) {
+            parse_player_begin_position_x(player_begin_x_header, line, &player_begin_x);
+        }
+        if (line.starts_with(player_begin_y_header)) {
+            parse_player_begin_position_y(player_begin_y_header, line, &player_begin_y);
+            LOG(1, "INFO", "Player Begin Position: [%i,%i]\n", player_begin_x, player_begin_y);
+            continue;
+        }
+
+        if (line.starts_with(row_line_header)) {
+            map_idx++;
+            metadata_line_header = get_metadata_line_header(map_idx);
+            row_line_header = get_row_line_header(map_idx);
             continue;
         }
 
@@ -1148,8 +1239,8 @@ void MapEditor::Load() {
     }
     file.close();
 
-    _prev_map.first_tile_x = x;
-    _prev_map.first_tile_y = y;
+    _prev_map.first_tile_x = map_begin_x;
+    _prev_map.first_tile_y = map_begin_y;
 
     size_t end = begin_map + sizeof(int) * 16;
 

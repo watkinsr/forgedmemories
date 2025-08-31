@@ -128,8 +128,8 @@ private:
     void _SetTextureLocations();
     uint64_t _tick;
     uint32_t _deltaTick;
-    const uint16_t PLAYER_BEGIN_X = SCREEN_WIDTH/2 - PLAYER_WIDTH/2;
-    const uint16_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
+    uint16_t PLAYER_BEGIN_X = SCREEN_WIDTH/2 - PLAYER_WIDTH/2;
+    uint16_t PLAYER_BEGIN_Y = SCREEN_HEIGHT/2 - PLAYER_HEIGHT/2;
     int32_t _player_x = PLAYER_BEGIN_X;
     int32_t _player_y = PLAYER_BEGIN_Y;
     int _camera_x = 0;
