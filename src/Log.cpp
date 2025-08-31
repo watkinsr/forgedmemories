@@ -29,13 +29,13 @@ int LOG_nodt(int prio, const char *tag, const char *fmt, ...) {
 
      if (std::strcmp(tag, "PERF") == 0) {
 #ifndef PERF
-         return;
+         return 0;
 #endif
      }
 
      if (std::strcmp(tag, "VERBOSE") == 0) {
 #ifndef VERBOSE
-         return;
+         return 0;
 #endif
     }
 

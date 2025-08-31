@@ -1,3 +1,5 @@
+#ifndef __EMSCRIPTEN__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <execinfo.h>
@@ -16,3 +18,12 @@
     backtrace_symbols_fd(bt, bt_size, STDERR_FILENO);                    \
     abort();                                                             \
   } while (0)
+
+#else
+
+#define ASSERT_NOT_REACHED()                                             \
+  do {                                                                   \
+    abort();                                                             \
+  } while (0)
+
+#endif

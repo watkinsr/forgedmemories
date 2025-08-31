@@ -194,7 +194,7 @@ SDL_Texture* Common::LoadText(FONT_SIZE font_size, std::string_view data, SDL_Re
     SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
     SDL_FreeSurface(surface);
     if (text_texture == NULL) {
-        printf("Panic: Failed to create texture for text, abort.\n");
+        printf("Panic: Failed to create texture for text(%s), abort.\n", text);
         exit(EXIT_FAILURE);
     }
     pair<int, int> texture_dims = GetTextureDimensions(text_texture);
@@ -247,7 +247,7 @@ void Common::LoadTexture(const uint8_t scene_idx, gametexture_t game_texture) {
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(_renderer, surface);
         SDL_FreeSurface(surface);
         if (text_texture == NULL) {
-            printf("Panic: Failed to create texture for text, abort.\n");
+            printf("Panic: Failed to create texture for text(%s), abort.\n", text);
             exit(EXIT_FAILURE);
         }
         pair<int, int> texture_dims = GetTextureDimensions(text_texture);

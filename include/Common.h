@@ -109,7 +109,7 @@ private:
     std::function<void(TTF_Font*)> fontDeleter;
     const uint8_t  SCENE_STACK_MAX_SIZE = 2;
     void _SetTextureLocations();
-    char* _app_name;
+    const char* _app_name;
     uint32_t _tick;
     uint32_t _deltaTick;
     SDL_Texture*                                                      _back_buffer;

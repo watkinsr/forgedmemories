@@ -38,5 +38,11 @@ build/game: $(GAME_OBJS)
 	mkdir -p build
 	g++ $(CPPFLAGS) -o build/game $(GAME_OBJS) $(LDLIBS) $(LDFLAGS)
 
-index.html: $(OBJS)
-	emcc -I./include src/Game.cpp src/Log.cpp src/Common.cpp  --emrun --embed-file assets@/assets -sUSE_SDL=2 -sUSE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -o index.html 
+bozohttpd-20240126:
+	tar -xf bozohttpd-20240126.tar.bz2
+	cd bozohttpd-20240126 && make -f Makefile.boot
+
+index.html: $(OBJS) bozohttpd-20240126
+	emcc -I./include src/Game.cpp src/Log.cpp src/Common.cpp  --emrun --embed-file assets@/assets -sUSE_SDL=2 -sUSE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -o index.html
+	pkill -9 bozohttpd || echo "Go !"
+	bozohttpd-20240126/bozohttpd -b . -I 8000 -i 0.0.0.0

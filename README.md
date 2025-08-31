@@ -32,7 +32,7 @@ make
 ```
 
 ## WASM32
-### Build
+### Build EMCC Dependency
 ```sh
 git clone https://github.com/emscripten-core/emsdk.git
 cd emsdk
@@ -41,16 +41,10 @@ git pull
 ./emsdk activate latest
 source ./emsdk_env.sh
 make
-
-tar -xf bozohttpd-20240126.tar.bz2
-cd bozohttpd-20240126
-make -f Makefile.boot
 ```
 
 ### Run
-You can probably serve it from somewhere else but `bozohttpd` seems lightweight and works.
-See: http://www.eterna23.net/bozohttpd/
 ```
-./serve.sh
+make -B index.html
 ```
-Then head to localhost:8000 to see the game.
+Then head to 0.0.0.0:8000 to see the game. It's in a very immature state and *highly* to break.
