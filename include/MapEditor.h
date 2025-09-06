@@ -50,12 +50,21 @@ static constexpr void SetMapFile() {
     LOG(1, "INFO", "Map file: %s\n", MAP_FILE);
 }
 
-struct Placements {
-    uint8_t tag;
-    std::vector<Placement> data;
+std::set<Placement, OrderHorizontally> g_placements;
+
+struct OrderVerticalPtr {
+    using is_transparent = void; // enable heterogeneous lookup with ints
+
+    bool operator()(Placement const* a, Placement const* b) const {
+        return std::tie(a->x,a->y,a->sprite_x_idx,a->sprite_y_idx,a->texture_idx,a->tag)
+             < std::tie(b->x,b->y,b->sprite_x_idx,b->sprite_y_idx,b->texture_idx,b->tag);
+    }
+    // For lower/upper_bound with an int key directly:
+    bool operator()(Placement const* a, int key_x) const { return a->x < key_x; }
+    bool operator()(int key_x, Placement const* a) const { return key_x < a->x; }
 };
 
-std::set<Placement, OrderHorizontally> g_placements;
+std::set<Placement const*, OrderVerticalPtr> g_placements_by_x_ptrs;
 
 class MapEditor {
 public:

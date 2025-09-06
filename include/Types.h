@@ -35,8 +35,8 @@ struct SpriteSelection {
 };
 
 struct Placement {
-    uint16_t x;
-    uint16_t y;
+    int16_t x;
+    int16_t y;
     uint16_t sprite_x_idx;
     uint16_t sprite_y_idx;
     uint8_t texture_idx;

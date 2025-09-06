@@ -139,7 +139,8 @@ void inline BlitMarkedMap(int top_left_x, int top_right_y) {
 }
 
 void store_placement(std::shared_ptr<Common> common_ptr, Placement p) {
-    g_placements.insert(std::move(p));
+    auto [it, inserted] = g_placements.insert(std::move(p));
+    if (inserted) g_placements_by_x_ptrs.insert(&*it);
     LOG(1, "INFO", "Stored <Placement [%i,%i]>\n", p.x, p.y);
 }
 
@@ -320,41 +321,80 @@ NextPlacements search_next_placements(uint8_t direction) {
 
     NextPlacements next_placements = {0};
 
+    const auto origin_end_placement_area_x = ((SCREEN_WIDTH-212)/32) * 32;
     const auto origin_end_placement_area_y = ((SCREEN_HEIGHT-64)/32) * 32;
     int64_t next_strip_y;
+    int64_t next_strip_x;
+    Placement lo;
+    Placement hi;
     if (direction == PLACEMENT_MOVE_GRID_DOWN) {
         next_strip_y = ((camera.y  + PLACEMENT_TILE_DIST) - 64) * -1;
     } else if (direction == PLACEMENT_MOVE_GRID_UP) {
         next_strip_y = origin_end_placement_area_y + (camera.y - PLACEMENT_TILE_DIST) * -1;
+    } else if (direction == PLACEMENT_MOVE_GRID_LEFT) {
+        next_strip_x = origin_end_placement_area_x + (camera.x - PLACEMENT_TILE_DIST) * -1;
+    } else {
+        next_strip_x = (camera.x  + PLACEMENT_TILE_DIST) * -1;
     }
 
-    LOG(1, "TRACE", "search_next_placements - search(x=%i, y=%i), origins(begin=?, end=%u)\n", camera.x, next_strip_y, origin_end_placement_area_y);
+    bool is_horizontal_movement = (direction == PLACEMENT_MOVE_GRID_LEFT || direction == PLACEMENT_MOVE_GRID_RIGHT);
+    bool is_vertical_movement = (direction == PLACEMENT_MOVE_GRID_DOWN || direction == PLACEMENT_MOVE_GRID_UP);
 
-    Placement low = {.x = std::numeric_limits<uint16_t>::min(), .y = next_strip_y};
-    Placement high = {.x = std::numeric_limits<uint16_t>::max(), .y = next_strip_y};
+    if (is_vertical_movement) {
+        lo =  {.x = std::numeric_limits<int16_t>::min(), .y = next_strip_y};
+        hi =  {.x = std::numeric_limits<int16_t>::max(), .y = next_strip_y};
+    } else {
+        lo =  {.x = next_strip_x, .y = std::numeric_limits<int16_t>::min()};
+        hi =  {.x = next_strip_x, .y = std::numeric_limits<int16_t>::max()};
+    }
 
-    auto first = g_placements.lower_bound(low);
-    auto last  = g_placements.upper_bound(high);
+    LOG(1, "INFO", "camera(x=%i, y=%i) origin(end=%i)\n", camera.x, camera.y, origin_end_placement_area_x);
+    LOG(1, "INFO", "lo(x=%i, y=%i), hi(x=%i, y=%i), origin(begin=?, end=%u)\n", lo.x, lo.y, hi.x, hi.y, origin_end_placement_area_y);
 
-    next_placements.len = std::distance(first, last);
-    if (next_placements.len > 0) {
-        Placement** ptrs = new Placement*[next_placements.len];
-        std::size_t i = 0;
-        for (auto it = first; it != last; ++it, ++i) {
-            ptrs[i] = const_cast<Placement*>(&*it);
+    if (is_horizontal_movement) {
+        auto first = g_placements_by_x_ptrs.lower_bound(&lo);
+        auto last = g_placements_by_x_ptrs.upper_bound(&hi);
+
+        next_placements.len = std::distance(first, last);
+        if (next_placements.len > 0) {
+            Placement** ptrs = new Placement*[next_placements.len];
+            std::size_t i = 0;
+            for (auto it = first; it != last; ++it, ++i) {
+                Placement* placement_ptr = *it;
+                ptrs[i] = placement_ptr;
+            }
+            next_placements.data = ptrs;
         }
-        next_placements.data = ptrs;
+    }
+
+    if (is_vertical_movement) {
+        auto first = g_placements.lower_bound(lo);
+        auto last = g_placements.upper_bound(hi);
+
+        next_placements.len = std::distance(first, last);
+        if (next_placements.len > 0) {
+            Placement** ptrs = new Placement*[next_placements.len];
+            std::size_t i = 0;
+            for (auto it = first; it != last; ++it, ++i) {
+                ptrs[i] = const_cast<Placement*>(&*it);
+            }
+            next_placements.data = ptrs;
+        }
     }
     return next_placements;
 }
 
 void inline draw_next_placements(SDL_Renderer* _renderer, NextPlacements& next_placements, SDL_Rect* src, SDL_Rect* dst, SceneData* scene_data) {
     SDL_Texture* data;
+    for (auto it = g_placements.begin(); it != g_placements.end(); ++it) {
+        const Placement& p = *it;
+        LOG(1, "INFO", "<Placement .x=%i, .y=%i>\n", p.x, p.y);
+    }
     for (std::size_t i = 0; i < next_placements.len; ++i) {
         const Placement& placement = *(next_placements.data[i]);
         LOG(1, "INFO", "Found <Placement .x=%i, .y=%i>\n", placement.x, placement.y);
         *src = {placement.sprite_x_idx*16, placement.sprite_y_idx*16, 16, 16};
-        *dst = {placement.x, placement.y + camera.y, 32, 32};
+        *dst = {placement.x + camera.x, placement.y + camera.y, 32, 32};
         data = get_texture_by_entity_tag(scene_data, placement.tag);
         SDL_RenderCopy(_renderer, data, src, dst);
     }
@@ -419,6 +459,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             offset_x_begin = (SCREEN_WIDTH-180) - ((SCREEN_WIDTH-180) % PLACEMENT_TILE_DIST) - PLACEMENT_TILE_DIST;
             draw_vertical_strip(_renderer, offset_x_begin, offset_x_begin+PLACEMENT_TILE_DIST, grid_height);
+            draw_next_placements(_renderer, next_placements, &src, &dst, scene_data);
             break;
         case PLACEMENT_MOVE_GRID_RIGHT:
             camera.x += PLACEMENT_TILE_DIST;
@@ -427,6 +468,7 @@ void MapEditor::BlitPlacementArea(uint8_t direction) {
             dst = {PLACEMENT_TILE_DIST, grid_begin_y, placement_bar_width-PLACEMENT_TILE_DIST, grid_height};
             SDL_RenderCopy(_renderer, _back_buffer, &src, &dst);            // Copy shifted placement grid.
             draw_vertical_strip(_renderer, 0, PLACEMENT_TILE_DIST, grid_height);
+            draw_next_placements(_renderer, next_placements, &src, &dst, scene_data);
             break;
         default:
             src = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
@@ -1032,8 +1074,6 @@ void save_map(const vector<Placement>& tile, const uint8_t map_idx, const Vector
     out_file << "}" << endl;
 }
 
-
-
 void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
     LOG(1, "INFO", "MapEditor::TryToPlace(mouse_x=%i, mouse_y=%i)\n", mouse_x, mouse_y);
 
@@ -1071,7 +1111,7 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
-    // LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
+    LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }
@@ -1320,24 +1360,6 @@ void MapEditor::Load() {
     LOG(1, "INFO", "Restored %u placements.\n", placements_restored);
 }
 
-void initialize_the_mapeditor() {
-    LOG(1, "TRACE", "initialize_the_mapeditor()\n");
-    marked_maps = arena_alloc(&default_arena, sizeof(Marked_Maps));
-    common_ptr = std::make_shared<Common>("MapEditor", BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
-    map_editor = std::make_unique<MapEditor>(common_ptr);
-
-    Message message = {
-        .lines = {"No mode currently active."},
-        .word_wrap = true,
-        .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
-    };
-    map_editor->BlitMessage(message);
-    SetMapFile();
-    map_editor->Load();
-    map_editor->FillBackBufferInitial();
-    map_editor->SwapBuffers();
-}
-
 void MapEditor::FillBackBufferInitial() {
     LOG(1, "TRACE", "MapEditor::FillBackBufferInitial\n");
     SDL_Renderer* _renderer = _common->GetRenderer();
@@ -1509,6 +1531,25 @@ static Uint64 seconds = 1;                 // Seconds rendered.
 void move_placement_area(uint8_t direction) {
     LOG(1, "TRACE", "MapEditor::placement_move(%u)\n", direction);
     map_editor->BlitPlacementArea(direction);
+}
+
+void initialize_the_mapeditor() {
+    LOG(1, "TRACE", "initialize_the_mapeditor()\n");
+    marked_maps = arena_alloc(&default_arena, sizeof(Marked_Maps));
+    common_ptr = std::make_shared<Common>("MapEditor", BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
+    map_editor = std::make_unique<MapEditor>(common_ptr);
+
+    Message message = {
+        .lines = {"No mode currently active."},
+        .word_wrap = true,
+        .line_width = (unsigned int)(MESSAGE_RIGHT_PANEL_WIDTH * (float)(RIGHT_PANEL_WIDTH))
+    };
+    map_editor->BlitMessage(message);
+    SetMapFile();
+    map_editor->Load();
+    map_editor->FillBackBufferInitial();
+    map_editor->SwapBuffers();
+    LOG(1, "INFO", "camera(x=%i, y=%i)\n", camera.x, camera.y);
 }
 
 static void mainloop(void) {
