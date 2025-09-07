@@ -9,6 +9,7 @@
 #include "arena.h"
 
 static Arena default_arena = {0};
+static Arena load_map_arena = {0};
 static Arena temporary_arena = {0};
 
 #include <cmath>
@@ -1111,7 +1112,7 @@ void MapEditor::TryToPlace(const int mouse_x, const int mouse_y) {
 }
 
 void MapEditor::UpdateMouseCoords(int x, int y) {
-    LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
+    // LOG(1, "DEBUG", "Mouse(x=%i, y=%i)\n", x, y);
     _mouse_x = x;
     _mouse_y = y;
 }
@@ -1177,14 +1178,14 @@ static void inline parse_row(std::string& current_line, void* map, size_t* offse
         if (dist == 0) {
             dist = next_token_dist(current_line, '\\');
             if (dist == 0) {
-                LOG(1, "WARN", "(dist=%d, line=%s, line_size=%d)\n", dist, current_line.c_str(), current_line.size());
+                // LOG(1, "WARN", "(dist=%d, line=%s, line_size=%d)\n", dist, current_line.c_str(), current_line.size());
                 break;
             }
         }
         const char* chopped_value = current_line.substr(0, dist).c_str();
         current_line.erase(0, dist);
         int sprite_encoding = atoi(chopped_value);
-        LOG(1, "INFO", "(chop=%s, dist=%d, encoding=%i, first_token=%c)\n", chopped_value, dist, sprite_encoding, first_token);
+        // LOG(1, "INFO", "(chop=%s, dist=%d, encoding=%i, first_token=%c)\n", chopped_value, dist, sprite_encoding, first_token);
         std::memcpy(map + *offset, &sprite_encoding, sizeof(sprite_encoding));
         *offset += sizeof(int32_t); // Move along by int32_t
         current_line.erase(0, 1); // Drop the comma
@@ -1225,88 +1226,79 @@ std::string inline get_player_begin_y_header(size_t map_idx) {
     return "#define MAP" + std::to_string(map_idx) + "_PLAYER_BEGIN_POSITION_Y";
 }
 
-void MapEditor::Load() {
-    LOG(1, "TRACE", "Load()\n");
+typedef struct ParsedMapMetadata {
+    int x;
+    int y;
+    int player_begin_x;
+    int player_begin_y;
+    std::string metadata_line_header;
+    std::string row_line_header;
+    std::string player_begin_x_header;
+    std::string player_begin_y_header;
 
-    std::string line;
-    size_t line_number = 0;
-    int map_begin_x, map_begin_y;
-    int player_begin_x, player_begin_y;
-
-    size_t map_size = sizeof(int) * 16;
-
-    void* map = arena_alloc(&default_arena, map_size);
-    void* begin_map = map;
-
-    size_t offset = 0;
-    size_t map_idx = 0;
-
-    std::string metadata_line_header = get_metadata_line_header(map_idx);
-    std::string row_line_header = get_row_line_header(map_idx);
-    std::string player_begin_x_header = get_player_begin_x_header(map_idx);
-    std::string player_begin_y_header = get_player_begin_y_header(map_idx);
-
-    std::ifstream file = open_file(MAP_FILE);
-    for (;;) {
-        if (!std::getline(file, line)) break;
-        if (line.starts_with("}")) break; // FIXME: We need to be able to handle >1 map.
-
-        LOG(1, "INFO", "Line: %s\n", line.c_str());
-
-        if (line.starts_with(metadata_line_header)) {
-            parse_metadata(line, &map_begin_x, &map_begin_y);
-            LOG(1, "INFO", "TL: [%i,%i]\n", map_begin_x, map_begin_y);
-            continue;
-        }
-
-        if (line.starts_with(player_begin_x_header)) {
-            parse_player_begin_position_x(player_begin_x_header, line, &player_begin_x);
-        }
-        if (line.starts_with(player_begin_y_header)) {
-            parse_player_begin_position_y(player_begin_y_header, line, &player_begin_y);
-            LOG(1, "INFO", "Player Begin Position: [%i,%i]\n", player_begin_x, player_begin_y);
-            continue;
-        }
-
-        if (line.starts_with(row_line_header)) {
-            map_idx++;
-            metadata_line_header = get_metadata_line_header(map_idx);
-            row_line_header = get_row_line_header(map_idx);
-            continue;
-        }
-
-        parse_row(line, map, &offset);
+    void build_headers(size_t map_idx) {
+        metadata_line_header = get_metadata_line_header(map_idx);
+        row_line_header = get_row_line_header(map_idx);
+        player_begin_x_header = get_player_begin_x_header(map_idx);
+        player_begin_y_header = get_player_begin_y_header(map_idx);
     }
-    file.close();
+    void next_map() {
+        player_begin_x = 0;
+        player_begin_y = 0;
+        x = 0;
+        y = 0;
+    }
+};
 
-    _prev_map.first_tile_x = map_begin_x;
-    _prev_map.first_tile_y = map_begin_y;
+void inline normalize_encoding(uint8_t* tag, int* encoding, size_t* tag_offset) {
+    int prev_encoding = *encoding;
+    uint8_t* next_tag = tag + *tag_offset;
+    // LOG(1, "TRACE", "normalize_encoding - next_tag=%p\n", next_tag);
+    if (*encoding >= 100 && *encoding < 200) {
+        LOG(1, "TRACE", "norm(tag=%p, encoding=%i, tag_offset=%u, type=%s)\n", tag, *encoding, *tag_offset, "map_sprite");
+        *next_tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
+        int next_encoding = *encoding - 100;
+        // LOG(1, "INFO", "=> Next encoding: %i\n", next_encoding);
+        *encoding = next_encoding;
+        *tag_offset += 1;
+    }
+    else if (*encoding >= 200) {
+        LOG(1, "TRACE", "norm(tag=%p, encoding=%i, tag_offset=%u, type=%s)\n", tag, *encoding, *tag_offset, "player_sprite");
+        *next_tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
+        int next_encoding = *encoding - 200;
+        *encoding = next_encoding;
+        *tag_offset += 1;
+    }
 
-    size_t end = begin_map + sizeof(int) * 16;
+    if (*encoding < -1 || *encoding > 300) {
+        LOG(1, "PANIC", "Unexpected (prev=%i, next=%i)\n", prev_encoding, *encoding);
+        ASSERT_NOT_REACHED();
+    }
+    LOG(1, "INFO", "normalize_encoding - (prev=%i, next=%i, tag=%u)\n", prev_encoding, *encoding, *next_tag);
+}
 
-    LOG(1, "INFO", "begin_map_ptr: %p\n", begin_map);
-    LOG(1, "INFO", "map_ptr: %p\n", map);
+void load_placements(ParsedMapMetadata* meta_ptr, void* map) {
+    LOG(1, "TRACE", "load_placements(meta_ptr=%p, map_ptr=%p)\n", meta_ptr, map);
+
+    size_t tag_offset = 0;
+    void* begin_map = map;
+    void* end_map = static_cast<char*>(begin_map) + sizeof(int) * 16;
+    void* tag_ptr = arena_alloc(&load_map_arena, 16);
 
     std::vector<std::vector<int>> tiles(4, std::vector<int>(4));
 
     size_t tile_idx = 0;
     size_t counter = 0;
 
-    while(begin_map < end) {
-        const int* encoding = static_cast<const int*>(begin_map);
-        LOG(1, "INFO", "encoding: %i\n", *encoding);
+    while(begin_map < end_map) {
+        const int* encoding = static_cast<int*>(begin_map);
+        normalize_encoding(tag_ptr, encoding, &tag_offset);
         auto row_idx = counter%4;
         tiles[tile_idx][row_idx] = *encoding;
         begin_map+=sizeof(int);
         counter++;
         tile_idx = counter/4;
     }
-    _prev_map.tiles = std::move(tiles);
-
-    Placement placement = {
-        .x = _prev_map.first_tile_x,
-        .y = _prev_map.first_tile_y,
-    };
 
     int x_offset_idx = 0;
     int y_offset_idx = 0;
@@ -1314,42 +1306,30 @@ void MapEditor::Load() {
     uint8_t y_idx = 0;
     bool first_placement_set = false;
     uint8_t placements_restored = 0;
-    uint8_t tag;
+    Placement placement = { .x = meta_ptr->x, .y = meta_ptr->y };
 
-    for (const auto& tile : _prev_map.tiles) {
+    for (const auto& tile : tiles) {
         for (auto v : tile) {
-            if (v >= 100 && v < 200) {
-                tag = (SPRITE_TAG | BACKGROUND_SPRITE_FLAG);
-                v-=100;
-            }
-            else if (v >= 200) {
-                tag = (SPRITE_TAG | PLAYER_SPRITE_FLAG);
-                v-=200;
-            }
-            else if (v < -1 || v > 300) {
-                LOG(1, "PANIC", "Unexpected encoding: %i\n", v);
-                ASSERT_NOT_REACHED();
-            }
-
+            const uint8_t* tag = static_cast<const uint8_t*>((tag_ptr + (placements_restored * sizeof(uint8_t))));
             if (v != -1 && !first_placement_set) {
                 placement.sprite_x_idx = v / 16;
                 placement.sprite_y_idx = v % 16;
-                placement.tag = tag;
+                placement.tag = *tag;
                 x_offset_idx = x_idx;
                 first_placement_set = true;
-                store_placement(_common, placement);
+                store_placement(common_ptr, placement);
                 placements_restored++;
             } else if (v != -1) {
                 const int x_offset = x_idx - x_offset_idx;
                 const int y_offset = y_idx - y_offset_idx;
                 Placement p = Placement {
-                    .x = _prev_map.first_tile_x + (x_offset * 32),
-                    .y = _prev_map.first_tile_y + (y_offset * 32),
+                    .x = meta_ptr->x + (x_offset * 32),
+                    .y = meta_ptr->y + (y_offset * 32),
                     .sprite_x_idx = v / 16,
                     .sprite_y_idx = v % 16,
-                    .tag = tag,
+                    .tag = *tag,
                 };
-                store_placement(_common, p);
+                store_placement(common_ptr, p);
                 placements_restored++;
             }
             x_idx++;
@@ -1358,6 +1338,64 @@ void MapEditor::Load() {
         x_idx = 0;
     }
     LOG(1, "INFO", "Restored %u placements.\n", placements_restored);
+
+    arena_free(&load_map_arena);
+}
+
+bool starts_with_ignoring_spaces(std::string_view line, char c) {
+    auto it = std::find_if_not(line.begin(), line.end(),
+                               [](unsigned char ch){ return std::isspace(ch); });
+    return it != line.end() && *it == c;
+}
+
+void MapEditor::Load() {
+    LOG(1, "TRACE", "Load()\n");
+
+    std::string line;
+    size_t line_number = 0;
+
+    size_t map_idx = 0;
+    ParsedMapMetadata meta = {0};
+    meta.build_headers(map_idx);
+
+    size_t map_size = sizeof(int) * 16;
+    void* map = arena_alloc(&load_map_arena, 64);
+    LOG(1, "INFO", "MapEditor::Load - map_ptr=%p\n", map);
+
+    size_t offset = 0;
+
+    std::ifstream file = open_file(MAP_FILE);
+    while (std::getline(file, line)) {
+        LOG(1, "INFO", "Line: %s\n", line.c_str());
+
+        if (line.starts_with(meta.metadata_line_header)) {
+            parse_metadata(line, &meta.x, &meta.y);
+            LOG(1, "INFO", "TL: [%i,%i]\n", meta.x, meta.y);
+            continue;
+        }
+        if (line.starts_with(meta.player_begin_x_header)) {
+            parse_player_begin_position_x(meta.player_begin_x_header, line, &meta.player_begin_x);
+        }
+        if (line.starts_with(meta.player_begin_y_header)) {
+            parse_player_begin_position_y(meta.player_begin_y_header, line, &meta.player_begin_y);
+            LOG(1, "INFO", "Player Begin Position: [%i,%i]\n", meta.player_begin_x, meta.player_begin_y);
+            continue;
+        }
+        if (starts_with_ignoring_spaces(line, '}')) {
+            load_placements(&meta, map);
+            LOG(1, "INFO", "Move to next map parsing.\n");
+            map = arena_alloc(&load_map_arena, 64);
+            map_idx++;
+            meta.build_headers(map_idx);
+            meta.next_map();
+            offset = 0;
+        }
+        if (starts_with_ignoring_spaces(line, '{')) {
+            LOG(1, "INFO", "parse_row(%s)\n", line.c_str());
+            parse_row(line, map, &offset);
+        }
+    }
+    file.close();
 }
 
 void MapEditor::FillBackBufferInitial() {
